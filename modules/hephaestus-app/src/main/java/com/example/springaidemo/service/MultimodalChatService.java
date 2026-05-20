@@ -82,7 +82,7 @@ public class MultimodalChatService {
 
             判断规则：
             1. 如果用户明确要求生成、绘制、画图、做海报、做插画、根据附件生成图片，则 generateImage=true。
-            2. 如果用户只是提问、总结、分析、解释附件，则 generateImage=false。
+            2. 如果用户明确表示不要图片、只要文字、仅做总结/分析/解释且不出图，则 generateImage=false。
             3. 如果 generateImage=true，请把用户要求和附件关键信息整理成清晰的 imagePrompt。
             4. 如果模型无法理解附件，请在 reply 中用中文说明。
             """;
@@ -116,6 +116,7 @@ public class MultimodalChatService {
             if (decision.generateImage()) {
                 return imageResponse(context, file, conversationId, decision.imagePrompt());
             }
+            return new MultimodalResponse("TEXT", decision.reply(), false, "", null, context.attachments(), null);
         }
 
         String reply = collectContent(streamTextReply(context.message(), file, context.inlineAttachmentText(), conversationId)
@@ -135,6 +136,7 @@ public class MultimodalChatService {
             if (decision.generateImage()) {
                 return imageStreamPlan(context, file, conversationId, decision.imagePrompt());
             }
+            return StreamPlan.text(context.attachments(), Flux.just(decision.reply() == null ? "" : decision.reply()));
         }
 
         return StreamPlan.text(
@@ -204,12 +206,16 @@ public class MultimodalChatService {
         if (normalized.isBlank()) {
             return false;
         }
-        return containsDecisionCue(normalized);
+        if (containsExplicitNoImageIntent(normalized)) {
+            return false;
+        }
+        return containsVisualIntentHint(normalized);
     }
 
     private boolean containsImageGenerationIntent(String message) {
         return message.contains("生成图片")
                 || message.contains("生成一张")
+                || message.contains("生成一幅")
                 || message.contains("画一张")
                 || message.contains("画个")
                 || message.contains("画一个")
@@ -219,7 +225,9 @@ public class MultimodalChatService {
                 || message.contains("海报")
                 || message.contains("插画")
                 || message.contains("封面图")
-                || message.contains("配图")
+                || message.contains("帮我生成")
+                || message.contains("给我生成")
+                || message.contains("帮我用这段话生成")
                 || message.contains("参考这张图生成")
                 || message.contains("参考附件生成")
                 || message.contains("image")
@@ -227,14 +235,36 @@ public class MultimodalChatService {
                 || message.contains("illustration");
     }
 
-    private boolean containsDecisionCue(String message) {
-        return message.contains("配图")
-                || message.contains("要不要画")
-                || message.contains("适合什么图")
-                || message.contains("是否需要图片")
-                || message.contains("参考")
-                || message.contains("看这个")
-                || message.contains("封面");
+    private boolean containsExplicitNoImageIntent(String message) {
+        return message.contains("不要图片")
+                || message.contains("不用图片")
+                || message.contains("不需要图片")
+                || message.contains("不要生成图片")
+                || message.contains("不用生成图片")
+                || message.contains("仅文字")
+                || message.contains("只要文字")
+                || message.contains("纯文字")
+                || message.contains("不要配图")
+                || message.contains("只分析")
+                || message.contains("只总结")
+                || message.contains("只解释");
+    }
+
+    private boolean containsVisualIntentHint(String message) {
+        return message.contains("图片")
+                || message.contains("图像")
+                || message.contains("画面")
+                || message.contains("配图")
+                || message.contains("插画")
+                || message.contains("海报")
+                || message.contains("封面")
+                || message.contains("截图")
+                || message.contains("视觉")
+                || message.contains("风格")
+                || message.contains("prompt")
+                || message.contains("image")
+                || message.contains("poster")
+                || message.contains("illustration");
     }
 
     private Decision decide(ChatRequestContext context, MultipartFile file, String conversationId) {
@@ -423,7 +453,6 @@ public class MultimodalChatService {
         String attachmentTextSnippet = context == null ? "" : context.decisionAttachmentPreview();
         return """
                 请基于以下结构化信息判断本轮是否需要生成图片。
-
                 [userMessage]
                 %s
 

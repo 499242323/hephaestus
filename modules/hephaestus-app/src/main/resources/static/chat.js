@@ -1,10 +1,11 @@
 (function () {
-    const DEFAULT_SESSION_TITLE = "新聊天";
+    const DEFAULT_SESSION_TITLE = "新建聊天";
+    const DEFAULT_HINT_TEXT = "Enter 发送，Shift + Enter 换行，Ctrl + V 可粘贴图片或文件";
     const EMPTY_STATE_HTML = [
         '<div class="messages-inner">',
         '  <div class="empty">',
         '    <strong>今天想聊点什么？</strong>',
-        '    <span>Hephaestus 可以理解附件、持续流式回复，也可以根据描述生成图片。</span>',
+        '    <span>Hephaestus 可以理解附件、流式回复，也可以生成图片。</span>',
         '  </div>',
         '</div>'
     ].join("");
@@ -30,12 +31,11 @@
 
     let selectedFile = null;
     let previewUrl = null;
-    let pendingUserMessage = null;
     let activeSessionId = "";
-    let busy = false;
-    let streamingSessionId = null;
-    let streamingState = null;
+    let pendingUserMessage = null;
+
     const sessions = [];
+    const streamStates = new Map();
 
     function createSessionId() {
         return `hephaestus_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
@@ -46,7 +46,9 @@
             id: createSessionId(),
             title: title || DEFAULT_SESSION_TITLE,
             createdAt: Date.now(),
-            messagesHtml: EMPTY_STATE_HTML
+            messagesHtml: EMPTY_STATE_HTML,
+            scrollTop: 0,
+            autoScroll: true
         };
     }
 
@@ -54,18 +56,21 @@
         return sessions.find((item) => item.id === activeSessionId) || null;
     }
 
-    function saveActiveSessionSnapshot() {
-        const session = getActiveSession();
-        if (!session) {
-            return;
-        }
-        session.messagesHtml = messages.innerHTML || EMPTY_STATE_HTML;
+    function getSessionStreamState(sessionId) {
+        return streamStates.get(sessionId) || null;
     }
 
-    function showSession(session) {
-        messages.innerHTML = session && session.messagesHtml ? session.messagesHtml : EMPTY_STATE_HTML;
-        pendingUserMessage = null;
-        scrollMessagesToBottom();
+    function isSessionStreaming(sessionId) {
+        const state = getSessionStreamState(sessionId);
+        if (!state) {
+            return false;
+        }
+        const startedAt = Number(state.startedAt || 0);
+        if (startedAt > 0 && Date.now() - startedAt > 5 * 60 * 1000) {
+            streamStates.delete(sessionId);
+            return false;
+        }
+        return true;
     }
 
     function renderEmptyState() {
@@ -92,15 +97,33 @@
         const date = new Date(timestamp);
         const now = new Date();
         if (date.toDateString() === now.toDateString()) {
-            return date.toLocaleTimeString("zh-CN", {
-                hour: "2-digit",
-                minute: "2-digit"
-            });
+            return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
         }
-        return date.toLocaleDateString("zh-CN", {
-            month: "numeric",
-            day: "numeric"
-        });
+        return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+    }
+
+    function isNearBottom() {
+        const threshold = 48;
+        return messages.scrollHeight - messages.clientHeight - messages.scrollTop <= threshold;
+    }
+
+    function scrollMessagesToBottom() {
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function resizeInput() {
+        input.style.height = "auto";
+        input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+    }
+
+    function saveActiveSessionSnapshot() {
+        const session = getActiveSession();
+        if (!session) {
+            return;
+        }
+        session.messagesHtml = messages.innerHTML || EMPTY_STATE_HTML;
+        session.scrollTop = messages.scrollTop;
+        session.autoScroll = isNearBottom();
     }
 
     function renderSessionList() {
@@ -110,7 +133,6 @@
             button.type = "button";
             button.className = `session-item${session.id === activeSessionId ? " active" : ""}`;
             button.dataset.sessionId = session.id;
-            button.disabled = busy;
 
             const title = document.createElement("span");
             title.className = "session-title";
@@ -125,6 +147,22 @@
         });
     }
 
+    function showSession(session) {
+        messages.innerHTML = session && session.messagesHtml ? session.messagesHtml : EMPTY_STATE_HTML;
+        pendingUserMessage = null;
+        requestAnimationFrame(() => {
+            if (!session) {
+                scrollMessagesToBottom();
+                return;
+            }
+            if (session.autoScroll) {
+                scrollMessagesToBottom();
+            } else {
+                messages.scrollTop = session.scrollTop || 0;
+            }
+        });
+    }
+
     function activateSession(sessionId) {
         if (!sessionId || sessionId === activeSessionId) {
             return;
@@ -136,6 +174,7 @@
         input.value = "";
         resizeInput();
         renderSessionList();
+        syncComposerState();
         input.focus();
     }
 
@@ -149,20 +188,96 @@
         input.value = "";
         resizeInput();
         renderSessionList();
+        syncComposerState();
         input.focus();
     }
 
-    function updateSessionTitleFromMessage(message) {
+    function updateSessionTitleFromMessage(message, hasAttachment) {
         const session = getActiveSession();
         if (!session || session.title !== DEFAULT_SESSION_TITLE) {
             return;
         }
-        const source = (message || "").trim() || "附件对话";
+        const trimmed = (message || "").trim();
+        const source = trimmed || (hasAttachment ? "附件对话" : DEFAULT_SESSION_TITLE);
         session.title = source.length > 18 ? `${source.slice(0, 18)}…` : source;
         renderSessionList();
     }
 
+    function formatFileSize(bytes) {
+        if (!bytes) {
+            return "0 B";
+        }
+        if (bytes < 1024) {
+            return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function buildLocalMediaItem(file, objectUrl) {
+        return {
+            fileName: file.name || "附件",
+            contentType: file.type || "application/octet-stream",
+            fileSize: file.size || 0,
+            url: objectUrl || "#",
+            downloadUrl: objectUrl || "#",
+            localPreview: true
+        };
+    }
+
+    function renderMediaList(items) {
+        const list = document.createElement("div");
+        list.className = "media-list";
+        items.forEach((item) => {
+            const card = document.createElement("div");
+            card.className = "media-card";
+
+            if ((item.contentType || "").startsWith("image/")) {
+                const img = document.createElement("img");
+                img.src = item.url;
+                img.alt = "图片";
+                card.appendChild(img);
+            } else {
+                const fileCard = document.createElement("div");
+                fileCard.className = "file-card";
+
+                const meta = document.createElement("div");
+                meta.className = "file-meta";
+
+                const name = document.createElement("span");
+                name.className = "file-name";
+                name.textContent = item.fileName || "附件";
+
+                const size = document.createElement("span");
+                size.className = "file-size";
+                size.textContent = `${formatFileSize(item.fileSize || 0)} · ${item.contentType || "文件"}`;
+
+                const link = document.createElement("a");
+                link.href = item.downloadUrl || item.url || "#";
+                link.target = "_blank";
+                link.rel = "noreferrer";
+                link.textContent = "打开";
+
+                meta.append(name, size);
+                fileCard.append(meta, link);
+                card.appendChild(fileCard);
+            }
+
+            list.appendChild(card);
+        });
+        return list;
+    }
+
+    function renderMediaListHtml(items) {
+        const host = document.createElement("div");
+        host.appendChild(renderMediaList(items));
+        return host.innerHTML;
+    }
+
     function appendMessage(role, text, mediaItems) {
+        const shouldStickBottom = isNearBottom();
         clearEmptyState();
         const inner = ensureMessagesInner();
         const row = document.createElement("div");
@@ -170,6 +285,13 @@
 
         const bubble = document.createElement("div");
         bubble.className = "bubble";
+
+        if (role === "assistant") {
+            const name = document.createElement("div");
+            name.className = "message-name";
+            name.textContent = "Hephaestus";
+            bubble.appendChild(name);
+        }
 
         const content = document.createElement("div");
         content.className = "bubble-content";
@@ -185,12 +307,15 @@
 
         row.appendChild(bubble);
         inner.appendChild(row);
-        scrollMessagesToBottom();
+        if (shouldStickBottom) {
+            scrollMessagesToBottom();
+        }
         saveActiveSessionSnapshot();
         return { row, bubble, content, mediaContainer };
     }
 
     function createStreamingAssistantMessage() {
+        const shouldStickBottom = isNearBottom();
         clearEmptyState();
         const inner = ensureMessagesInner();
         const row = document.createElement("div");
@@ -212,58 +337,18 @@
         bubble.append(name, status, content);
         row.appendChild(bubble);
         inner.appendChild(row);
-        scrollMessagesToBottom();
+        if (shouldStickBottom) {
+            scrollMessagesToBottom();
+        }
         saveActiveSessionSnapshot();
         return {
+            row,
             bubble,
             status,
             content,
             mediaContainer: null,
             text: ""
         };
-    }
-
-    function renderMediaList(items) {
-        const list = document.createElement("div");
-        list.className = "media-list";
-        items.forEach((item) => {
-            const card = document.createElement("div");
-            card.className = "media-card";
-
-            if ((item.contentType || "").startsWith("image/")) {
-                const img = document.createElement("img");
-                img.src = item.url;
-                img.alt = item.fileName || "图片";
-                card.appendChild(img);
-            } else {
-                const fileCard = document.createElement("div");
-                fileCard.className = "file-card";
-
-                const meta = document.createElement("div");
-                meta.className = "file-meta";
-
-                const name = document.createElement("span");
-                name.className = "file-name";
-                name.textContent = item.fileName || "附件";
-
-                const size = document.createElement("span");
-                size.className = "file-size";
-                size.textContent = `${formatFileSize(item.fileSize || 0)} · ${item.contentType || "文件"}`;
-
-                const link = document.createElement("a");
-                link.href = item.downloadUrl || item.url;
-                link.target = "_blank";
-                link.rel = "noreferrer";
-                link.textContent = "下载";
-
-                meta.append(name, size);
-                fileCard.append(meta, link);
-                card.appendChild(fileCard);
-            }
-
-            list.appendChild(card);
-        });
-        return list;
     }
 
     function ensureMediaContainer(messageView) {
@@ -274,74 +359,156 @@
         return messageView.mediaContainer;
     }
 
-    function setBusy(isBusy) {
-        busy = isBusy;
-        sendButton.disabled = isBusy;
-        statusText.textContent = isBusy ? "Hephaestus 正在思考…" : "Enter 发送，Shift + Enter 换行";
-        statusText.classList.toggle("busy", isBusy);
-        statusProgress.hidden = !isBusy;
-        renderSessionList();
+    function syncComposerState() {
+        const isSending = Boolean(getSessionStreamState(activeSessionId));
+        sendButton.disabled = isSending;
+        input.disabled = false;
+        chooseFileButton.disabled = false;
+        removeFileButton.disabled = false;
+        attachmentInput.disabled = false;
+        statusText.textContent = DEFAULT_HINT_TEXT;
+        statusText.classList.toggle("busy", isSending);
+        statusProgress.hidden = true;
     }
 
-    function buildAssistantRowHtml(text, status, attachments) {
-        const mediaHtml = attachments && attachments.length > 0
-            ? `<div>${renderMediaListHtml(attachments)}</div>`
-            : "";
+    function buildAssistantRowHtml(text, status, mediaItems) {
         const statusHtml = status ? `<div class="status-note">${escapeHtml(status)}</div>` : "";
+        const mediaHtml = mediaItems && mediaItems.length
+            ? `<div>${renderMediaListHtml(mediaItems)}</div>`
+            : "";
         return `<div class="message-row assistant"><div class="bubble"><div class="message-name">Hephaestus</div>${statusHtml}<div class="bubble-content">${renderRichText(text || "")}</div>${mediaHtml}</div></div>`;
     }
 
-    function updateStreamingSessionHtml() {
-        if (!streamingSessionId || !streamingState) {
-            return;
-        }
-        const session = sessions.find((item) => item.id === streamingSessionId);
-        if (!session) {
+    function updateStreamStateSnapshot(sessionId) {
+        const session = sessions.find((item) => item.id === sessionId);
+        const state = streamStates.get(sessionId);
+        if (!session || !state) {
             return;
         }
         const host = document.createElement("div");
-        host.innerHTML = streamingState.baseHtml || EMPTY_STATE_HTML;
+        host.innerHTML = state.baseHtml || EMPTY_STATE_HTML;
         let inner = host.querySelector(".messages-inner");
         if (!inner) {
             host.innerHTML = EMPTY_STATE_HTML;
             inner = host.querySelector(".messages-inner");
         }
         const rowHost = document.createElement("div");
-        rowHost.innerHTML = buildAssistantRowHtml(streamingState.text, streamingState.status, streamingState.attachments);
+        rowHost.innerHTML = buildAssistantRowHtml(state.text, state.status, state.attachments);
         inner.appendChild(rowHost.firstElementChild);
         session.messagesHtml = host.innerHTML;
+        if (sessionId === activeSessionId) {
+            session.scrollTop = messages.scrollTop;
+            session.autoScroll = isNearBottom();
+        }
     }
 
-    function formatFileSize(bytes) {
-        if (!bytes) {
-            return "0 B";
+    function finalizeStreamState(sessionId) {
+        updateStreamStateSnapshot(sessionId);
+        streamStates.delete(sessionId);
+        if (sessionId === activeSessionId) {
+            syncComposerState();
         }
-        if (bytes < 1024) {
-            return `${bytes} B`;
-        }
-        if (bytes < 1024 * 1024) {
-            return `${(bytes / 1024).toFixed(1)} KB`;
-        }
-        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     }
 
-    function scrollMessagesToBottom() {
-        messages.scrollTop = messages.scrollHeight;
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 
-    function resizeInput() {
-        input.style.height = "auto";
-        input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+    function renderRichText(text) {
+        if (!text) {
+            return "";
+        }
+
+        const safe = escapeHtml(text);
+        const codeBlocks = [];
+        const withCodePlaceholders = safe.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_, lang, code) => {
+            const label = lang ? `<div>${escapeHtml(lang)}</div>` : "";
+            const html = `<pre><code>${label}${code.trim()}</code></pre>`;
+            const token = `__CODE_BLOCK_${codeBlocks.length}__`;
+            codeBlocks.push(html);
+            return token;
+        });
+
+        const withInlineCode = withCodePlaceholders.replace(/`([^`]+)`/g, "<code>$1</code>");
+        return withInlineCode
+            .split(/\n{2,}/)
+            .map((part) => {
+                if (/^__CODE_BLOCK_\d+__$/.test(part.trim())) {
+                    const index = Number(part.trim().match(/\d+/)[0]);
+                    return codeBlocks[index];
+                }
+
+                const lines = part.split("\n");
+                if (lines.every((line) => /^[-*]\s+/.test(line))) {
+                    return `<ul>${lines.map((line) => `<li>${line.replace(/^[-*]\s+/, "")}</li>`).join("")}</ul>`;
+                }
+                if (lines.every((line) => /^\d+\.\s+/.test(line))) {
+                    return `<ol>${lines.map((line) => `<li>${line.replace(/^\d+\.\s+/, "")}</li>`).join("")}</ol>`;
+                }
+                return `<p>${lines.join("<br>")}</p>`;
+            })
+            .join("")
+            .replace(/__CODE_BLOCK_(\d+)__/g, (_, index) => codeBlocks[Number(index)] || "");
+    }
+
+    function showAttachmentChip(file) {
+        attachmentName.textContent = file.name;
+        attachmentSize.textContent = `${formatFileSize(file.size)} · ${file.type || "文件"}`;
+        attachmentThumb.textContent = "+";
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+
+        if ((file.type || "").startsWith("image/")) {
+            previewUrl = URL.createObjectURL(file);
+            const img = document.createElement("img");
+            img.src = previewUrl;
+            img.alt = file.name;
+            attachmentThumb.textContent = "";
+            attachmentThumb.replaceChildren(img);
+        } else {
+            attachmentThumb.replaceChildren(document.createTextNode("文"));
+        }
+
+        attachmentChip.classList.add("visible");
+    }
+
+    function clearAttachment() {
+        selectedFile = null;
+        attachmentInput.value = "";
+        attachmentChip.classList.remove("visible");
+        attachmentName.textContent = "";
+        attachmentSize.textContent = "";
+        attachmentThumb.replaceChildren(document.createTextNode("+"));
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
     }
 
     async function sendMessage(message) {
+        const requestSessionId = activeSessionId;
         const content = message.trim();
-        if (!content && !selectedFile) {
+        const fileForRequest = selectedFile;
+
+        if (isSessionStreaming(requestSessionId)) {
+            appendMessage("error", "当前会话仍在回复中，请稍等片刻后再发送。");
+            return;
+        }
+
+        if (!content && !fileForRequest) {
             input.focus();
             return;
         }
 
-        const fileForRequest = selectedFile;
         if (fileForRequest && fileForRequest.size > 2 * 1024 * 1024) {
             appendMessage("error", `附件“${fileForRequest.name}”大小 ${formatFileSize(fileForRequest.size)}，超过 2MB 限制，请压缩后重试。`);
             clearAttachment();
@@ -349,21 +516,32 @@
             return;
         }
 
-        updateSessionTitleFromMessage(content);
-        pendingUserMessage = appendMessage("user", content || "");
+        updateSessionTitleFromMessage(content, Boolean(fileForRequest));
+
+        let localPreviewUrl = null;
+        let optimisticMedia = [];
+        if (fileForRequest) {
+            localPreviewUrl = URL.createObjectURL(fileForRequest);
+            optimisticMedia = [buildLocalMediaItem(fileForRequest, localPreviewUrl)];
+        }
+
+        pendingUserMessage = appendMessage("user", content || "", optimisticMedia);
         input.value = "";
         resizeInput();
-        const requestSessionId = activeSessionId;
         clearAttachment();
-        setBusy(true);
-        statusText.textContent = fileForRequest ? "正在上传附件…" : "正在发送消息…";
-        streamingSessionId = requestSessionId;
-        streamingState = {
-            baseHtml: messages.innerHTML,
+
+        const initialMessagesHtml = messages.innerHTML;
+        streamStates.set(requestSessionId, {
+            baseHtml: initialMessagesHtml,
             text: "",
             status: "",
-            attachments: []
-        };
+            attachments: [],
+            assistantView: null,
+            startedAt: Date.now()
+        });
+
+        const initialStatus = fileForRequest ? "正在上传附件…" : "正在发送消息…";
+        await new Promise((resolve) => requestAnimationFrame(resolve));
 
         try {
             const formData = new FormData();
@@ -372,29 +550,46 @@
                 formData.append("file", fileForRequest);
             }
 
+            const state = streamStates.get(requestSessionId);
+            if (state) {
+                state.status = initialStatus;
+            }
+            if (requestSessionId === activeSessionId) {
+                syncComposerState();
+            }
+
             const response = await fetch(streamUrl, {
                 method: "POST",
                 headers: {
-                    "X-Session-Id": activeSessionId
+                    "X-Session-Id": requestSessionId
                 },
                 body: formData
             });
 
-            if (!response.ok) {
+            if (!response.ok || !response.body) {
                 throw new Error("发送失败，请稍后重试。");
             }
 
-            statusText.textContent = "正在等待回复…";
+            if (state) {
+                state.status = "正在等待回复…";
+            }
+            if (requestSessionId === activeSessionId) {
+                syncComposerState();
+            }
+
             await consumeEventStream(response, requestSessionId);
         } catch (error) {
-            pendingUserMessage = null;
-            appendMessage("error", error.message || "发送失败，请稍后重试。");
+            appendMessage("error", error && error.message ? error.message : "发送失败，请稍后重试。");
         } finally {
-            updateStreamingSessionHtml();
-            streamingSessionId = null;
-            streamingState = null;
-            setBusy(false);
-            saveActiveSessionSnapshot();
+            if (localPreviewUrl) {
+                URL.revokeObjectURL(localPreviewUrl);
+            }
+            pendingUserMessage = null;
+            finalizeStreamState(requestSessionId);
+            if (requestSessionId === activeSessionId) {
+                saveActiveSessionSnapshot();
+            }
+            syncComposerState();
             input.focus();
         }
     }
@@ -403,8 +598,15 @@
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
         const assistant = requestSessionId === activeSessionId ? createStreamingAssistantMessage() : null;
-        let buffer = "";
+        const state = streamStates.get(requestSessionId);
+        if (state) {
+            state.assistantView = assistant;
+            if (assistant && state.status) {
+                assistant.status.textContent = state.status;
+            }
+        }
 
+        let buffer = "";
         while (true) {
             const result = await reader.read();
             if (result.done) {
@@ -419,6 +621,14 @@
         if (buffer.trim()) {
             handleSseChunk(buffer, assistant, requestSessionId);
         }
+    }
+
+    function replaceUserAttachmentMedia(messageView, attachments) {
+        if (!messageView || !attachments || !attachments.length) {
+            return;
+        }
+        const container = ensureMediaContainer(messageView);
+        container.replaceChildren(renderMediaList(attachments));
     }
 
     function handleSseChunk(chunk, assistant, requestSessionId) {
@@ -441,23 +651,31 @@
             payload = {};
         }
 
-        if (streamingSessionId === requestSessionId && streamingState) {
+        const state = streamStates.get(requestSessionId);
+        if (state) {
             if (eventName === "status") {
-                streamingState.status = payload.message || "";
+                state.status = payload.message || "";
             } else if (eventName === "delta") {
-                streamingState.text += payload.content || "";
+                state.text += payload.content || "";
             } else if (eventName === "image" && payload.generatedImage) {
-                streamingState.attachments.push(payload.generatedImage);
-            } else if (eventName === "attachments" && Array.isArray(payload.attachments) && pendingUserMessage) {
-                pendingUserMessage = null;
-                streamingState.baseHtml = messages.innerHTML;
+                state.attachments.push(payload.generatedImage);
             } else if (eventName === "done" || eventName === "error") {
-                streamingState.status = "";
+                state.status = "";
+            }
+
+            updateStreamStateSnapshot(requestSessionId);
+            if (requestSessionId === activeSessionId) {
+                syncComposerState();
+            }
+            if (state.assistantView) {
+                state.assistantView.status.textContent = state.status || "";
             }
         }
 
         if (requestSessionId !== activeSessionId || !assistant) {
-            updateStreamingSessionHtml();
+            if (eventName === "attachments" && Array.isArray(payload.attachments)) {
+                pendingUserMessage = null;
+            }
             return;
         }
 
@@ -467,12 +685,8 @@
             assistant.text += payload.content || "";
             assistant.content.innerHTML = renderRichText(assistant.text);
         } else if (eventName === "attachments" && Array.isArray(payload.attachments)) {
-            if (pendingUserMessage) {
-                ensureMediaContainer(pendingUserMessage).appendChild(renderMediaList(payload.attachments));
-                pendingUserMessage = null;
-            } else {
-                ensureMediaContainer(assistant).appendChild(renderMediaList(payload.attachments));
-            }
+            replaceUserAttachmentMedia(pendingUserMessage, payload.attachments);
+            pendingUserMessage = null;
         } else if (eventName === "image" && payload.generatedImage) {
             ensureMediaContainer(assistant).appendChild(renderMediaList([payload.generatedImage]));
         } else if (eventName === "done") {
@@ -480,86 +694,16 @@
             pendingUserMessage = null;
         } else if (eventName === "error") {
             assistant.status.textContent = "";
-            assistant.text += (assistant.text ? "\n" : "") + (payload.message || "处理请求时发生错误。");
+            assistant.text += `${assistant.text ? "\n" : ""}${payload.message || "处理请求时发生错误。"}`;
             assistant.content.innerHTML = renderRichText(assistant.text);
             pendingUserMessage = null;
         }
 
-        scrollMessagesToBottom();
+        const activeSession = getActiveSession();
+        if (!activeSession || activeSession.autoScroll) {
+            scrollMessagesToBottom();
+        }
         saveActiveSessionSnapshot();
-    }
-
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
-
-    function renderRichText(text) {
-        if (!text) {
-            return "";
-        }
-        const safe = escapeHtml(text);
-        const withCodeBlocks = safe.replace(/```([a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (_, lang, code) => {
-            const label = lang ? `<div>${lang}</div>` : "";
-            return `<pre><code>${label}${code.trim()}</code></pre>`;
-        });
-        const withInlineCode = withCodeBlocks.replace(/`([^`]+)`/g, "<code>$1</code>");
-        return withInlineCode
-            .split(/\n{2,}/)
-            .map((part) => {
-                if (part.startsWith("<pre>")) {
-                    return part;
-                }
-                const lines = part.split("\n");
-                if (lines.every((line) => /^[-*]\s+/.test(line))) {
-                    return `<ul>${lines.map((line) => `<li>${line.replace(/^[-*]\s+/, "")}</li>`).join("")}</ul>`;
-                }
-                if (lines.every((line) => /^\d+\.\s+/.test(line))) {
-                    return `<ol>${lines.map((line) => `<li>${line.replace(/^\d+\.\s+/, "")}</li>`).join("")}</ol>`;
-                }
-                return `<p>${lines.join("<br>")}</p>`;
-            })
-            .join("");
-    }
-
-    function showAttachmentChip(file) {
-        attachmentName.textContent = file.name;
-        attachmentSize.textContent = `${formatFileSize(file.size)} · ${file.type || "文件"}`;
-        attachmentThumb.textContent = "+";
-
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-            previewUrl = null;
-        }
-
-        if ((file.type || "").startsWith("image/")) {
-            previewUrl = URL.createObjectURL(file);
-            const img = document.createElement("img");
-            img.src = previewUrl;
-            img.alt = file.name;
-            attachmentThumb.textContent = "";
-            attachmentThumb.appendChild(img);
-        }
-
-        attachmentChip.classList.add("visible");
-    }
-
-    function clearAttachment() {
-        selectedFile = null;
-        attachmentInput.value = "";
-        attachmentChip.classList.remove("visible");
-        attachmentName.textContent = "";
-        attachmentSize.textContent = "";
-        attachmentThumb.textContent = "+";
-
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-            previewUrl = null;
-        }
     }
 
     form.addEventListener("submit", (event) => {
@@ -599,17 +743,19 @@
     });
 
     document.addEventListener("paste", (event) => {
-        if (sendButton.disabled) {
-            return;
-        }
         const items = event.clipboardData && event.clipboardData.items;
         if (!items) {
             return;
         }
+
         for (const item of items) {
             if (item.kind === "file") {
+                const file = item.getAsFile();
+                if (!file) {
+                    return;
+                }
                 event.preventDefault();
-                selectedFile = item.getAsFile();
+                selectedFile = file;
                 attachmentInput.value = "";
                 showAttachmentChip(selectedFile);
                 input.focus();
@@ -625,6 +771,7 @@
             return;
         }
         showAttachmentChip(selectedFile);
+        input.focus();
     });
 
     removeFileButton.addEventListener("click", () => {
@@ -632,9 +779,19 @@
         input.focus();
     });
 
+    messages.addEventListener("scroll", () => {
+        const session = getActiveSession();
+        if (!session) {
+            return;
+        }
+        session.scrollTop = messages.scrollTop;
+        session.autoScroll = isNearBottom();
+    });
+
     sessions.push(createSession(DEFAULT_SESSION_TITLE));
     activeSessionId = sessions[0].id;
     renderEmptyState();
     renderSessionList();
     resizeInput();
+    syncComposerState();
 })();

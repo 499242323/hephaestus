@@ -12,12 +12,12 @@
         <div class="sidebar-top">
             <button id="newSessionButton" class="new-chat" type="button">
                 <span class="new-chat-icon">+</span>
-                <span>新聊天</span>
+                <span>新建聊天</span>
             </button>
 
             <div class="brand">
                 <strong>Hephaestus</strong>
-                <span>支持中文对话、附件理解、流式回复与图像生成。</span>
+                <span>支持附件理解、生成图片与实时回复。</span>
             </div>
         </div>
 
@@ -27,13 +27,12 @@
         </section>
 
         <section class="sidebar-section">
-            <h2 class="section-title">可以这样开始</h2>
+            <h2 class="section-title">试试这些</h2>
             <div class="presets">
-                <button class="preset" type="button" data-message="我是张三，是一名 Java 工程师，正在调试 Hephaestus 的会话记忆与流式聊天能力。">记住我的身份和项目背景</button>
-                <button class="preset" type="button" data-message="请用中文总结这个附件的主要内容，并给出三条改进建议。">总结附件并给出建议</button>
-                <button class="preset" type="button" data-message="根据我上传的附件，生成一张适合技术分享会使用的宣传图。">基于附件生成宣传图</button>
-                <button class="preset" type="button" data-message="画一张简洁的 Hephaestus 产品封面图，风格清爽，适合演示首页。">直接生成一张封面图</button>
-                <button class="preset" type="button" data-message="刚才我告诉你的姓名、项目名和回答偏好分别是什么？">验证会话记忆</button>
+                <button class="preset" type="button" data-message="请总结我上传的附件内容，并给出三条建议。">总结附件并给建议</button>
+                <button class="preset" type="button" data-message="参考我上传的图片，生成一张风格一致的宣传图。">参考附件生成图片</button>
+                <button class="preset" type="button" data-message="画一张 Hephaestus 产品封面图，简洁、现代、适合演示首页。">直接生成封面图</button>
+                <button class="preset" type="button" data-message="请把下面的内容整理成 Markdown，并输出代码块。">输出 Markdown/代码格式</button>
             </div>
         </section>
     </aside>
@@ -55,13 +54,13 @@
 
                     <div class="input-shell">
                         <button id="chooseFileButton" class="icon-button action-left" type="button" aria-label="上传附件">+</button>
-                        <textarea id="messageInput" placeholder="给 Hephaestus 发送消息"></textarea>
+                        <textarea id="messageInput" placeholder="给 Hephaestus 发送消息" rows="1"></textarea>
                         <button id="sendButton" class="send-button action-right" type="submit" aria-label="发送">↑</button>
                         <input id="attachmentInput" class="file-input" type="file">
                     </div>
                 </form>
                 <div class="hint-wrap">
-                    <div id="statusText" class="hint">Enter 发送，Shift + Enter 换行</div>
+                    <div id="statusText" class="hint">Enter 发送 · Shift + Enter 换行 · Ctrl + V 粘贴图片或文件</div>
                     <div id="statusProgress" class="status-progress" hidden>
                         <span class="status-progress-bar"></span>
                     </div>
