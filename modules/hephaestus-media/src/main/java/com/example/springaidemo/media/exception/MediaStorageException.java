@@ -1,4 +1,4 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.exception;
 
 public class MediaStorageException extends RuntimeException {
 

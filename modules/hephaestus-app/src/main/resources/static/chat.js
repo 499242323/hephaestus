@@ -17,6 +17,7 @@
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
     const statusText = document.getElementById("statusText");
+    const statusProgress = document.getElementById("statusProgress");
     const newSessionButton = document.getElementById("newSessionButton");
     const sessionList = document.getElementById("sessionList");
     const chooseFileButton = document.getElementById("chooseFileButton");
@@ -32,6 +33,8 @@
     let pendingUserMessage = null;
     let activeSessionId = "";
     let busy = false;
+    let streamingSessionId = null;
+    let streamingState = null;
     const sessions = [];
 
     function createSessionId() {
@@ -123,7 +126,7 @@
     }
 
     function activateSession(sessionId) {
-        if (busy || !sessionId || sessionId === activeSessionId) {
+        if (!sessionId || sessionId === activeSessionId) {
             return;
         }
         saveActiveSessionSnapshot();
@@ -137,9 +140,6 @@
     }
 
     function createSessionAndActivate() {
-        if (busy) {
-            return;
-        }
         saveActiveSessionSnapshot();
         const session = createSession();
         sessions.unshift(session);
@@ -277,10 +277,39 @@
     function setBusy(isBusy) {
         busy = isBusy;
         sendButton.disabled = isBusy;
-        newSessionButton.disabled = isBusy;
-        chooseFileButton.disabled = isBusy;
         statusText.textContent = isBusy ? "Hephaestus 正在思考…" : "Enter 发送，Shift + Enter 换行";
+        statusText.classList.toggle("busy", isBusy);
+        statusProgress.hidden = !isBusy;
         renderSessionList();
+    }
+
+    function buildAssistantRowHtml(text, status, attachments) {
+        const mediaHtml = attachments && attachments.length > 0
+            ? `<div>${renderMediaListHtml(attachments)}</div>`
+            : "";
+        const statusHtml = status ? `<div class="status-note">${escapeHtml(status)}</div>` : "";
+        return `<div class="message-row assistant"><div class="bubble"><div class="message-name">Hephaestus</div>${statusHtml}<div class="bubble-content">${renderRichText(text || "")}</div>${mediaHtml}</div></div>`;
+    }
+
+    function updateStreamingSessionHtml() {
+        if (!streamingSessionId || !streamingState) {
+            return;
+        }
+        const session = sessions.find((item) => item.id === streamingSessionId);
+        if (!session) {
+            return;
+        }
+        const host = document.createElement("div");
+        host.innerHTML = streamingState.baseHtml || EMPTY_STATE_HTML;
+        let inner = host.querySelector(".messages-inner");
+        if (!inner) {
+            host.innerHTML = EMPTY_STATE_HTML;
+            inner = host.querySelector(".messages-inner");
+        }
+        const rowHost = document.createElement("div");
+        rowHost.innerHTML = buildAssistantRowHtml(streamingState.text, streamingState.status, streamingState.attachments);
+        inner.appendChild(rowHost.firstElementChild);
+        session.messagesHtml = host.innerHTML;
     }
 
     function formatFileSize(bytes) {
@@ -324,7 +353,17 @@
         pendingUserMessage = appendMessage("user", content || "");
         input.value = "";
         resizeInput();
+        const requestSessionId = activeSessionId;
+        clearAttachment();
         setBusy(true);
+        statusText.textContent = fileForRequest ? "正在上传附件…" : "正在发送消息…";
+        streamingSessionId = requestSessionId;
+        streamingState = {
+            baseHtml: messages.innerHTML,
+            text: "",
+            status: "",
+            attachments: []
+        };
 
         try {
             const formData = new FormData();
@@ -345,22 +384,25 @@
                 throw new Error("发送失败，请稍后重试。");
             }
 
-            await consumeEventStream(response);
-            clearAttachment();
+            statusText.textContent = "正在等待回复…";
+            await consumeEventStream(response, requestSessionId);
         } catch (error) {
             pendingUserMessage = null;
             appendMessage("error", error.message || "发送失败，请稍后重试。");
         } finally {
+            updateStreamingSessionHtml();
+            streamingSessionId = null;
+            streamingState = null;
             setBusy(false);
             saveActiveSessionSnapshot();
             input.focus();
         }
     }
 
-    async function consumeEventStream(response) {
+    async function consumeEventStream(response, requestSessionId) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
-        const assistant = createStreamingAssistantMessage();
+        const assistant = requestSessionId === activeSessionId ? createStreamingAssistantMessage() : null;
         let buffer = "";
 
         while (true) {
@@ -371,15 +413,15 @@
             buffer += decoder.decode(result.value, { stream: true });
             const parts = buffer.split("\n\n");
             buffer = parts.pop() || "";
-            parts.forEach((part) => handleSseChunk(part, assistant));
+            parts.forEach((part) => handleSseChunk(part, assistant, requestSessionId));
         }
 
         if (buffer.trim()) {
-            handleSseChunk(buffer, assistant);
+            handleSseChunk(buffer, assistant, requestSessionId);
         }
     }
 
-    function handleSseChunk(chunk, assistant) {
+    function handleSseChunk(chunk, assistant, requestSessionId) {
         const lines = chunk.split(/\r?\n/);
         let eventName = "message";
         const dataLines = [];
@@ -397,6 +439,26 @@
             payload = dataLines.length ? JSON.parse(dataLines.join("\n")) : {};
         } catch (error) {
             payload = {};
+        }
+
+        if (streamingSessionId === requestSessionId && streamingState) {
+            if (eventName === "status") {
+                streamingState.status = payload.message || "";
+            } else if (eventName === "delta") {
+                streamingState.text += payload.content || "";
+            } else if (eventName === "image" && payload.generatedImage) {
+                streamingState.attachments.push(payload.generatedImage);
+            } else if (eventName === "attachments" && Array.isArray(payload.attachments) && pendingUserMessage) {
+                pendingUserMessage = null;
+                streamingState.baseHtml = messages.innerHTML;
+            } else if (eventName === "done" || eventName === "error") {
+                streamingState.status = "";
+            }
+        }
+
+        if (requestSessionId !== activeSessionId || !assistant) {
+            updateStreamingSessionHtml();
+            return;
         }
 
         if (eventName === "status") {

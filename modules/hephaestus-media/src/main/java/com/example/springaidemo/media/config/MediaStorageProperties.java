@@ -1,4 +1,4 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

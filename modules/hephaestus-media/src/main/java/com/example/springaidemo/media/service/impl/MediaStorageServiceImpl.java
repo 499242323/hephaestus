@@ -1,5 +1,9 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.service.impl;
 
+import com.example.springaidemo.media.config.MediaStorageProperties;
+import com.example.springaidemo.media.domain.StoredMediaFile;
+import com.example.springaidemo.media.exception.MediaStorageException;
+import com.example.springaidemo.media.service.MediaStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,8 +15,8 @@ import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
 import java.net.URI;
-import java.text.Normalizer;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -21,7 +25,7 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-public class MediaStorageService {
+public class MediaStorageServiceImpl implements MediaStorageService {
 
     private static final String WRITE_PATH = "/home/httpfile/writefile.htm?path=";
     private static final String READ_PATH = "/home/httpfile/readfile.htm?path=";
@@ -30,25 +34,24 @@ public class MediaStorageService {
     private final MediaStorageProperties properties;
     private final RestClient restClient;
 
-    public MediaStorageService(MediaStorageProperties properties, RestClient.Builder restClientBuilder) {
+    public MediaStorageServiceImpl(MediaStorageProperties properties, RestClient.Builder restClientBuilder) {
         this.properties = properties;
         this.restClient = restClientBuilder.build();
     }
 
+    @Override
     public StoredMediaFile upload(String conversationId, MultipartFile file) {
         try {
             String originalFilename = normalizeOriginalFilename(file.getOriginalFilename(), "attachment.bin");
             String contentType = contentType(file.getContentType());
             return upload(conversationId, originalFilename, contentType, file.getBytes(), "upload");
         } catch (IOException exception) {
-            log.error("读取上传附件内容失败: 会话ID={}, 附件名={}",
-                    conversationId,
-                    file.getOriginalFilename(),
-                    exception);
+            log.error("读取上传附件失败: 会话ID={}, 附件名={}", conversationId, file.getOriginalFilename(), exception);
             throw new MediaStorageException("读取上传附件失败", exception);
         }
     }
 
+    @Override
     public StoredMediaFile upload(String conversationId, String originalFilename, String contentType, byte[] bytes, String category) {
         String normalizedOriginalFilename = normalizeOriginalFilename(originalFilename, "file.bin");
         String storedFilename = toStoredFilename(normalizedOriginalFilename, "file.bin");
@@ -68,6 +71,7 @@ public class MediaStorageService {
         return new StoredMediaFile(normalizedOriginalFilename, storedFilename, normalizedContentType, bytes.length, storagePath, bytes);
     }
 
+    @Override
     public byte[] read(String storagePath) {
         URI requestUri = readUri(storagePath);
         byte[] bytes = restClient.post()
@@ -81,6 +85,7 @@ public class MediaStorageService {
         return bytes;
     }
 
+    @Override
     public StoredMediaFile uploadImageFromDataUrl(String conversationId, String dataUrl) {
         int commaIndex = dataUrl == null ? -1 : dataUrl.indexOf(',');
         if (commaIndex < 0) {
@@ -95,6 +100,7 @@ public class MediaStorageService {
         return upload(conversationId, "generated-image." + extension(contentType), contentType, bytes, "down");
     }
 
+    @Override
     public StoredMediaFile uploadImageFromUrl(String conversationId, String imageUrl) {
         byte[] bytes = restClient.get()
                 .uri(URI.create(imageUrl))
@@ -106,45 +112,7 @@ public class MediaStorageService {
         return upload(conversationId, "generated-image.png", MediaType.IMAGE_PNG_VALUE, bytes, "down");
     }
 
-    String buildStoragePath(String conversationId, String category, String storedFilename) {
-        String prefix = trimSlashes(properties.getStoragePrefix());
-        String normalizedCategory = normalizeCategory(category);
-        String day = LocalDate.now().format(DAY_FORMATTER);
-        String sessionPath = toSessionPath(conversationId);
-        String folder = UUID.randomUUID().toString();
-        return prefix + "/" + normalizedCategory + "/" + day + "/" + sessionPath + "/" + folder + "/" + storedFilename;
-    }
-
-    String basicAuthHeader() {
-        String token = properties.getUsername() + ":" + properties.getPassword();
-        return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
-    }
-
-    URI uploadUri(String storagePath) {
-        return URI.create(baseUrl() + WRITE_PATH + UriUtils.encode(storagePath, StandardCharsets.UTF_8));
-    }
-
-    URI readUri(String storagePath) {
-        return URI.create(baseUrl() + READ_PATH + UriUtils.encode(storagePath, StandardCharsets.UTF_8));
-    }
-
-    private String baseUrl() {
-        String baseUrl = properties.getBaseUrl();
-        return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-    }
-
-    private static String normalizeOriginalFilename(String filename, String fallback) {
-        String value = filename == null || filename.isBlank() ? fallback : filename;
-        String safe = value.replace('\\', '/');
-        int slashIndex = safe.lastIndexOf('/');
-        if (slashIndex >= 0) {
-            safe = safe.substring(slashIndex + 1);
-        }
-        safe = safe.replaceAll("[\\r\\n\\t]", "_").trim();
-        return safe.isBlank() ? fallback : safe;
-    }
-
-    static String toStoredFilename(String originalFilename, String fallback) {
+    public static String toStoredFilename(String originalFilename, String fallback) {
         String normalized = normalizeOriginalFilename(originalFilename, fallback);
         String fileExtension = "";
         int dotIndex = normalized.lastIndexOf('.');
@@ -170,12 +138,50 @@ public class MediaStorageService {
         return ascii + fileExtension;
     }
 
-    static String toSessionPath(String conversationId) {
+    public static String toSessionPath(String conversationId) {
         String normalized = conversationId == null || conversationId.isBlank() ? "default" : conversationId.trim();
         normalized = normalized.replaceAll("[^A-Za-z0-9_-]+", "-")
                 .replaceAll("^-+", "")
                 .replaceAll("-+$", "");
         return normalized.isBlank() ? "default" : normalized;
+    }
+
+    private String buildStoragePath(String conversationId, String category, String storedFilename) {
+        String prefix = trimSlashes(properties.getStoragePrefix());
+        String normalizedCategory = normalizeCategory(category);
+        String day = LocalDate.now().format(DAY_FORMATTER);
+        String sessionPath = toSessionPath(conversationId);
+        String folder = UUID.randomUUID().toString();
+        return prefix + "/" + normalizedCategory + "/" + day + "/" + sessionPath + "/" + folder + "/" + storedFilename;
+    }
+
+    private String basicAuthHeader() {
+        String token = properties.getUsername() + ":" + properties.getPassword();
+        return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private URI uploadUri(String storagePath) {
+        return URI.create(baseUrl() + WRITE_PATH + UriUtils.encode(storagePath, StandardCharsets.UTF_8));
+    }
+
+    private URI readUri(String storagePath) {
+        return URI.create(baseUrl() + READ_PATH + UriUtils.encode(storagePath, StandardCharsets.UTF_8));
+    }
+
+    private String baseUrl() {
+        String baseUrl = properties.getBaseUrl();
+        return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    }
+
+    private static String normalizeOriginalFilename(String filename, String fallback) {
+        String value = filename == null || filename.isBlank() ? fallback : filename;
+        String safe = value.replace('\\', '/');
+        int slashIndex = safe.lastIndexOf('/');
+        if (slashIndex >= 0) {
+            safe = safe.substring(slashIndex + 1);
+        }
+        safe = safe.replaceAll("[\\r\\n\\t]", "_").trim();
+        return safe.isBlank() ? fallback : safe;
     }
 
     private static String contentType(String contentType) {

@@ -1,11 +1,11 @@
 package com.example.springaidemo.service;
 
-import com.example.springaidemo.media.MediaFile;
-import com.example.springaidemo.media.MediaFileRepository;
-import com.example.springaidemo.media.MediaStorageProperties;
-import com.example.springaidemo.media.MediaStorageException;
-import com.example.springaidemo.media.MediaStorageService;
-import com.example.springaidemo.media.StoredMediaFile;
+import com.example.springaidemo.media.config.MediaStorageProperties;
+import com.example.springaidemo.media.domain.MediaFile;
+import com.example.springaidemo.media.domain.StoredMediaFile;
+import com.example.springaidemo.media.exception.MediaStorageException;
+import com.example.springaidemo.media.service.MediaFileService;
+import com.example.springaidemo.media.service.MediaStorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -13,19 +13,22 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.image.ImageModel;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
-import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -33,15 +36,43 @@ public class MultimodalChatService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String CONVERSATION_ID_KEY = "chat_memory_conversation_id";
+    private static final int MAX_INLINE_TEXT_ATTACHMENT_BYTES = 256 * 1024;
+    private static final int MAX_DECISION_ATTACHMENT_PREVIEW_CHARS = 4000;
+    private static final Set<String> TEXT_CONTENT_TYPES = Set.of(
+            "text/plain",
+            "text/markdown",
+            "text/html",
+            "text/xml",
+            "application/json",
+            "application/xml",
+            "application/javascript",
+            "application/x-javascript",
+            "application/typescript",
+            "application/x-yaml",
+            "application/yaml",
+            "application/toml"
+    );
+    private static final Set<String> TEXT_FILE_EXTENSIONS = Set.of(
+            "txt", "md", "markdown", "json", "xml", "yaml", "yml", "html", "htm",
+            "csv", "log", "sql", "java", "js", "ts", "css", "properties"
+    );
+
     static final String RESPONSE_SYSTEM_PROMPT = """
             你是 Hephaestus 的多模态聊天助手。
-            请直接用中文回答用户问题。
-            如果用户上传了附件，请结合附件内容回答。
-            不要输出 JSON，不要输出 Markdown 包裹的结构化协议。
+            请始终使用中文回答用户问题。
+            如果用户上传了附件，请结合附件内容进行回答。
+            如果需要返回 Markdown、HTML 片段、代码块或 JSON，请直接输出原始内容，不要额外包一层 JSON 协议。
             """;
+
+    static final String IMAGE_REPLY_SYSTEM_PROMPT = """
+            你是 Hephaestus 的多模态聊天助手。
+            系统会负责生成图片，你只需要输出给用户看的最终中文正文。
+            不要输出 image_prompt、prompt、JSON、字段名、调试信息或内部推理过程。
+            如果用户要求写文案、诗句、说明、标题，请直接输出这些最终内容。
+            """;
+
     static final String DECISION_SYSTEM_PROMPT = """
             你是 Hephaestus 的多模态聊天助手。请根据用户输入和可选附件内容返回严格 JSON，不要输出 Markdown。
-
             返回格式必须是：
             {
               "generateImage": false,
@@ -59,88 +90,121 @@ public class MultimodalChatService {
     private final ChatClient chatClient;
     private final ObjectProvider<ImageModel> imageModelProvider;
     private final MediaStorageService mediaStorageService;
-    private final MediaFileRepository mediaFileRepository;
+    private final MediaFileService mediaFileService;
     private final MediaStorageProperties mediaStorageProperties;
 
     public MultimodalChatService(ChatClient chatClient,
                                  ObjectProvider<ImageModel> imageModelProvider,
                                  MediaStorageService mediaStorageService,
-                                 MediaFileRepository mediaFileRepository,
+                                 MediaFileService mediaFileService,
                                  MediaStorageProperties mediaStorageProperties) {
         this.chatClient = chatClient;
         this.imageModelProvider = imageModelProvider;
         this.mediaStorageService = mediaStorageService;
-        this.mediaFileRepository = mediaFileRepository;
+        this.mediaFileService = mediaFileService;
         this.mediaStorageProperties = mediaStorageProperties;
     }
 
     public MultimodalResponse chat(String message, MultipartFile file, String conversationId) {
-        String normalizedMessage = message == null ? "" : message.trim();
-        List<MediaResource> attachments = new ArrayList<>();
-        if (file != null && !file.isEmpty()) {
-            attachments.add(storeUploadedFile(file, conversationId));
+        ChatRequestContext context = buildChatRequestContext(message, file, conversationId);
+        if (shouldDirectGenerateImage(context.message())) {
+            return imageResponse(context, file, conversationId, null);
         }
 
-        String prompt = buildDecisionUserMessage(normalizedMessage, file);
-        String rawDecision = callDecisionModel(prompt, file, conversationId);
-        Decision decision = parseDecision(rawDecision);
-
-        if (!decision.generateImage()) {
-            return new MultimodalResponse("TEXT", decision.reply(), false, "", null, attachments, null);
+        if (shouldConsultDecisionModel(context)) {
+            Decision decision = decide(context, file, conversationId);
+            if (decision.generateImage()) {
+                return imageResponse(context, file, conversationId, decision.imagePrompt());
+            }
         }
 
-        String imagePrompt = decision.imagePrompt().isBlank()
-                ? fallbackImagePrompt(normalizedMessage, file)
-                : decision.imagePrompt();
-        try {
-            MediaResource generatedImage = generateAndStoreImage(imagePrompt, conversationId);
-            return new MultimodalResponse("IMAGE", decision.reply(), true, imagePrompt, generatedImage.url(), attachments, generatedImage);
-        } catch (Exception exception) {
-            String reply = (decision.reply().isBlank() ? "已完成文字处理。" : decision.reply())
-                    + " 但图片生成失败：" + exception.getMessage();
-            return new MultimodalResponse("TEXT", reply, false, imagePrompt, null, attachments, null);
-        }
+        String reply = collectContent(streamTextReply(context.message(), file, context.inlineAttachmentText(), conversationId)
+                .collectList()
+                .block(Duration.ofSeconds(60)));
+        return new MultimodalResponse("TEXT", reply, false, "", null, context.attachments(), null);
     }
 
     public StreamPlan prepareStream(String message, MultipartFile file, String conversationId) {
-        String normalizedMessage = message == null ? "" : message.trim();
-        List<MediaResource> attachments = new ArrayList<>();
-        if (file != null && !file.isEmpty()) {
-            attachments.add(storeUploadedFile(file, conversationId));
+        ChatRequestContext context = buildChatRequestContext(message, file, conversationId);
+        if (shouldDirectGenerateImage(context.message())) {
+            return imageStreamPlan(context, file, conversationId, null);
         }
 
-        if (shouldStreamTextDirectly(normalizedMessage)) {
-            return StreamPlan.text(attachments, streamTextReply(normalizedMessage, file, conversationId));
+        if (shouldConsultDecisionModel(context)) {
+            Decision decision = decide(context, file, conversationId);
+            if (decision.generateImage()) {
+                return imageStreamPlan(context, file, conversationId, decision.imagePrompt());
+            }
         }
 
-        String prompt = buildDecisionUserMessage(normalizedMessage, file);
-        String rawDecision = callDecisionModel(prompt, file, conversationId);
-        Decision decision = parseDecision(rawDecision);
+        return StreamPlan.text(
+                context.attachments(),
+                streamTextReply(context.message(), file, context.inlineAttachmentText(), conversationId)
+        );
+    }
 
-        if (!decision.generateImage()) {
-            return StreamPlan.text(attachments, streamTextReply(normalizedMessage, file, conversationId));
-        }
-
-        String imagePrompt = decision.imagePrompt().isBlank()
-                ? fallbackImagePrompt(normalizedMessage, file)
-                : decision.imagePrompt();
+    private MultimodalResponse imageResponse(ChatRequestContext context,
+                                             MultipartFile file,
+                                             String conversationId,
+                                             String preferredImagePrompt) {
+        String imagePrompt = resolveImagePrompt(context, file, preferredImagePrompt);
+        String reply = collectContent(streamImageCompanionReply(context.message(), file, context.inlineAttachmentText(), conversationId)
+                .collectList()
+                .block(Duration.ofSeconds(60)));
         try {
             MediaResource generatedImage = generateAndStoreImage(imagePrompt, conversationId);
-            Flux<String> replyFlux = decision.reply().isBlank() ? Flux.empty() : Flux.just(decision.reply());
-            return StreamPlan.image(attachments, replyFlux, imagePrompt, generatedImage);
+            return new MultimodalResponse("IMAGE", reply, true, imagePrompt, generatedImage.url(), context.attachments(), generatedImage);
         } catch (Exception exception) {
-            String reply = (decision.reply().isBlank() ? "已完成文字处理。" : decision.reply())
+            String fallbackReply = (reply == null || reply.isBlank() ? "已完成文字处理。" : reply)
                     + " 但图片生成失败：" + exception.getMessage();
-            return StreamPlan.text(attachments, Flux.just(reply));
+            return new MultimodalResponse("TEXT", fallbackReply, false, imagePrompt, null, context.attachments(), null);
         }
     }
 
-    private boolean shouldStreamTextDirectly(String message) {
-        String normalized = message == null ? "" : message.trim().toLowerCase();
+    private StreamPlan imageStreamPlan(ChatRequestContext context,
+                                       MultipartFile file,
+                                       String conversationId,
+                                       String preferredImagePrompt) {
+        String imagePrompt = resolveImagePrompt(context, file, preferredImagePrompt);
+        Flux<String> replyFlux = streamImageCompanionReply(context.message(), file, context.inlineAttachmentText(), conversationId);
+        Mono<MediaResource> generatedImageMono = Mono.fromCallable(() -> generateAndStoreImage(imagePrompt, conversationId))
+                .subscribeOn(Schedulers.boundedElastic());
+        return StreamPlan.image(context.attachments(), replyFlux, imagePrompt, generatedImageMono);
+    }
+
+    private ChatRequestContext buildChatRequestContext(String message, MultipartFile file, String conversationId) {
+        String normalizedMessage = message == null ? "" : message.trim();
+        List<MediaResource> attachments = new ArrayList<>();
+        String inlineAttachmentText = "";
+
+        if (file != null && !file.isEmpty()) {
+            attachments.add(storeUploadedFile(file, conversationId));
+            inlineAttachmentText = readTextAttachment(file);
+        }
+
+        return new ChatRequestContext(normalizedMessage, attachments, inlineAttachmentText);
+    }
+
+    private boolean shouldDirectGenerateImage(String message) {
+        String normalized = message == null ? "" : message.trim().toLowerCase(Locale.ROOT);
         if (normalized.isBlank()) {
+            return false;
+        }
+        return containsImageGenerationIntent(normalized);
+    }
+
+    private boolean shouldConsultDecisionModel(ChatRequestContext context) {
+        if (context == null) {
+            return false;
+        }
+        if (context.hasAttachment()) {
             return true;
         }
-        return !containsImageGenerationIntent(normalized);
+        String normalized = context.message() == null ? "" : context.message().trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return containsDecisionCue(normalized);
     }
 
     private boolean containsImageGenerationIntent(String message) {
@@ -148,17 +212,156 @@ public class MultimodalChatService {
                 || message.contains("生成一张")
                 || message.contains("画一张")
                 || message.contains("画个")
+                || message.contains("画一个")
                 || message.contains("绘制")
+                || message.contains("来一张")
+                || message.contains("做张图")
                 || message.contains("海报")
                 || message.contains("插画")
                 || message.contains("封面图")
                 || message.contains("配图")
+                || message.contains("参考这张图生成")
+                || message.contains("参考附件生成")
                 || message.contains("image")
                 || message.contains("poster")
                 || message.contains("illustration");
     }
 
-    public static Decision parseDecision(String raw) {
+    private boolean containsDecisionCue(String message) {
+        return message.contains("配图")
+                || message.contains("要不要画")
+                || message.contains("适合什么图")
+                || message.contains("是否需要图片")
+                || message.contains("参考")
+                || message.contains("看这个")
+                || message.contains("封面");
+    }
+
+    private Decision decide(ChatRequestContext context, MultipartFile file, String conversationId) {
+        String prompt = buildDecisionUserMessage(context);
+        String rawDecision = callDecisionModel(prompt, file, context.inlineAttachmentText(), conversationId);
+        return parseDecision(rawDecision);
+    }
+
+    private Flux<String> streamTextReply(String message, MultipartFile file, String inlineAttachmentText, String conversationId) {
+        String normalizedMessage = message == null || message.isBlank() ? "请结合附件内容进行分析并直接回答。" : message;
+        return streamReply(normalizedMessage, file, inlineAttachmentText, conversationId, RESPONSE_SYSTEM_PROMPT);
+    }
+
+    private Flux<String> streamImageCompanionReply(String message, MultipartFile file, String inlineAttachmentText, String conversationId) {
+        String normalizedMessage = message == null || message.isBlank() ? "请围绕正在生成的图片输出最终展示给用户的中文内容。" : message;
+        return streamReply(normalizedMessage, file, inlineAttachmentText, conversationId, IMAGE_REPLY_SYSTEM_PROMPT);
+    }
+
+    private Flux<String> streamReply(String message,
+                                     MultipartFile file,
+                                     String inlineAttachmentText,
+                                     String conversationId,
+                                     String systemPrompt) {
+        String normalizedMessage = message == null || message.isBlank() ? "请直接回答。" : message;
+        if (file == null || file.isEmpty() || !inlineAttachmentText.isBlank()) {
+            return chatClient.prompt()
+                    .system(systemPrompt)
+                    .user(buildPromptWithInlineAttachment(normalizedMessage, inlineAttachmentText))
+                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
+                    .stream()
+                    .content();
+        }
+
+        try {
+            MediaType mediaType = MediaType.parseMediaType(contentType(file));
+            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            };
+            return chatClient.prompt()
+                    .system(systemPrompt)
+                    .user(user -> user.text(normalizedMessage).media(mediaType, resource))
+                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
+                    .stream()
+                    .content();
+        } catch (Exception exception) {
+            log.error("文本流式回复准备失败，conversationId={}, fileName={}", conversationId, file.getOriginalFilename(), exception);
+            return Flux.just("暂时无法读取附件内容，请稍后重试。");
+        }
+    }
+
+    private String readTextAttachment(MultipartFile file) {
+        if (!isTextAttachment(file)) {
+            return "";
+        }
+
+        if (file.getSize() > MAX_INLINE_TEXT_ATTACHMENT_BYTES) {
+            return "[文本附件过大，已跳过直接内联读取，请基于已上传附件继续处理]";
+        }
+
+        try {
+            String text = new String(file.getBytes(), StandardCharsets.UTF_8).trim();
+            return text.isBlank() ? "" : text;
+        } catch (Exception exception) {
+            log.error("读取文本附件失败，fileName={}", file.getOriginalFilename(), exception);
+            return "";
+        }
+    }
+
+    private boolean isTextAttachment(MultipartFile file) {
+        String contentType = contentType(file).toLowerCase(Locale.ROOT);
+        if (contentType.startsWith("text/") || TEXT_CONTENT_TYPES.contains(contentType)) {
+            return true;
+        }
+
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || !fileName.contains(".")) {
+            return false;
+        }
+        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        return TEXT_FILE_EXTENSIONS.contains(extension);
+    }
+
+    private String buildPromptWithInlineAttachment(String prompt, String inlineAttachmentText) {
+        if (inlineAttachmentText == null || inlineAttachmentText.isBlank()) {
+            return prompt;
+        }
+        return prompt + "\n\n附件文本内容：\n```text\n" + inlineAttachmentText + "\n```";
+    }
+
+    private String callDecisionModel(String prompt, MultipartFile file, String inlineAttachmentText, String conversationId) {
+        if (file == null || file.isEmpty() || !inlineAttachmentText.isBlank()) {
+            return collectContent(chatClient.prompt()
+                    .system(DECISION_SYSTEM_PROMPT)
+                    .user(buildPromptWithInlineAttachment(prompt, inlineAttachmentText))
+                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
+                    .stream()
+                    .content()
+                    .collectList()
+                    .block(Duration.ofSeconds(60)));
+        }
+
+        try {
+            MediaType mediaType = MediaType.parseMediaType(contentType(file));
+            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            };
+            return collectContent(chatClient.prompt()
+                    .system(DECISION_SYSTEM_PROMPT)
+                    .user(user -> user.text(prompt).media(mediaType, resource))
+                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
+                    .stream()
+                    .content()
+                    .collectList()
+                    .block(Duration.ofSeconds(60)));
+        } catch (Exception exception) {
+            log.error("模型暂时无法解析该附件，conversationId={}, fileName={}", conversationId, file.getOriginalFilename(), exception);
+            return "";
+        }
+    }
+
+    static Decision parseDecision(String raw) {
         String normalized = raw == null ? "" : raw.trim();
         String json = extractJson(normalized);
         if (json.isBlank()) {
@@ -198,73 +401,46 @@ public class MultimodalChatService {
         return "";
     }
 
-    private String callDecisionModel(String prompt, MultipartFile file, String conversationId) {
-        if (file == null || file.isEmpty()) {
-            return collectContent(chatClient.prompt()
-                    .system(DECISION_SYSTEM_PROMPT)
-                    .user(prompt)
-                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
-                    .stream()
-                    .content()
-                    .collectList()
-                    .block(Duration.ofSeconds(60)));
+    private String resolveImagePrompt(ChatRequestContext context, MultipartFile file, String preferredImagePrompt) {
+        if (preferredImagePrompt != null && !preferredImagePrompt.isBlank()) {
+            return preferredImagePrompt;
         }
-
-        try {
-            MediaType mediaType = MediaType.parseMediaType(contentType(file));
-            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return file.getOriginalFilename();
-                }
-            };
-            return collectContent(chatClient.prompt()
-                    .system(DECISION_SYSTEM_PROMPT)
-                    .user(user -> user
-                            .text(prompt)
-                            .media(mediaType, resource))
-                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
-                    .stream()
-                    .content()
-                    .collectList()
-                    .block(Duration.ofSeconds(60)));
-        } catch (Exception exception) {
-            log.error("模型暂时无法解析该附件: 会话ID={}, 附件名={}", conversationId, file.getOriginalFilename(), exception);
-            return "模型暂时无法解析该附件：";
-        }
+        return buildImagePrompt(context.message(), context.inlineAttachmentText(), file);
     }
 
-    private Flux<String> streamTextReply(String message, MultipartFile file, String conversationId) {
-        String normalizedMessage = message == null || message.isBlank() ? "请结合附件内容进行分析并直接回答。" : message;
-        if (file == null || file.isEmpty()) {
-            return chatClient.prompt()
-                    .system(RESPONSE_SYSTEM_PROMPT)
-                    .user(normalizedMessage)
-                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
-                    .stream()
-                    .content();
+    private String buildImagePrompt(String message, String inlineAttachmentText, MultipartFile file) {
+        String base = message == null || message.isBlank() ? "根据上传附件生成一张图片" : message;
+        if (inlineAttachmentText != null && !inlineAttachmentText.isBlank()) {
+            return base + "\n\n附件文本内容：\n" + inlineAttachmentText;
         }
+        return base + "\n\n附件信息：\n" + fileSummary(file);
+    }
 
-        try {
-            MediaType mediaType = MediaType.parseMediaType(contentType(file));
-            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return file.getOriginalFilename();
-                }
-            };
-            return chatClient.prompt()
-                    .system(RESPONSE_SYSTEM_PROMPT)
-                    .user(user -> user
-                            .text(normalizedMessage)
-                            .media(mediaType, resource))
-                    .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
-                    .stream()
-                    .content();
-        } catch (Exception exception) {
-            log.error("文本流式回复准备失败: 会话ID={}, 附件名={}", conversationId, file.getOriginalFilename(), exception);
-            return Flux.just("暂时无法读取附件内容，请稍后重试。");
-        }
+    static String buildDecisionUserMessage(ChatRequestContext context) {
+        String attachmentSummary = context == null || !context.hasAttachment()
+                ? "未上传附件"
+                : context.attachmentSummary();
+        String attachmentTextSnippet = context == null ? "" : context.decisionAttachmentPreview();
+        return """
+                请基于以下结构化信息判断本轮是否需要生成图片。
+
+                [userMessage]
+                %s
+
+                [hasAttachment]
+                %s
+
+                [attachmentSummary]
+                %s
+
+                [attachmentTextSnippet]
+                %s
+                """.formatted(
+                context == null || context.message() == null ? "" : context.message(),
+                context != null && context.hasAttachment(),
+                attachmentSummary,
+                attachmentTextSnippet.isBlank() ? "(empty)" : attachmentTextSnippet
+        );
     }
 
     private String generateImage(String imagePrompt) {
@@ -300,7 +476,7 @@ public class MultimodalChatService {
                     : mediaStorageService.uploadImageFromUrl(conversationId, imageUrl);
             return saveMediaFile(conversationId, storedFile, "AI_GENERATED_IMAGE");
         } catch (Exception exception) {
-            log.error("生成图片后保存失败，回退为外链: 会话ID={}, 图片地址={}", conversationId, imageUrl, exception);
+            log.error("生成图片后保存失败，回退为外链，conversationId={}, imageUrl={}", conversationId, imageUrl, exception);
             return externalImageResource(imageUrl);
         }
     }
@@ -357,35 +533,17 @@ public class MultimodalChatService {
         try {
             StoredMediaFile storedFile = mediaStorageService.upload(conversationId, file);
             return saveMediaFile(conversationId, storedFile, "USER_UPLOAD");
-        }  catch (Exception exception) {
-            log.error("用户附件保存流程出现未预期异常: 会话ID={}, 附件名={}",
-                    conversationId,
-                    file.getOriginalFilename(),
-                    exception);
+        } catch (Exception exception) {
+            log.error("用户附件保存流程出现异常，conversationId={}, fileName={}", conversationId, file.getOriginalFilename(), exception);
             throw new MediaStorageException("附件保存到多媒体服务失败", exception);
         }
     }
 
     private MediaResource saveMediaFile(String conversationId, StoredMediaFile storedFile, String sourceType) {
-        MediaFile saved = mediaFileRepository.save(new MediaFile(
-                null,
-                conversationId,
-                storedFile.originalFilename(),
-                storedFile.storedFilename(),
-                storedFile.contentType(),
-                storedFile.fileSize(),
-                storedFile.storagePath(),
-                "",
-                sourceType,
-                LocalDateTime.now()
-        ));
         String url = buildAccessUrl(storedFile.storagePath());
-        mediaFileRepository.updateAccessUrl(saved.id(), url);
-        log.info("附件元数据写入成功: 会话ID={}, 媒体ID={}, 来源类型={}, 访问地址={}",
-                conversationId,
-                saved.id(),
-                sourceType,
-                url);
+        MediaFile saved = mediaFileService.save(conversationId, storedFile, sourceType, url);
+        log.info("附件元数据写入成功，conversationId={}, mediaId={}, sourceType={}, accessUrl={}",
+                conversationId, saved.id(), sourceType, url);
         return new MediaResource(
                 saved.id(),
                 saved.originalFilename(),
@@ -434,27 +592,6 @@ public class MultimodalChatService {
                 : file.getContentType();
     }
 
-    private static String fallbackImagePrompt(String message, MultipartFile file) {
-        String base = message == null || message.isBlank() ? "根据上传附件生成一张图片" : message;
-        return base + "\n\n附件信息：\n" + fileSummary(file);
-    }
-
-    static String buildDecisionUserMessage(String message, MultipartFile file) {
-        return """
-                文件信息：
-                %s
-
-                用户输入：
-                %s
-                """.formatted(fileSummary(file), message == null ? "" : message);
-    }
-
-    public record Decision(boolean generateImage, String reply, String imagePrompt) {
-        static Decision text(String reply) {
-            return new Decision(false, reply == null ? "" : reply, "");
-        }
-    }
-
     public record MultimodalResponse(
             String type,
             String reply,
@@ -472,14 +609,14 @@ public class MultimodalChatService {
             Flux<String> replyFlux,
             boolean generateImage,
             String imagePrompt,
-            MediaResource generatedImage
+            Mono<MediaResource> generatedImageMono
     ) {
         static StreamPlan text(List<MediaResource> attachments, Flux<String> replyFlux) {
             return new StreamPlan("TEXT", attachments, replyFlux, false, "", null);
         }
 
-        static StreamPlan image(List<MediaResource> attachments, Flux<String> replyFlux, String imagePrompt, MediaResource generatedImage) {
-            return new StreamPlan("IMAGE", attachments, replyFlux, true, imagePrompt, generatedImage);
+        static StreamPlan image(List<MediaResource> attachments, Flux<String> replyFlux, String imagePrompt, Mono<MediaResource> generatedImageMono) {
+            return new StreamPlan("IMAGE", attachments, replyFlux, true, imagePrompt, generatedImageMono);
         }
     }
 
@@ -491,5 +628,46 @@ public class MultimodalChatService {
             String url,
             String downloadUrl
     ) {
+    }
+
+    public record Decision(boolean generateImage, String reply, String imagePrompt) {
+        static Decision text(String reply) {
+            return new Decision(false, reply == null ? "" : reply, "");
+        }
+    }
+
+    static record ChatRequestContext(
+            String message,
+            List<MediaResource> attachments,
+            String inlineAttachmentText
+    ) {
+        boolean hasAttachment() {
+            return attachments != null && !attachments.isEmpty();
+        }
+
+        String attachmentSummary() {
+            if (!hasAttachment()) {
+                return "未上传附件";
+            }
+            MediaResource attachment = attachments.get(0);
+            return "fileName=" + safeValue(attachment.fileName())
+                    + ", contentType=" + safeValue(attachment.contentType())
+                    + ", fileSize=" + attachment.fileSize();
+        }
+
+        String decisionAttachmentPreview() {
+            if (inlineAttachmentText == null) {
+                return "";
+            }
+            String normalized = inlineAttachmentText.trim();
+            if (normalized.length() <= MAX_DECISION_ATTACHMENT_PREVIEW_CHARS) {
+                return normalized;
+            }
+            return normalized.substring(0, MAX_DECISION_ATTACHMENT_PREVIEW_CHARS) + "\n...[truncated]";
+        }
+
+        private static String safeValue(String value) {
+            return value == null || value.isBlank() ? "unknown" : value;
+        }
     }
 }

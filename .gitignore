@@ -1,4 +1,3 @@
-HELP.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -41,3 +40,6 @@ ${logging.file.path}/
 modules/hephaestus-app/${logging.file.path}/
 modules/hephaestus-app/target/
 modules/liquibase/target/
+.m2-local/
+.m2-temp/
+.tools/

@@ -540,6 +540,43 @@ textarea {
     text-align: center;
 }
 
+.hint.busy {
+    color: #475569;
+}
+
+.hint-wrap {
+    display: grid;
+    gap: 8px;
+}
+
+.status-progress {
+    width: min(100%, 520px);
+    height: 3px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(203, 213, 225, 0.48);
+}
+
+.status-progress-bar {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #94a3b8 0%, #0f172a 100%);
+    animation: statusShimmer 1.15s ease-in-out infinite;
+}
+
+@keyframes statusShimmer {
+    0% {
+        transform: translateX(-130%);
+    }
+
+    100% {
+        transform: translateX(360%);
+    }
+}
+
 @media (max-width: 920px) {
     .app {
         grid-template-columns: 1fr;

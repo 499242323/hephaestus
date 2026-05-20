@@ -1,5 +1,6 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.repository;
 
+import com.example.springaidemo.media.domain.MediaFile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -8,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.util.Optional;
 
 @Repository

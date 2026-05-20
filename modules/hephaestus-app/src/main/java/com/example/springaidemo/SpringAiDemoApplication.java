@@ -1,6 +1,6 @@
 package com.example.springaidemo;
 
-import com.example.springaidemo.media.MediaStorageProperties;
+import com.example.springaidemo.media.config.MediaStorageProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

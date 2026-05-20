@@ -1,5 +1,6 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.controller;
 
+import com.example.springaidemo.media.service.MediaStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.domain;
 
 public record StoredMediaFile(
         String originalFilename,

@@ -1,5 +1,8 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.service.impl;
 
+import com.example.springaidemo.media.config.MediaStorageProperties;
+import com.example.springaidemo.media.domain.StoredMediaFile;
+import com.example.springaidemo.media.exception.MediaStorageException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -17,13 +20,13 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-class MediaStorageServiceTest {
+class MediaStorageServiceImplTest {
 
     @Test
     void uploadsBytesWithBasicAuth() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        MediaStorageService service = new MediaStorageService(properties(), builder);
+        MediaStorageServiceImpl service = new MediaStorageServiceImpl(properties(), builder);
         String token = Base64.getEncoder().encodeToString("egovahttp:egovahttp".getBytes());
 
         server.expect(once(), requestTo(startsWith("http://localhost:18080/HttpFileServer/home/httpfile/writefile.htm?path=rec%2F")))
@@ -46,7 +49,7 @@ class MediaStorageServiceTest {
     void failsWhenUploadResultIsNotZero() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        MediaStorageService service = new MediaStorageService(properties(), builder);
+        MediaStorageServiceImpl service = new MediaStorageServiceImpl(properties(), builder);
 
         server.expect(once(), requestTo(startsWith("http://localhost:18080/HttpFileServer/home/httpfile/writefile.htm?path=")))
                 .andRespond(withSuccess("1", MediaType.TEXT_PLAIN));
@@ -59,9 +62,9 @@ class MediaStorageServiceTest {
 
     @Test
     void convertsOriginalFilenameToSafeStoredFilename() {
-        assertThat(MediaStorageService.toStoredFilename("需求说明(最终版).docx", "file.bin"))
+        assertThat(MediaStorageServiceImpl.toStoredFilename("需求说明(最终版).docx", "file.bin"))
                 .endsWith(".docx");
-        assertThat(MediaStorageService.toSessionPath("session 中文 01"))
+        assertThat(MediaStorageServiceImpl.toSessionPath("session 中文 01"))
                 .isEqualTo("session-01");
     }
 

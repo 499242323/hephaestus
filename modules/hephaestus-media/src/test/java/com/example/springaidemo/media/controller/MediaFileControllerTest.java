@@ -1,5 +1,8 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.controller;
 
+import com.example.springaidemo.media.domain.MediaFile;
+import com.example.springaidemo.media.service.MediaFileService;
+import com.example.springaidemo.media.service.MediaStorageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,7 +27,7 @@ class MediaFileControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private MediaFileRepository mediaFileRepository;
+    private MediaFileService mediaFileService;
 
     @MockBean
     private MediaStorageService mediaStorageService;
@@ -32,7 +35,7 @@ class MediaFileControllerTest {
     @Test
     void proxiesInlineFileContent() throws Exception {
         MediaFile mediaFile = mediaFile();
-        when(mediaFileRepository.findById(12L)).thenReturn(Optional.of(mediaFile));
+        when(mediaFileService.findById(12L)).thenReturn(Optional.of(mediaFile));
         when(mediaStorageService.read("rec/upload/20260519/session-1/9f645494-9e1b-4b82-8fd4-b9f1f11bf51d/demo-txt")).thenReturn("hello".getBytes());
 
         mockMvc.perform(get("/api/media/files/12"))
@@ -45,7 +48,7 @@ class MediaFileControllerTest {
     @Test
     void proxiesDownloadFileContent() throws Exception {
         MediaFile mediaFile = mediaFile();
-        when(mediaFileRepository.findById(12L)).thenReturn(Optional.of(mediaFile));
+        when(mediaFileService.findById(12L)).thenReturn(Optional.of(mediaFile));
         when(mediaStorageService.read("rec/upload/20260519/session-1/9f645494-9e1b-4b82-8fd4-b9f1f11bf51d/demo-txt")).thenReturn("hello".getBytes());
 
         mockMvc.perform(get("/api/media/files/12/download"))
@@ -56,7 +59,7 @@ class MediaFileControllerTest {
 
     @Test
     void returnsNotFoundWhenMetadataMissing() throws Exception {
-        when(mediaFileRepository.findById(404L)).thenReturn(Optional.empty());
+        when(mediaFileService.findById(404L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/media/files/404"))
                 .andExpect(status().isNotFound());

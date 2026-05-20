@@ -25,6 +25,7 @@
 
     <modules>
         <module>modules/liquibase</module>
+        <module>modules/hephaestus-media</module>
         <module>modules/hephaestus-app</module>
     </modules>
 

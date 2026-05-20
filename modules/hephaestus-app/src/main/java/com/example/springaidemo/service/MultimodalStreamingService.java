@@ -25,22 +25,36 @@ public class MultimodalStreamingService {
     public Flux<MultimodalStreamEvent> stream(String message, MultipartFile file, String conversationId) {
         return Flux.defer(() -> {
             MultimodalChatService.StreamPlan plan = multimodalChatService.prepareStream(message, file, conversationId);
-            return Flux.concat(
+            Flux<MultimodalStreamEvent> textFlow = Flux.concat(
                     Flux.just(status("analyzing", file == null || file.isEmpty() ? "正在整理回复" : "正在分析附件")),
                     attachmentEvents(plan.attachments()),
-                    deltaEvents(plan.replyFlux()),
-                    plan.generateImage()
-                            ? Flux.just(status("image_generating", "正在生成图片"), image(plan.generatedImage()))
-                            : Flux.empty(),
+                    deltaEvents(plan.replyFlux())
+            );
+
+            Flux<MultimodalStreamEvent> imageFlow = plan.generateImage()
+                    ? Flux.concat(
+                    Flux.just(status("image_generating", "正在生成图片")),
+                    plan.generatedImageMono()
+                            .map(this::image)
+                            .flux()
+                            .onErrorResume(exception -> {
+                                log.error("图片生成或保存失败，conversationId={}", conversationId, exception);
+                                return Flux.just(error("图片生成失败：" + exception.getMessage()));
+                            })
+            ) : Flux.empty();
+
+            return Flux.concat(
+                    textFlow,
+                    imageFlow,
                     Flux.just(done(plan.type(), plan.generateImage()))
             );
         }).onErrorResume(exception -> {
-            log.error("多模态流式请求处理失败: 会话ID={}, 是否有附件={}, 附件名={}",
+            log.error("多模态流式请求处理失败，conversationId={}, hasFile={}, fileName={}",
                     conversationId,
                     file != null && !file.isEmpty(),
                     file == null ? null : file.getOriginalFilename(),
                     exception);
-            return Flux.just(new MultimodalStreamEvent("error", Map.of("message", exception.getMessage())));
+            return Flux.just(error(exception.getMessage()));
         });
     }
 
@@ -70,6 +84,10 @@ public class MultimodalStreamingService {
 
     private MultimodalStreamEvent done(String type, boolean generateImage) {
         return new MultimodalStreamEvent("done", Map.of("type", type, "generateImage", generateImage));
+    }
+
+    private MultimodalStreamEvent error(String message) {
+        return new MultimodalStreamEvent("error", Map.of("message", message == null || message.isBlank() ? "处理请求时发生错误。" : message));
     }
 
     public String toJson(Object value) {

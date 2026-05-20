@@ -1,10 +1,12 @@
-package com.example.springaidemo.media;
+package com.example.springaidemo.media.controller;
 
+import com.example.springaidemo.media.domain.MediaFile;
+import com.example.springaidemo.media.service.MediaFileService;
+import com.example.springaidemo.media.service.MediaStorageService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,11 +20,11 @@ import java.nio.charset.StandardCharsets;
 @RequestMapping("/api/media/files")
 public class MediaFileController {
 
-    private final MediaFileRepository mediaFileRepository;
+    private final MediaFileService mediaFileService;
     private final MediaStorageService mediaStorageService;
 
-    public MediaFileController(MediaFileRepository mediaFileRepository, MediaStorageService mediaStorageService) {
-        this.mediaFileRepository = mediaFileRepository;
+    public MediaFileController(MediaFileService mediaFileService, MediaStorageService mediaStorageService) {
+        this.mediaFileService = mediaFileService;
         this.mediaStorageService = mediaStorageService;
     }
 
@@ -37,7 +39,7 @@ public class MediaFileController {
     }
 
     private void writeFile(long id, boolean attachment, HttpServletResponse response) throws IOException {
-        MediaFile mediaFile = mediaFileRepository.findById(id)
+        MediaFile mediaFile = mediaFileService.findById(id)
                 .orElseThrow(() -> new MediaFileNotFoundException("文件不存在"));
         byte[] bytes = mediaStorageService.read(mediaFile.storagePath());
 
