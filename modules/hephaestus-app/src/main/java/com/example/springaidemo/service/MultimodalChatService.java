@@ -59,20 +59,22 @@ public class MultimodalChatService {
 
     static final String RESPONSE_SYSTEM_PROMPT = """
             你是 Hephaestus 的多模态聊天助手。
-            请始终使用中文回答用户问题。
+            请始终使用中文回复用户。
             如果用户上传了附件，请结合附件内容进行回答。
             如果需要返回 Markdown、HTML 片段、代码块或 JSON，请直接输出原始内容，不要额外包一层 JSON 协议。
             """;
 
     static final String IMAGE_REPLY_SYSTEM_PROMPT = """
             你是 Hephaestus 的多模态聊天助手。
-            系统会负责生成图片，你只需要输出给用户看的最终中文正文。
+            请始终使用中文回复用户。
+            系统会负责生成图片，你只需要输出给用户看的最终中文说明或文案。
             不要输出 image_prompt、prompt、JSON、字段名、调试信息或内部推理过程。
-            如果用户要求写文案、诗句、说明、标题，请直接输出这些最终内容。
+            如果用户已经给了完整画面描述，就直接输出简短自然的确认或补充说明即可。
             """;
 
     static final String DECISION_SYSTEM_PROMPT = """
-            你是 Hephaestus 的多模态聊天助手。请根据用户输入和可选附件内容返回严格 JSON，不要输出 Markdown。
+            你是 Hephaestus 的多模态聊天助手。请根据当前用户输入、历史对话上下文和可选附件内容返回严格 JSON，不要输出 Markdown。
+            reply 字段必须使用中文。
             返回格式必须是：
             {
               "generateImage": false,
@@ -82,9 +84,11 @@ public class MultimodalChatService {
 
             判断规则：
             1. 如果用户明确要求生成、绘制、画图、做海报、做插画、根据附件生成图片，则 generateImage=true。
-            2. 如果用户明确表示不要图片、只要文字、仅做总结/分析/解释且不出图，则 generateImage=false。
-            3. 如果 generateImage=true，请把用户要求和附件关键信息整理成清晰的 imagePrompt。
-            4. 如果模型无法理解附件，请在 reply 中用中文说明。
+            2. 如果用户提供了一整段画面描述、角色设定、场景设定、风格要求，即使没有明确写“生成图片”，通常也应判断为 generateImage=true。
+            3. 如果上一轮助手正在帮助用户细化图片方案，并给出了 1/2/3/4 之类的风格、版本、类型选项，那么当前用户只回复“1”“2”“3”“4”“第一种”“第二种”“选2”这类短选择时，也要结合历史上下文判断为 generateImage=true，而不是继续追问。
+            4. 只有当用户明确表示不要图片、只要文字、只做总结、分析、解释时，才判断为 generateImage=false。
+            5. 如果 generateImage=true，请把用户要求、历史上下文和附件关键信息整理成清晰完整的 imagePrompt。
+            6. 如果模型无法理解附件，请在 reply 中用中文说明。
             """;
 
     private final ChatClient chatClient;
@@ -116,7 +120,6 @@ public class MultimodalChatService {
             if (decision.generateImage()) {
                 return imageResponse(context, file, conversationId, decision.imagePrompt());
             }
-            return new MultimodalResponse("TEXT", decision.reply(), false, "", null, context.attachments(), null);
         }
 
         String reply = collectContent(streamTextReply(context.message(), file, context.inlineAttachmentText(), conversationId)
@@ -136,7 +139,6 @@ public class MultimodalChatService {
             if (decision.generateImage()) {
                 return imageStreamPlan(context, file, conversationId, decision.imagePrompt());
             }
-            return StreamPlan.text(context.attachments(), Flux.just(decision.reply() == null ? "" : decision.reply()));
         }
 
         return StreamPlan.text(
@@ -206,10 +208,7 @@ public class MultimodalChatService {
         if (normalized.isBlank()) {
             return false;
         }
-        if (containsExplicitNoImageIntent(normalized)) {
-            return false;
-        }
-        return containsVisualIntentHint(normalized);
+        return !containsExplicitNoImageIntent(normalized);
     }
 
     private boolean containsImageGenerationIntent(String message) {
@@ -248,23 +247,6 @@ public class MultimodalChatService {
                 || message.contains("只分析")
                 || message.contains("只总结")
                 || message.contains("只解释");
-    }
-
-    private boolean containsVisualIntentHint(String message) {
-        return message.contains("图片")
-                || message.contains("图像")
-                || message.contains("画面")
-                || message.contains("配图")
-                || message.contains("插画")
-                || message.contains("海报")
-                || message.contains("封面")
-                || message.contains("截图")
-                || message.contains("视觉")
-                || message.contains("风格")
-                || message.contains("prompt")
-                || message.contains("image")
-                || message.contains("poster")
-                || message.contains("illustration");
     }
 
     private Decision decide(ChatRequestContext context, MultipartFile file, String conversationId) {
@@ -452,7 +434,7 @@ public class MultimodalChatService {
                 : context.attachmentSummary();
         String attachmentTextSnippet = context == null ? "" : context.decisionAttachmentPreview();
         return """
-                请基于以下结构化信息判断本轮是否需要生成图片。
+                请基于以下结构化信息和历史对话判断本轮是否需要生成图片。
                 [userMessage]
                 %s
 
@@ -473,39 +455,58 @@ public class MultimodalChatService {
     }
 
     private String generateImage(String imagePrompt) {
+        long modelStartAt = System.currentTimeMillis();
         ImageModel imageModel = imageModelProvider.getIfAvailable();
         if (imageModel == null) {
+            log.info("图片模型未配置，使用兜底图片，模型耗时={}ms", System.currentTimeMillis() - modelStartAt);
             return buildFallbackImageDataUrl(imagePrompt);
         }
 
         try {
             ImageResponse response = imageModel.call(new ImagePrompt(imagePrompt));
             if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+                log.warn("图片模型返回空结果，改用兜底图片，模型耗时={}ms", System.currentTimeMillis() - modelStartAt);
                 return buildFallbackImageDataUrl(imagePrompt);
             }
 
             org.springframework.ai.image.Image image = response.getResult().getOutput();
             if (image.getUrl() != null && !image.getUrl().isBlank()) {
+                log.info("图片模型生成完成，返回外链，模型耗时={}ms", System.currentTimeMillis() - modelStartAt);
                 return image.getUrl();
             }
             if (image.getB64Json() != null && !image.getB64Json().isBlank()) {
+                log.info("图片模型生成完成，返回Base64，模型耗时={}ms", System.currentTimeMillis() - modelStartAt);
                 return "data:image/png;base64," + image.getB64Json();
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            log.error("图片模型生成失败，改用兜底图片，模型耗时={}ms", System.currentTimeMillis() - modelStartAt, exception);
             return buildFallbackImageDataUrl(imagePrompt);
         }
+        log.warn("图片模型未返回可用内容，改用兜底图片，模型耗时={}ms", System.currentTimeMillis() - modelStartAt);
         return buildFallbackImageDataUrl(imagePrompt);
     }
 
     private MediaResource generateAndStoreImage(String imagePrompt, String conversationId) {
+        long totalStartAt = System.currentTimeMillis();
         String imageUrl = generateImage(imagePrompt);
         try {
+            long uploadStartAt = System.currentTimeMillis();
             StoredMediaFile storedFile = imageUrl.startsWith("data:")
                     ? mediaStorageService.uploadImageFromDataUrl(conversationId, imageUrl)
                     : mediaStorageService.uploadImageFromUrl(conversationId, imageUrl);
-            return saveMediaFile(conversationId, storedFile, "AI_GENERATED_IMAGE");
+            MediaResource resource = saveMediaFile(conversationId, storedFile, "AI_GENERATED_IMAGE");
+            log.info("AI图片处理完成，conversationId={}, 上传耗时={}ms, 总耗时={}ms, 返回类型={}",
+                    conversationId,
+                    System.currentTimeMillis() - uploadStartAt,
+                    System.currentTimeMillis() - totalStartAt,
+                    imageUrl.startsWith("data:") ? "base64" : "url");
+            return resource;
         } catch (Exception exception) {
-            log.error("生成图片后保存失败，回退为外链，conversationId={}, imageUrl={}", conversationId, imageUrl, exception);
+            log.error("AI图片生成后保存失败，conversationId={}, 总耗时={}ms, imageUrl={}",
+                    conversationId,
+                    System.currentTimeMillis() - totalStartAt,
+                    imageUrl,
+                    exception);
             return externalImageResource(imageUrl);
         }
     }
@@ -600,6 +601,12 @@ public class MultimodalChatService {
         return chunks == null ? "" : String.join("", chunks);
     }
 
+    private static String contentType(MultipartFile file) {
+        return file.getContentType() == null || file.getContentType().isBlank()
+                ? MediaType.APPLICATION_OCTET_STREAM_VALUE
+                : file.getContentType();
+    }
+
     private static String fileSummary(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return "未上传附件";
@@ -615,10 +622,11 @@ public class MultimodalChatService {
         );
     }
 
-    private static String contentType(MultipartFile file) {
-        return file.getContentType() == null || file.getContentType().isBlank()
-                ? MediaType.APPLICATION_OCTET_STREAM_VALUE
-                : file.getContentType();
+    private static String safeDecisionReply(String reply) {
+        if (reply == null || reply.isBlank()) {
+            return "已完成分析。";
+        }
+        return reply;
     }
 
     public record MultimodalResponse(

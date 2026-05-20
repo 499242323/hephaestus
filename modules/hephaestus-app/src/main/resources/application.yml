@@ -44,7 +44,7 @@ spring:
         options:
           model: gpt-image-1
           size: 1024x1024
-          quality: medium
+          quality: low
     chat:
       memory:
         repository:
@@ -91,3 +91,5 @@ logging:
   level:
     liquibase: info
     org.springframework.boot.autoconfigure.liquibase: info
+    org.springframework.ai: info # AI对话的日志级别
+    com.itheima.ai: info # 本项目的日志级别

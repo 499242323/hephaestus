@@ -43,9 +43,12 @@ public class MultimodalStreamingService {
                             })
             ) : Flux.empty();
 
-            return Flux.concat(
-                    textFlow,
-                    imageFlow,
+            Flux<MultimodalStreamEvent> combinedFlow = plan.generateImage()
+                    ? Flux.merge(textFlow, imageFlow)
+                    : textFlow;
+
+            return Flux.mergeSequential(
+                    combinedFlow,
                     Flux.just(done(plan.type(), plan.generateImage()))
             );
         }).onErrorResume(exception -> {
