@@ -1,0 +1,93 @@
+server:
+  port: ${SERVER_PORT:11018}
+  servlet:
+    context-path: /${CONTEXT_PATH:hephaestus}
+  tomcat:
+    uri-encoding: utf-8
+    accesslog:
+      enabled: true
+      pattern: '%h %S %t "%r" %s %b %D'
+      max-days: 30
+    basedir: ${logging.file.path}/tomcat_logs
+    threads:
+      max: ${TOMCAT_THREAD_MAX:800}
+      min-spare: ${TOMCAT_MIN_SPARE:100}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:10000}
+  aas:
+    accesslog:
+      enabled: true
+      pattern: '%h %S %t "%r" %s %b %D'
+      max-days: 30
+    basedir: ${logging.file.path}/aas
+    max-threads: ${TOMCAT_THREADS_MAX:512}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:8192}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:1000}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+  application:
+    name: Hephaestus
+  ai:
+    openai:
+      api-key: sk-faa98d42a27af1cb9b31ebb1287eaf3a9e6247582b607e47b0d3c885678d5dbb
+      base-url: http://67.216.197.243:16255
+      chat:
+        options:
+          model: gpt-5.4
+          temperature: 0.7
+          max-tokens: 4096
+      image:
+        options:
+          model: gpt-image-1
+          size: 1024x1024
+          quality: medium
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: never
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog.xml
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:mysql://${MYSQL_URL:10.255.22.12:3306/hephaestus}?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=GMT%2B8&allowMultiQueries=true&autoReconnect=true&connectTimeout=60000&socketTimeout=3600000}
+    driver-class-name: ${DATASOURCE_DRIVER:${MYSQL_DRIVER:com.mysql.cj.jdbc.Driver}}
+    username: ${DATASOURCE_USERNAME:${MYSQL_USERNAME:root}}
+    password: ${DATASOURCE_PASSWORD:${MYSQL_PASSWORD:eGovaZT@2023}}
+    hikari:
+      idle-timeout: 600000
+      connection-timeout: 60000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      maximum-pool-size: 128
+      minimum-idle: 20
+  redis:
+    mode: ${REDIS_MODE:standalone}
+    host: ${REDIS_URL:127.0.0.1}
+    port: ${REDIS_PORT:6379}
+    database: ${REDIS_DATABASE:0}
+    password: ${REDIS_PASSWORD:}
+    lettuce:
+      pool:
+        max-active: 64
+        max-wait: 10s
+        max-idle: 16
+        min-idle: 4
+      shutdown-timeout: 1s
+
+app:
+  media:
+    base-url: ${MEDIA_BASE_URL:http://localhost:18080/HttpFile}
+    username: ${MEDIA_USERNAME:egovahttp}
+    password: ${MEDIA_PASSWORD:egovahttp}
+    storage-prefix: ${MEDIA_STORAGE_PREFIX:hephaestus}
+    access-path-prefix: ${MEDIA_ACCESS_PATH_PREFIX:/${CONTEXT_PATH:hephaestus}/mediadl/media/getdata}
+
+logging:
+  level:
+    liquibase: info
+    org.springframework.boot.autoconfigure.liquibase: info

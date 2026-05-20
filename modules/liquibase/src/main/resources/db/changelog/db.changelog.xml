@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- chat-memory baseline -->
+    <changeSet id="chat-memory-create-table_1" author="codex">
+        <validCheckSum>ANY</validCheckSum>
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="spring_ai_chat_memory"/>
+            </not>
+        </preConditions>
+        <createTable tableName="spring_ai_chat_memory">
+            <column name="id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_spring_ai_chat_memory"/>
+            </column>
+            <column name="conversation_id" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="enum('USER', 'ASSISTANT', 'SYSTEM', 'TOOL')" defaultValue="USER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timestamp" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="create_time" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex tableName="spring_ai_chat_memory" indexName="idx_conversation_id">
+            <column name="conversation_id"/>
+        </createIndex>
+        <createIndex tableName="spring_ai_chat_memory" indexName="idx_create_time">
+            <column name="create_time"/>
+        </createIndex>
+        <createIndex tableName="spring_ai_chat_memory" indexName="SPRING_AI_CHAT_MEMORY_CONVERSATION_ID_TIMESTAMP_IDX">
+            <column name="conversation_id"/>
+            <column name="timestamp"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- media-file baseline -->
+    <changeSet id="media-file-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="spring_ai_media_file"/>
+            </not>
+        </preConditions>
+        <createTable tableName="spring_ai_media_file">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_spring_ai_media_file"/>
+            </column>
+            <column name="conversation_id" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="original_filename" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stored_filename" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_type" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_size" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="storage_path" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="access_url" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_type" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="spring_ai_media_file" indexName="idx_spring_ai_media_conversation">
+            <column name="conversation_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <addUniqueConstraint tableName="spring_ai_media_file"
+                             columnNames="storage_path"
+                             constraintName="uk_spring_ai_media_storage_path"/>
+    </changeSet>
+
+    <!-- media-file compatibility patches -->
+    <changeSet id="media-file-add-stored-filename" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="spring_ai_media_file"/>
+            <not>
+                <columnExists tableName="spring_ai_media_file" columnName="stored_filename"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="spring_ai_media_file">
+            <column name="stored_filename" type="varchar(255)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

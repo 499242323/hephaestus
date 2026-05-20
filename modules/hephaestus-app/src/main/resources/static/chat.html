@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hephaestus</title>
+    <link rel="stylesheet" href="./chat.css">
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <button id="newSessionButton" class="new-chat" type="button">
+                <span class="new-chat-icon">+</span>
+                <span>新聊天</span>
+            </button>
+
+            <div class="brand">
+                <strong>Hephaestus</strong>
+                <span>支持中文对话、附件理解、流式回复与图像生成。</span>
+            </div>
+        </div>
+
+        <section class="sidebar-section">
+            <h2 class="section-title">会话</h2>
+            <div id="sessionList" class="session-list"></div>
+        </section>
+
+        <section class="sidebar-section">
+            <h2 class="section-title">可以这样开始</h2>
+            <div class="presets">
+                <button class="preset" type="button" data-message="我是张三，是一名 Java 工程师，正在调试 Hephaestus 的会话记忆与流式聊天能力。">记住我的身份和项目背景</button>
+                <button class="preset" type="button" data-message="请用中文总结这个附件的主要内容，并给出三条改进建议。">总结附件并给出建议</button>
+                <button class="preset" type="button" data-message="根据我上传的附件，生成一张适合技术分享会使用的宣传图。">基于附件生成宣传图</button>
+                <button class="preset" type="button" data-message="画一张简洁的 Hephaestus 产品封面图，风格清爽，适合演示首页。">直接生成一张封面图</button>
+                <button class="preset" type="button" data-message="刚才我告诉你的姓名、项目名和回答偏好分别是什么？">验证会话记忆</button>
+            </div>
+        </section>
+    </aside>
+
+    <main class="main">
+        <section id="messages" class="messages"></section>
+
+        <div class="composer-wrap">
+            <div class="composer-shell">
+                <form id="chatForm" class="composer">
+                    <div id="attachmentChip" class="attachment-chip">
+                        <div id="attachmentThumb" class="thumb">+</div>
+                        <div class="chip-text">
+                            <span id="attachmentName" class="chip-name"></span>
+                            <span id="attachmentSize" class="chip-size"></span>
+                        </div>
+                        <button id="removeFileButton" class="chip-remove" type="button" aria-label="移除附件">×</button>
+                    </div>
+
+                    <div class="input-shell">
+                        <button id="chooseFileButton" class="icon-button action-left" type="button" aria-label="上传附件">+</button>
+                        <textarea id="messageInput" placeholder="给 Hephaestus 发送消息"></textarea>
+                        <button id="sendButton" class="send-button action-right" type="submit" aria-label="发送">↑</button>
+                        <input id="attachmentInput" class="file-input" type="file">
+                    </div>
+                </form>
+                <div id="statusText" class="hint">Enter 发送，Shift + Enter 换行</div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="./chat.js"></script>
+</body>
+</html>
