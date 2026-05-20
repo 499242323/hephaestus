@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Runtime Outputs ###
+${logging.file.path}/
+modules/hephaestus-app/${logging.file.path}/
+modules/hephaestus-app/target/
+modules/liquibase/target/
