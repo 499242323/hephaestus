@@ -58,6 +58,22 @@ class MediaFileRepositoryIntegrationTest {
         MediaFile updated = mediaFileRepository.findById(saved.id()).orElseThrow();
         assertThat(updated.accessUrl()).isEqualTo("/hephaestus/media/a-txt");
 
+        MediaFile replaced = mediaFileRepository.updateMediaFile(new MediaFile(
+                saved.id(),
+                saved.conversationId(),
+                saved.originalFilename(),
+                saved.storedFilename(),
+                saved.contentType(),
+                saved.fileSize(),
+                saved.storagePath(),
+                "/hephaestus/media/a-txt-2",
+                saved.sourceType(),
+                saved.createdAt()
+        ));
+        assertThat(replaced.id()).isEqualTo(saved.id());
+        assertThat(mediaFileRepository.findById(saved.id()).orElseThrow().accessUrl())
+                .isEqualTo("/hephaestus/media/a-txt-2");
+
         MediaFileEntity first = MediaFileEntity.fromDomain(new MediaFile(
                 null,
                 "session-2",
@@ -87,5 +103,8 @@ class MediaFileRepositoryIntegrationTest {
 
         assertThat(first.getId()).isNotNull();
         assertThat(second.getId()).isNotNull();
+
+        mediaFileRepository.deleteMediaFile(saved.id());
+        assertThat(mediaFileRepository.findById(saved.id())).isEmpty();
     }
 }

@@ -1,6 +1,7 @@
 package com.example.springaidemo.mybatis.repository;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.UpdateProvider;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -16,6 +17,18 @@ public interface BaseAbstractRepository<T, ID extends Serializable> extends Base
     default T save(T entity) {
         insert(entity);
         return entity;
+    }
+
+    @UpdateProvider(type = BaseUpdateTemplate.class, method = "updateById")
+    void updateNonNullById(T entity);
+
+    default T update(T entity) {
+        updateNonNullById(entity);
+        return entity;
+    }
+
+    default void removeById(ID id) {
+        deleteById(id);
     }
 
     default void insertList(Iterable<? extends T> entities) {

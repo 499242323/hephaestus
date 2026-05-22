@@ -2,7 +2,6 @@ package com.example.springaidemo.mybatis.repository;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
 import org.apache.ibatis.builder.annotation.ProviderContext;
 
@@ -18,9 +17,9 @@ public final class BaseInsertTemplate {
     }
 
     public static String dynamicSQL(Object parameterObject, ProviderContext context) {
-        Class<?> entityType = resolveEntityType(context);
-        String tableName = resolveTableName(entityType);
-        List<ColumnField> fields = resolveInsertableFields(entityType);
+        Class<?> entityType = BaseTemplateSupport.resolveEntityType(context);
+        String tableName = BaseTemplateSupport.resolveTableName(entityType);
+        List<BaseTemplateSupport.ColumnField> fields = resolveInsertableFields(entityType);
 
         StringBuilder sql = new StringBuilder();
         sql.append("<script>");
@@ -44,31 +43,8 @@ public final class BaseInsertTemplate {
         return sql.toString();
     }
 
-    private static Class<?> resolveEntityType(ProviderContext context) {
-        Class<?> mapperType = context.getMapperType();
-        for (java.lang.reflect.Type type : mapperType.getGenericInterfaces()) {
-            if (type instanceof java.lang.reflect.ParameterizedType parameterizedType
-                    && parameterizedType.getRawType() instanceof Class<?> rawType
-                    && BaseAbstractRepository.class.isAssignableFrom(rawType)) {
-                java.lang.reflect.Type entityType = parameterizedType.getActualTypeArguments()[0];
-                if (entityType instanceof Class<?> entityClass) {
-                    return entityClass;
-                }
-            }
-        }
-        throw new IllegalStateException("Cannot resolve entity type for mapper: " + mapperType.getName());
-    }
-
-    private static String resolveTableName(Class<?> entityType) {
-        TableName tableName = entityType.getAnnotation(TableName.class);
-        if (tableName != null && !tableName.value().isBlank()) {
-            return tableName.value();
-        }
-        throw new IllegalStateException("Missing @TableName on entity: " + entityType.getName());
-    }
-
-    private static List<ColumnField> resolveInsertableFields(Class<?> entityType) {
-        List<ColumnField> fields = new ArrayList<>();
+    private static List<BaseTemplateSupport.ColumnField> resolveInsertableFields(Class<?> entityType) {
+        List<BaseTemplateSupport.ColumnField> fields = new ArrayList<>();
         for (Field field : entityType.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()) {
                 continue;
@@ -79,7 +55,7 @@ public final class BaseInsertTemplate {
                 if (tableId.type() == IdType.AUTO) {
                     continue;
                 }
-                fields.add(new ColumnField(field.getName(), tableId.value().isBlank() ? field.getName() : tableId.value()));
+                fields.add(new BaseTemplateSupport.ColumnField(field.getName(), tableId.value().isBlank() ? field.getName() : tableId.value()));
                 continue;
             }
 
@@ -94,7 +70,7 @@ public final class BaseInsertTemplate {
             String columnName = tableField != null && !tableField.value().isBlank()
                     ? tableField.value()
                     : field.getName();
-            fields.add(new ColumnField(field.getName(), columnName));
+            fields.add(new BaseTemplateSupport.ColumnField(field.getName(), columnName));
         }
 
         if (fields.isEmpty()) {
@@ -105,8 +81,5 @@ public final class BaseInsertTemplate {
 
     private static boolean isImplicitAutoId(Field field) {
         return "id".equals(field.getName());
-    }
-
-    private record ColumnField(String fieldName, String columnName) {
     }
 }

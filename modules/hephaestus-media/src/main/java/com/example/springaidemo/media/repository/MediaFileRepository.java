@@ -46,8 +46,18 @@ public interface MediaFileRepository extends BaseAbstractRepository<MediaFileEnt
         return entity.toDomain();
     }
 
+    default MediaFile updateMediaFile(MediaFile mediaFile) {
+        MediaFileEntity entity = MediaFileEntity.fromDomain(mediaFile);
+        update(entity);
+        return entity.toDomain();
+    }
+
     default Optional<MediaFile> findById(long id) {
         MediaFileEntity entity = getById(id);
         return entity == null ? Optional.empty() : Optional.of(entity.toDomain());
+    }
+
+    default void deleteMediaFile(long id) {
+        removeById(id);
     }
 }
