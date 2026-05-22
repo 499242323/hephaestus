@@ -39,7 +39,9 @@ out/
 ${logging.file.path}/
 modules/hephaestus-app/${logging.file.path}/
 modules/hephaestus-app/target/
+modules/hephaestus-media/target/
 modules/liquibase/target/
+modules/mybatis/target/
 .m2-local/
 .m2-temp/
 .tools/

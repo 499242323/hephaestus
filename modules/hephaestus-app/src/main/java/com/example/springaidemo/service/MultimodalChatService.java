@@ -61,6 +61,7 @@ public class MultimodalChatService {
             你是 Hephaestus 的多模态聊天助手。
             请始终使用中文回复用户。
             如果用户上传了附件，请结合附件内容进行回答。
+            回答内容完整格式不要JSON,直接回答文字内容
             如果需要返回 Markdown、HTML 片段、代码块或 JSON，请直接输出原始内容，不要额外包一层 JSON 协议。
             """;
 
@@ -73,8 +74,8 @@ public class MultimodalChatService {
             """;
 
     static final String DECISION_SYSTEM_PROMPT = """
-            你是 Hephaestus 的多模态聊天助手。请根据当前用户输入、历史对话上下文和可选附件内容返回严格 JSON，不要输出 Markdown。
-            reply 字段必须使用中文。
+            你是 Hephaestus 的多模态聊天助手。请根据当前用户输入、历史对话上下文和可选附件内容返回严格 JSON。
+            reply 字段必须使用中文，不要回复是否生成图片策略。
             返回格式必须是：
             {
               "generateImage": false,

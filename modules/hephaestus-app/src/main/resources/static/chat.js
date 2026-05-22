@@ -111,6 +111,28 @@
         messages.scrollTop = messages.scrollHeight;
     }
 
+    function stickToBottomAfterImageLoad(img) {
+        const tryScroll = () => {
+            const activeSession = getActiveSession();
+            if (!activeSession || activeSession.autoScroll) {
+                scrollMessagesToBottom();
+                saveActiveSessionSnapshot();
+            }
+        };
+
+        if (img.complete) {
+            requestAnimationFrame(tryScroll);
+            return;
+        }
+
+        const handleLoad = () => {
+            requestAnimationFrame(tryScroll);
+        };
+
+        img.addEventListener("load", handleLoad, { once: true });
+        img.addEventListener("error", handleLoad, { once: true });
+    }
+
     function resizeInput() {
         input.style.height = "auto";
         input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
@@ -238,6 +260,7 @@
                 const img = document.createElement("img");
                 img.src = item.url;
                 img.alt = "图片";
+                stickToBottomAfterImageLoad(img);
                 card.appendChild(img);
             } else {
                 const fileCard = document.createElement("div");

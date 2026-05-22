@@ -109,7 +109,7 @@ public class MediaStorageServiceImpl implements MediaStorageService {
         if (bytes == null || bytes.length == 0) {
             throw new MediaStorageException("下载生成图片失败");
         }
-        return upload(conversationId, "generated-image.png", MediaType.IMAGE_PNG_VALUE, bytes, "down");
+        return upload(conversationId, conversationId+".png", MediaType.IMAGE_PNG_VALUE, bytes, "down");
     }
 
     public static String toStoredFilename(String originalFilename, String fallback) {

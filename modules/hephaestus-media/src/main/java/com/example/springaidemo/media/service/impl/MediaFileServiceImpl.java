@@ -20,7 +20,7 @@ public class MediaFileServiceImpl implements MediaFileService {
 
     @Override
     public MediaFile save(String conversationId, StoredMediaFile storedFile, String sourceType, String accessUrl) {
-        MediaFile saved = mediaFileRepository.save(new MediaFile(
+        MediaFile saved = mediaFileRepository.saveMediaFile(new MediaFile(
                 null,
                 conversationId,
                 storedFile.originalFilename(),
