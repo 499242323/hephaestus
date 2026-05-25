@@ -105,4 +105,172 @@
             </column>
         </addColumn>
     </changeSet>
+
+    <!-- org baseline -->
+    <changeSet id="heph-unit-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_unit"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_unit">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_heph_unit"/>
+            </column>
+            <column name="unit_code" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="bigint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ancestor_path" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="heph_unit"
+                             columnNames="unit_code"
+                             constraintName="uk_heph_unit_code"/>
+        <createIndex tableName="heph_unit" indexName="idx_heph_unit_parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+        <createIndex tableName="heph_unit" indexName="idx_heph_unit_ancestor_path">
+            <column name="ancestor_path"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-person-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_person"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_person">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_heph_person"/>
+            </column>
+            <column name="person_code" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="person_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avatar_media_id" type="bigint"/>
+            <column name="mobile" type="varchar(64)"/>
+            <column name="email" type="varchar(128)"/>
+            <column name="remark" type="varchar(512)"/>
+            <column name="enabled" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="heph_person"
+                             columnNames="person_code"
+                             constraintName="uk_heph_person_code"/>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_unit_id">
+            <column name="unit_id"/>
+        </createIndex>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_avatar_media_id">
+            <column name="avatar_media_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-unit-seed-demo-data" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_unit"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM heph_unit WHERE id IN (1, 2)
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="heph_unit">
+            <column name="id" valueNumeric="1"/>
+            <column name="unit_code" value="ROOT"/>
+            <column name="unit_name" value="Root Unit"/>
+            <column name="parent_id" valueNumeric="0"/>
+            <column name="ancestor_path" value="1"/>
+            <column name="sort_order" valueNumeric="0"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_unit">
+            <column name="id" valueNumeric="2"/>
+            <column name="unit_code" value="BRANCH"/>
+            <column name="unit_name" value="Branch Unit"/>
+            <column name="parent_id" valueNumeric="1"/>
+            <column name="ancestor_path" value="1/2"/>
+            <column name="sort_order" valueNumeric="10"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="heph-person-seed-demo-data" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM heph_person WHERE id IN (100, 101)
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="heph_person">
+            <column name="id" valueNumeric="100"/>
+            <column name="person_code" value="P100"/>
+            <column name="person_name" value="Alice"/>
+            <column name="unit_id" valueNumeric="1"/>
+            <column name="mobile" value="13800000000"/>
+            <column name="email" value="alice@example.com"/>
+            <column name="remark" value="Root scope demo user"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_person">
+            <column name="id" valueNumeric="101"/>
+            <column name="person_code" value="P101"/>
+            <column name="person_name" value="Bob"/>
+            <column name="unit_id" valueNumeric="2"/>
+            <column name="mobile" value="13900000000"/>
+            <column name="email" value="bob@example.com"/>
+            <column name="remark" value="Branch scope demo user"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="heph-person-add-account-columns" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <not>
+                <columnExists tableName="heph_person" columnName="username"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="heph_person">
+            <column name="username" type="varchar(64)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="heph_person">
+            <column name="password" type="varchar(128)" defaultValue="">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <update tableName="heph_person">
+            <column name="username" value="alice"/>
+            <column name="password" value="123456"/>
+            <where>id = 100</where>
+        </update>
+        <update tableName="heph_person">
+            <column name="username" value="bob"/>
+            <column name="password" value="123456"/>
+            <where>id = 101</where>
+        </update>
+    </changeSet>
 </databaseChangeLog>

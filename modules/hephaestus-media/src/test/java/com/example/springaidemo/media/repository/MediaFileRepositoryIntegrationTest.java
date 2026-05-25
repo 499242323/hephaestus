@@ -19,7 +19,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 @TestPropertySource(properties = {
         "spring.ai.openai.api-key=test",
-        "spring.ai.openai.base-url=http://localhost"
+        "spring.ai.openai.base-url=http://localhost",
+        "spring.datasource.url=jdbc:h2:mem:hephaestus_media;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password="
 })
 class MediaFileRepositoryIntegrationTest {
 
@@ -31,6 +35,20 @@ class MediaFileRepositoryIntegrationTest {
 
     @BeforeEach
     void clearTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS spring_ai_media_file (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_id VARCHAR(128) NOT NULL,
+                    original_filename VARCHAR(255) NOT NULL,
+                    stored_filename VARCHAR(255) NOT NULL,
+                    content_type VARCHAR(128) NOT NULL,
+                    file_size BIGINT NOT NULL,
+                    storage_path VARCHAR(512) NOT NULL,
+                    access_url VARCHAR(512) NOT NULL,
+                    source_type VARCHAR(32) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+                )
+                """);
         jdbcTemplate.update("DELETE FROM spring_ai_media_file");
     }
 

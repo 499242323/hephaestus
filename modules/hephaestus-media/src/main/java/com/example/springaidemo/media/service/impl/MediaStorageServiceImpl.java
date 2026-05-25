@@ -7,6 +7,7 @@ import com.example.springaidemo.media.service.MediaStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.client.RestClient;
@@ -36,7 +37,12 @@ public class MediaStorageServiceImpl implements MediaStorageService {
 
     public MediaStorageServiceImpl(MediaStorageProperties properties, RestClient.Builder restClientBuilder) {
         this.properties = properties;
-        this.restClient = restClientBuilder.build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000);
+        requestFactory.setReadTimeout(10000);
+        this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
+                .build();
     }
 
     @Override

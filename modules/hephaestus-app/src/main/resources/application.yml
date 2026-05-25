@@ -86,6 +86,14 @@ app:
     password: ${MEDIA_PASSWORD:egovahttp}
     storage-prefix: ${MEDIA_STORAGE_PREFIX:hephaestus}
     access-path-prefix: ${MEDIA_ACCESS_PATH_PREFIX:/${CONTEXT_PATH:hephaestus}/mediadl/media/getdata}
+  weather:
+    provider: ${WEATHER_PROVIDER:qweather}
+    api-key: ${WEATHER_API_KEY:e9b2800d520d47f28a360dd607efbdf6}
+    api-host: ${WEATHER_API_HOST:https://kh2yw2259h.re.qweatherapi.com}
+    geo-base-url: ${WEATHER_GEO_BASE_URL:}
+    weather-base-url: ${WEATHER_BASE_URL:}
+    connect-timeout-millis: ${WEATHER_CONNECT_TIMEOUT_MILLIS:5000}
+    read-timeout-millis: ${WEATHER_READ_TIMEOUT_MILLIS:5000}
 
 logging:
   level:

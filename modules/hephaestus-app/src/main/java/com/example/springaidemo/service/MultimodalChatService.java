@@ -1,13 +1,13 @@
 package com.example.springaidemo.service;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.example.springaidemo.media.config.MediaStorageProperties;
 import com.example.springaidemo.media.domain.MediaFile;
 import com.example.springaidemo.media.domain.StoredMediaFile;
 import com.example.springaidemo.media.exception.MediaStorageException;
 import com.example.springaidemo.media.service.MediaFileService;
 import com.example.springaidemo.media.service.MediaStorageService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.image.ImageModel;
@@ -33,8 +33,6 @@ import java.util.Set;
 @Slf4j
 @Service
 public class MultimodalChatService {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String CONVERSATION_ID_KEY = "chat_memory_conversation_id";
     private static final int MAX_INLINE_TEXT_ATTACHMENT_BYTES = 256 * 1024;
     private static final int MAX_DECISION_ATTACHMENT_PREVIEW_CHARS = 4000;
@@ -382,10 +380,10 @@ public class MultimodalChatService {
         }
 
         try {
-            JsonNode node = OBJECT_MAPPER.readTree(json);
-            boolean generateImage = node.path("generateImage").asBoolean(false);
-            String reply = node.path("reply").asText("");
-            String imagePrompt = node.path("imagePrompt").asText("");
+            JSONObject node = JSON.parseObject(json);
+            boolean generateImage = node.getBooleanValue("generateImage");
+            String reply = node.getString("reply");
+            String imagePrompt = node.getString("imagePrompt");
             return new Decision(generateImage, reply, imagePrompt);
         } catch (Exception ignored) {
             return Decision.text(normalized);

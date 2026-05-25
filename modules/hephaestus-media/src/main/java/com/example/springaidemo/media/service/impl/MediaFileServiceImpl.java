@@ -5,6 +5,7 @@ import com.example.springaidemo.media.domain.StoredMediaFile;
 import com.example.springaidemo.media.repository.MediaFileRepository;
 import com.example.springaidemo.media.service.MediaFileService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -19,6 +20,7 @@ public class MediaFileServiceImpl implements MediaFileService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public MediaFile save(String conversationId, StoredMediaFile storedFile, String sourceType, String accessUrl) {
         MediaFile saved = mediaFileRepository.saveMediaFile(new MediaFile(
                 null,

@@ -1,0 +1,142 @@
+<div id="settingsBackdrop" class="settings-backdrop" hidden></div>
+<aside id="settingsDrawer" class="settings-drawer" aria-hidden="true">
+    <div class="settings-shell">
+        <div class="settings-shell__side">
+            <button id="closeSettingsButton" class="settings-shell__close" type="button" aria-label="关闭设置">×</button>
+            <div class="settings-shell__menu-title">设置</div>
+            <nav class="settings-menu">
+                <button id="generalTabButton" class="settings-menu__item active" type="button">
+                    <span class="settings-menu__icon">○</span>
+                    <span>常规</span>
+                </button>
+                <button id="unitsTabButton" class="settings-menu__item" type="button">
+                    <span class="settings-menu__icon">◫</span>
+                    <span>部门</span>
+                </button>
+                <button id="peopleTabButton" class="settings-menu__item" type="button">
+                    <span class="settings-menu__icon">◎</span>
+                    <span>人员</span>
+                </button>
+            </nav>
+        </div>
+
+        <div class="settings-shell__content">
+            <div class="settings-shell__header">
+                <div class="settings-drawer__title">
+                    <strong id="settingsPanelTitle">常规</strong>
+                    <span>分别管理单位与人员，当前页面只展示当前内容。</span>
+                </div>
+            </div>
+
+            <div id="settingsError" class="settings-error" hidden></div>
+
+            <div class="settings-drawer__body">
+                <section id="generalPanel" class="settings-panel">
+                    <div class="settings-section settings-section--blank"></div>
+                </section>
+
+                <section id="unitsPanel" class="settings-panel" hidden>
+                    <div class="settings-workspace">
+                        <div class="settings-split">
+                            <aside class="settings-split__side">
+                                <div class="settings-section settings-section--side">
+                                    <div class="settings-tree-search">
+                                        <input id="unitTreeSearchInput" type="text" placeholder="搜索部门">
+                                    </div>
+                                    <div class="settings-section__header">
+                                        <strong>部门树</strong>
+                                    </div>
+                                    <div id="unitsTree" class="settings-tree"></div>
+                                </div>
+                            </aside>
+
+                            <div class="settings-split__main">
+                                <form id="unitEditorForm" class="settings-form settings-form--detail">
+                                    <div class="settings-form-tabs">
+                                        <span class="settings-form-tabs__item active">基础属性</span>
+                                    </div>
+                                    <h3>部门编辑</h3>
+                                    <input id="unitParentIdInput" type="hidden">
+                                    <input id="unitEditIdInput" type="hidden">
+                                    <div class="settings-form__grid settings-form__grid--detail">
+                                        <label class="settings-field"><span>上级部门</span><select id="unitParentSelect" name="parentId"></select></label>
+                                        <label class="settings-field"><span>编码</span><input id="unitCodeInput" name="unitCode" type="text" placeholder="请输入部门编码"></label>
+                                        <label class="settings-field"><span>名称</span><input id="unitNameInput" name="unitName" type="text" placeholder="请输入部门名称"></label>
+                                        <label class="settings-field"><span>排序</span><input id="unitSortOrderInput" name="sortOrder" type="number" value="0"></label>
+                                        <label class="settings-toggle settings-toggle--field"><span>启用</span><input id="unitEnabledInput" name="enabled" type="checkbox" checked></label>
+                                    </div>
+                                    <div class="settings-form__actions">
+                                        <button class="settings-action settings-action--primary" type="submit">保存部门</button>
+                                        <button id="resetUnitFormButton" class="settings-action" type="button">重置</button>
+                                        <button id="showUnitCreateButton" class="settings-action" type="button">新增下级</button>
+                                        <button id="refreshSettingsButton" class="settings-action" type="button">刷新</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="peoplePanel" class="settings-panel" hidden>
+                    <div class="settings-workspace">
+                        <div class="settings-split">
+                            <aside class="settings-split__side">
+                                <div class="settings-section settings-section--side">
+                                    <div class="settings-tree-search">
+                                        <input id="peopleTreeSearchInput" type="text" placeholder="搜索人员">
+                                    </div>
+                                    <div class="settings-section__header">
+                                        <strong>人员树</strong>
+                                    </div>
+                                    <div id="peopleList" class="settings-people"></div>
+                                </div>
+                            </aside>
+
+                            <div class="settings-split__main">
+                                <form id="personEditorForm" class="settings-form settings-form--detail settings-form--person">
+                                    <div class="settings-form-tabs">
+                                        <span class="settings-form-tabs__item active">基础属性</span>
+                                    </div>
+                                    <h3>人员编辑</h3>
+                                    <div class="settings-avatar-top">
+                                        <div class="settings-field">
+                                            <span>头像</span>
+                                            <div class="settings-avatar-field">
+                                                <button id="personAvatarButton" class="settings-avatar-button" type="button" aria-label="点击管理头像">
+                                                    <span id="personAvatarPreview" class="settings-avatar settings-avatar--editor">头像</span>
+                                                </button>
+                                                <div class="settings-avatar-actions">
+                                                    <button id="personAvatarUploadButton" class="settings-action" type="button">上传头像</button>
+                                                    <button id="personAvatarDeleteButton" class="settings-action settings-action--danger" type="button">删除头像</button>
+                                                </div>
+                                                <input id="personAvatarInput" name="avatar" type="file" accept="image/*" hidden>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <input id="personEditIdInput" type="hidden">
+                                    <div class="settings-form__grid settings-form__grid--detail">
+                                        <label class="settings-field"><span>编码</span><input id="personCodeInput" name="personCode" type="text" placeholder="请输入人员编码"></label>
+                                        <label class="settings-field"><span>用户名</span><input id="personUsernameInput" name="username" type="text" placeholder="请输入用户名"></label>
+                                        <label class="settings-field"><span>姓名</span><input id="personNameInput" name="personName" type="text" placeholder="请输入人员姓名"></label>
+                                        <label class="settings-field"><span>密码</span><input id="personPasswordInput" name="password" type="text" placeholder="请输入密码"></label>
+                                        <label class="settings-field"><span>部门</span><select id="personUnitIdInput" name="unitId"></select></label>
+                                        <label class="settings-field"><span>手机号</span><input id="personMobileInput" name="mobile" type="text" placeholder="请输入手机号"></label>
+                                        <label class="settings-field"><span>邮箱</span><input id="personEmailInput" name="email" type="email" placeholder="请输入邮箱"></label>
+                                        <label class="settings-toggle settings-toggle--field"><span>启用</span><input id="personEnabledInput" name="enabled" type="checkbox" checked></label>
+                                    </div>
+                                    <label class="settings-field"><span>备注</span><textarea id="personRemarkInput" name="remark" rows="3" placeholder="请输入备注"></textarea></label>
+                                    <div class="settings-form__actions">
+                                        <button class="settings-action settings-action--primary" type="submit">保存人员</button>
+                                        <button id="resetPersonFormButton" class="settings-action" type="button">重置</button>
+                                        <button id="showPersonCreateButton" class="settings-action" type="button">新增人员</button>
+                                        <button id="refreshPeopleButton" class="settings-action" type="button">刷新</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</aside>

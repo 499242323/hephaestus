@@ -57,10 +57,7 @@ public class MybatisChatMemoryRepository implements ChatMemoryRepository {
 
     @Override
     public void deleteByConversationId(String conversationId) {
-        List<ChatMemoryMessageEntity> entities = repository.findByConversationId(conversationId);
-        for (ChatMemoryMessageEntity entity : entities) {
-            repository.removeById(entity.getId());
-        }
+        repository.deleteByConversationId(conversationId);
     }
 
     private Message toMessage(ChatMemoryMessageEntity entity) {

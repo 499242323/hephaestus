@@ -5,6 +5,7 @@ import com.example.springaidemo.mybatis.repository.BaseAbstractRepository;
 import com.example.springaidemo.mybatis.repository.BaseInsertTemplate;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.UpdateProvider;
 
@@ -34,4 +35,10 @@ public interface ChatMemoryMessageRepository extends BaseAbstractRepository<Chat
 
     @UpdateProvider(type = BaseInsertTemplate.class, method = "dynamicSQL")
     void insertList(@Param("_list") List<ChatMemoryMessageEntity> messages);
+
+    @Delete("""
+            DELETE FROM spring_ai_chat_memory
+            WHERE conversation_id = #{conversationId}
+            """)
+    void deleteByConversationId(@Param("conversationId") String conversationId);
 }

@@ -29,12 +29,12 @@ public class MediaFileController {
     }
 
     @GetMapping("/{id}")
-    public void view(@PathVariable long id, HttpServletResponse response) throws IOException {
+    public void view(@PathVariable("id") long id, HttpServletResponse response) throws IOException {
         writeFile(id, false, response);
     }
 
     @GetMapping("/{id}/download")
-    public void download(@PathVariable long id, HttpServletResponse response) throws IOException {
+    public void download(@PathVariable("id") long id, HttpServletResponse response) throws IOException {
         writeFile(id, true, response);
     }
 

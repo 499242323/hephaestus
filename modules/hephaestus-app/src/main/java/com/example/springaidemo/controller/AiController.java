@@ -1,6 +1,7 @@
 package com.example.springaidemo.controller;
 
 import com.example.springaidemo.chat.AiService;
+import com.example.springaidemo.chat.WeatherService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -9,9 +10,11 @@ import reactor.core.publisher.Flux;
 public class AiController {
 
     private final AiService aiService;
+    private final WeatherService weatherService;
 
-    public AiController(AiService aiService) {
+    public AiController(AiService aiService, WeatherService weatherService) {
         this.aiService = aiService;
+        this.weatherService = weatherService;
     }
 
     @PostMapping("/chat")
@@ -27,6 +30,11 @@ public class AiController {
     @PostMapping(value = "/stream", produces = "text/event-stream")
     public Flux<String> streamChat(@RequestBody ChatRequest request) {
         return aiService.streamChat(request.getMessage());
+    }
+
+    @GetMapping("/weather/today")
+    public String todayWeather(@RequestParam(value = "city", required = false) String city) {
+        return weatherService.todayWeather(city);
     }
 
     public static class ChatRequest {

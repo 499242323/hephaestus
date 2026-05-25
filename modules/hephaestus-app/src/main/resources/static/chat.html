@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hephaestus</title>
-    <link rel="stylesheet" href="./chat.css">
+    <link rel="stylesheet" href="./chat.css?v=20260525-inputfix">
+    <link rel="stylesheet" href="./org-settings.css?v=20260525-inputfix">
 </head>
 <body>
 <div class="app">
@@ -35,6 +36,18 @@
                 <button class="preset" type="button" data-message="请把下面的内容整理成 Markdown，并输出代码块。">输出 Markdown/代码格式</button>
             </div>
         </section>
+
+        <div class="sidebar-footer">
+            <button id="settingsButton" class="settings-entry" type="button">
+                <span class="settings-entry-accent" aria-hidden="true"></span>
+                <span class="settings-entry-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.36 7.36 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.13-.53 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4Z"></path>
+                    </svg>
+                </span>
+                <span class="settings-entry-label">设置</span>
+            </button>
+        </div>
     </aside>
 
     <main class="main">
@@ -54,13 +67,19 @@
 
                     <div class="input-shell">
                         <button id="chooseFileButton" class="icon-button action-left" type="button" aria-label="上传附件">+</button>
-                        <textarea id="messageInput" placeholder="给 Hephaestus 发送消息" rows="1"></textarea>
+                        <textarea id="messageInput" placeholder="Enter 发送、Shift + Enter 换行、Ctrl + V 粘贴图片或文件" rows="1"></textarea>
                         <button id="sendButton" class="send-button action-right" type="submit" aria-label="发送">↑</button>
                         <input id="attachmentInput" class="file-input" type="file">
                     </div>
                 </form>
                 <div class="hint-wrap">
-                    <div id="statusText" class="hint">Enter 发送 · Shift + Enter 换行 · Ctrl + V 粘贴图片或文件</div>
+                    <div id="liveStatusText" class="composer-status" hidden>
+                        <div class="composer-status__glow"></div>
+                        <div class="composer-status__viewport">
+                            <div id="liveStatusTrack" class="composer-status__track"></div>
+                        </div>
+                    </div>
+                    <div id="statusText" class="hint" hidden>Enter 发送，Shift + Enter 换行，Ctrl + V 可粘贴图片或文件</div>
                     <div id="statusProgress" class="status-progress" hidden>
                         <span class="status-progress-bar"></span>
                     </div>
@@ -70,6 +89,9 @@
     </main>
 </div>
 
-<script src="./chat.js"></script>
+<div id="orgSettingsMount"></div>
+
+<script src="./org-settings.js?v=20260525-inputfix"></script>
+<script src="./chat.js?v=20260525-inputfix"></script>
 </body>
 </html>

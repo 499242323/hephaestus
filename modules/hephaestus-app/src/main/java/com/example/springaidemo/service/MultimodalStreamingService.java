@@ -1,7 +1,6 @@
 package com.example.springaidemo.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,8 +13,6 @@ import java.util.Map;
 @Service
 public class MultimodalStreamingService {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private final MultimodalChatService multimodalChatService;
 
     public MultimodalStreamingService(MultimodalChatService multimodalChatService) {
@@ -23,8 +20,13 @@ public class MultimodalStreamingService {
     }
 
     public Flux<MultimodalStreamEvent> stream(String message, MultipartFile file, String conversationId) {
-        return Flux.defer(() -> {
+        Flux<MultimodalStreamEvent> acceptedFlow = Flux.just(
+                status("accepted", file == null || file.isEmpty() ? "已收到消息，正在准备回复" : "已收到请求，正在处理附件")
+        );
+
+        Flux<MultimodalStreamEvent> processingFlow = Flux.defer(() -> {
             MultimodalChatService.StreamPlan plan = multimodalChatService.prepareStream(message, file, conversationId);
+
             Flux<MultimodalStreamEvent> textFlow = Flux.concat(
                     Flux.just(status("analyzing", file == null || file.isEmpty() ? "正在整理回复" : "正在分析附件")),
                     attachmentEvents(plan.attachments()),
@@ -59,6 +61,8 @@ public class MultimodalStreamingService {
                     exception);
             return Flux.just(error(exception.getMessage()));
         });
+
+        return Flux.concat(acceptedFlow, processingFlow);
     }
 
     private Flux<MultimodalStreamEvent> attachmentEvents(List<MultimodalChatService.MediaResource> attachments) {
@@ -90,13 +94,16 @@ public class MultimodalStreamingService {
     }
 
     private MultimodalStreamEvent error(String message) {
-        return new MultimodalStreamEvent("error", Map.of("message", message == null || message.isBlank() ? "处理请求时发生错误。" : message));
+        return new MultimodalStreamEvent("error", Map.of(
+                "message",
+                message == null || message.isBlank() ? "处理请求时发生错误。" : message
+        ));
     }
 
     public String toJson(Object value) {
         try {
-            return OBJECT_MAPPER.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
+            return JSON.toJSONString(value);
+        } catch (Exception exception) {
             throw new IllegalStateException("事件序列化失败", exception);
         }
     }

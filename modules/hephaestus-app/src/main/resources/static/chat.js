@@ -17,6 +17,8 @@
     const form = document.getElementById("chatForm");
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
+    const liveStatusText = document.getElementById("liveStatusText");
+    const liveStatusTrack = document.getElementById("liveStatusTrack");
     const statusText = document.getElementById("statusText");
     const statusProgress = document.getElementById("statusProgress");
     const newSessionButton = document.getElementById("newSessionButton");
@@ -185,6 +187,89 @@
         });
     }
 
+    function isConnectedMessageView(messageView) {
+        return Boolean(messageView && messageView.row && messageView.row.isConnected);
+    }
+
+    function buildMessageViewFromDom(row) {
+        if (!row) {
+            return null;
+        }
+
+        const bubble = row.querySelector(".bubble");
+        const content = row.querySelector(".bubble-content");
+        if (!bubble || !content) {
+            return null;
+        }
+
+        let status = bubble.querySelector(".status-note");
+        if (!status) {
+            status = document.createElement("div");
+            status.className = "status-note";
+            bubble.insertBefore(status, content);
+        }
+
+        return {
+            row,
+            bubble,
+            status,
+            content,
+            mediaContainer: content.nextElementSibling || null,
+            text: content.textContent || ""
+        };
+    }
+
+    function rebindStreamAssistantView(sessionId) {
+        if (!sessionId || sessionId !== activeSessionId) {
+            return null;
+        }
+
+        const state = streamStates.get(sessionId);
+        if (!state) {
+            return null;
+        }
+
+        const assistantRows = messages.querySelectorAll(".message-row.assistant");
+        let assistantView = buildMessageViewFromDom(assistantRows[assistantRows.length - 1] || null);
+        if (!assistantView) {
+            assistantView = createStreamingAssistantMessage();
+        }
+
+        assistantView.text = state.text || "";
+        assistantView.status.textContent = state.status || "";
+        assistantView.content.innerHTML = renderRichText(assistantView.text);
+
+        if (state.attachments && state.attachments.length) {
+            const container = ensureMediaContainer(assistantView);
+            container.replaceChildren(renderMediaList(state.attachments));
+            assistantView.mediaContainer = container;
+        }
+
+        state.assistantView = assistantView;
+        return assistantView;
+    }
+
+    function getActiveStreamAssistantView(sessionId, fallbackAssistant) {
+        if (sessionId !== activeSessionId) {
+            return null;
+        }
+
+        if (isConnectedMessageView(fallbackAssistant)) {
+            const state = streamStates.get(sessionId);
+            if (state) {
+                state.assistantView = fallbackAssistant;
+            }
+            return fallbackAssistant;
+        }
+
+        const state = streamStates.get(sessionId);
+        if (state && isConnectedMessageView(state.assistantView)) {
+            return state.assistantView;
+        }
+
+        return rebindStreamAssistantView(sessionId);
+    }
+
     function activateSession(sessionId) {
         if (!sessionId || sessionId === activeSessionId) {
             return;
@@ -192,6 +277,7 @@
         saveActiveSessionSnapshot();
         activeSessionId = sessionId;
         showSession(getActiveSession());
+        rebindStreamAssistantView(activeSessionId);
         clearAttachment();
         input.value = "";
         resizeInput();
@@ -389,9 +475,46 @@
         chooseFileButton.disabled = false;
         removeFileButton.disabled = false;
         attachmentInput.disabled = false;
-        statusText.textContent = DEFAULT_HINT_TEXT;
+        if (!isSending && liveStatusText) {
+            liveStatusText.classList.remove("is-active");
+            liveStatusText.hidden = true;
+        }
+        if (!isSending && liveStatusTrack) {
+            liveStatusTrack.textContent = "";
+        }
         statusText.classList.toggle("busy", isSending);
         statusProgress.hidden = true;
+    }
+
+    function showLiveStatus(message) {
+        if (!liveStatusText || !liveStatusTrack) {
+            return;
+        }
+        liveStatusTrack.textContent = message || "";
+        liveStatusText.hidden = !message;
+        liveStatusText.classList.toggle("is-active", Boolean(message));
+    }
+
+    function clearLiveStatus() {
+        if (!liveStatusText || !liveStatusTrack) {
+            return;
+        }
+        liveStatusTrack.textContent = "";
+        liveStatusText.classList.remove("is-active");
+        liveStatusText.hidden = true;
+    }
+
+    function mapLiveStatusMessage(phase, message) {
+        if (phase === "accepted") {
+            return "已收到消息";
+        }
+        if (phase === "analyzing") {
+            return "正在分析附件";
+        }
+        if (phase === "image_generating") {
+            return "正在生成图片";
+        }
+        return message || "";
     }
 
     function buildAssistantRowHtml(text, status, mediaItems) {
@@ -675,6 +798,7 @@
         }
 
         const state = streamStates.get(requestSessionId);
+        const currentAssistant = getActiveStreamAssistantView(requestSessionId, assistant);
         if (state) {
             if (eventName === "status") {
                 state.status = payload.message || "";
@@ -690,12 +814,12 @@
             if (requestSessionId === activeSessionId) {
                 syncComposerState();
             }
-            if (state.assistantView) {
-                state.assistantView.status.textContent = state.status || "";
+            if (currentAssistant) {
+                currentAssistant.status.textContent = state.status || "";
             }
         }
 
-        if (requestSessionId !== activeSessionId || !assistant) {
+        if (requestSessionId !== activeSessionId || !currentAssistant) {
             if (eventName === "attachments" && Array.isArray(payload.attachments)) {
                 pendingUserMessage = null;
             }
@@ -703,22 +827,25 @@
         }
 
         if (eventName === "status") {
-            assistant.status.textContent = payload.message || "";
+            currentAssistant.status.textContent = payload.message || "";
+            showLiveStatus(mapLiveStatusMessage(payload.phase, payload.message || ""));
         } else if (eventName === "delta") {
-            assistant.text += payload.content || "";
-            assistant.content.innerHTML = renderRichText(assistant.text);
+            currentAssistant.text += payload.content || "";
+            currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
         } else if (eventName === "attachments" && Array.isArray(payload.attachments)) {
             replaceUserAttachmentMedia(pendingUserMessage, payload.attachments);
             pendingUserMessage = null;
         } else if (eventName === "image" && payload.generatedImage) {
-            ensureMediaContainer(assistant).appendChild(renderMediaList([payload.generatedImage]));
+            ensureMediaContainer(currentAssistant).appendChild(renderMediaList([payload.generatedImage]));
         } else if (eventName === "done") {
-            assistant.status.textContent = "";
+            currentAssistant.status.textContent = "";
+            clearLiveStatus();
             pendingUserMessage = null;
         } else if (eventName === "error") {
-            assistant.status.textContent = "";
-            assistant.text += `${assistant.text ? "\n" : ""}${payload.message || "处理请求时发生错误。"}`;
-            assistant.content.innerHTML = renderRichText(assistant.text);
+            currentAssistant.status.textContent = "";
+            currentAssistant.text += `${currentAssistant.text ? "\n" : ""}${payload.message || "处理请求时发生错误。"}`;
+            currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
+            clearLiveStatus();
             pendingUserMessage = null;
         }
 
