@@ -1,7 +1,7 @@
 package com.example.springaidemo.controller;
 
 import com.example.springaidemo.chat.AiService;
-import com.example.springaidemo.chat.WeatherService;
+import com.example.springaidemo.weather.WeatherService;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -33,8 +33,10 @@ public class AiController {
     }
 
     @GetMapping("/weather/today")
-    public String todayWeather(@RequestParam(value = "city", required = false) String city) {
-        return weatherService.todayWeather(city);
+    public String todayWeather(@RequestParam(value = "city", required = false) String city,
+                               @RequestHeader(value = "X-Session-Id", required = false) String sessionId) {
+        String conversationId = sessionId == null || sessionId.isBlank() ? "default" : sessionId;
+        return weatherService.todayWeather(city,conversationId);
     }
 
     public static class ChatRequest {

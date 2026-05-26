@@ -5,11 +5,17 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @Service
@@ -65,23 +71,24 @@ public class QWeatherService {
                 .path("/geo/v2/city/lookup")
                 .queryParam("location", city)
                 .queryParam("number", 1)
-                .build(true)
+                .encode()
+                .build()
                 .toUriString();
 
-        String body;
+        byte[] body;
         try {
             body = restClient.get()
                     .uri(url)
                     .header("X-QW-Api-Key", properties.getApiKey())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
         } catch (Exception exception) {
-            log.error("城市查询请求失败,URL={}", url,exception);
+            log.error("城市查询请求失败，URL={}", url, exception);
             throw new IllegalStateException("城市查询请求失败，URL=" + url, exception);
         }
 
-        JSONObject root = JSON.parseObject(body);
+        JSONObject root = JSON.parseObject(readResponseBody(body));
         String code = root.getString("code");
         if (!"200".equals(code)) {
             return CityLookupResult.unavailable("城市查询失败，状态码: " + code);
@@ -101,31 +108,53 @@ public class QWeatherService {
         );
     }
 
-    private JSONObject queryNowWeather(String locationId) {
+    private JSONObject queryNowWeather(String locationId) throws IOException {
         String url = UriComponentsBuilder.fromHttpUrl(trimTrailingSlash(properties.resolveWeatherBaseUrl()))
                 .path("/v7/weather/now")
                 .queryParam("location", locationId)
-                .build(true)
+                .encode()
+                .build()
                 .toUriString();
 
-        String body;
+        byte[] body;
         try {
             body = restClient.get()
                     .uri(url)
                     .header("X-QW-Api-Key", properties.getApiKey())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
         } catch (Exception exception) {
+            log.error("实时天气请求失败，URL={}", url, exception);
             throw new IllegalStateException("实时天气请求失败，URL=" + url, exception);
         }
 
-        JSONObject root = JSON.parseObject(body);
+        JSONObject root = JSON.parseObject(readResponseBody(body));
         String code = root.getString("code");
         if (!"200".equals(code)) {
             throw new IllegalStateException("实时天气查询失败，状态码: " + code);
         }
         return root.getJSONObject("now");
+    }
+
+    private String readResponseBody(byte[] body) throws IOException {
+        if (body == null || body.length == 0) {
+            return "";
+        }
+        if (isGzip(body)) {
+            try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(body));
+                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                gzipInputStream.transferTo(outputStream);
+                return outputStream.toString(StandardCharsets.UTF_8);
+            }
+        }
+        return new String(body, StandardCharsets.UTF_8);
+    }
+
+    private boolean isGzip(byte[] body) {
+        return body.length >= 2
+                && (body[0] & 0xFF) == 0x1F
+                && (body[1] & 0xFF) == 0x8B;
     }
 
     private String defaultString(String value, String fallback) {
@@ -143,12 +172,34 @@ public class QWeatherService {
         return normalized;
     }
 
-    public record TodayWeatherResult(boolean available, String city, String district, String province,
-                                     String weatherText, String temperature, String feelsLike, String windDirection,
-                                     String windScale, String humidity, String precipitation, String observedAt,
-                                     String message) {
-        static TodayWeatherResult available(String city, String district, String province, String weatherText, String temperature, String feelsLike, String windDirection, String windScale, String humidity, String precipitation, String observedAt) {
-            return new TodayWeatherResult(true, city, district, province, weatherText, temperature, feelsLike, windDirection, windScale, humidity, precipitation, observedAt, "");
+    public record TodayWeatherResult(
+            boolean available,
+            String city,
+            String district,
+            String province,
+            String weatherText,
+            String temperature,
+            String feelsLike,
+            String windDirection,
+            String windScale,
+            String humidity,
+            String precipitation,
+            String observedAt,
+            String message
+    ) {
+        static TodayWeatherResult available(String city,
+                                            String district,
+                                            String province,
+                                            String weatherText,
+                                            String temperature,
+                                            String feelsLike,
+                                            String windDirection,
+                                            String windScale,
+                                            String humidity,
+                                            String precipitation,
+                                            String observedAt) {
+            return new TodayWeatherResult(true, city, district, province, weatherText, temperature, feelsLike,
+                    windDirection, windScale, humidity, precipitation, observedAt, "");
         }
 
         static TodayWeatherResult unavailable(String city, String message) {
@@ -156,8 +207,14 @@ public class QWeatherService {
         }
     }
 
-    private record CityLookupResult(boolean available, String locationId, String name, String adm2, String adm1,
-                                    String message) {
+    private record CityLookupResult(
+            boolean available,
+            String locationId,
+            String name,
+            String adm2,
+            String adm1,
+            String message
+    ) {
         static CityLookupResult available(String locationId, String name, String adm2, String adm1) {
             return new CityLookupResult(true, locationId, name, adm2, adm1, "");
         }

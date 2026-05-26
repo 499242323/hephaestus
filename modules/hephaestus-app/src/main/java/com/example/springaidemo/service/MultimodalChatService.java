@@ -59,7 +59,7 @@ public class MultimodalChatService {
             你是 Hephaestus 的多模态聊天助手。
             请始终使用中文回复用户。
             如果用户上传了附件，请结合附件内容进行回答。
-            回答内容完整格式不要JSON,直接回答文字内容
+            回答内容完整格式不要JSON,回复不含生图策略，直接回答文字内容。
             如果需要返回 Markdown、HTML 片段、代码块或 JSON，请直接输出原始内容，不要额外包一层 JSON 协议。
             """;
 

@@ -20,13 +20,8 @@ public class MultimodalStreamingService {
     }
 
     public Flux<MultimodalStreamEvent> stream(String message, MultipartFile file, String conversationId) {
-        Flux<MultimodalStreamEvent> acceptedFlow = Flux.just(
-                status("accepted", file == null || file.isEmpty() ? "已收到消息，正在准备回复" : "已收到请求，正在处理附件")
-        );
-
-        Flux<MultimodalStreamEvent> processingFlow = Flux.defer(() -> {
+        return Flux.defer(() -> {
             MultimodalChatService.StreamPlan plan = multimodalChatService.prepareStream(message, file, conversationId);
-
             Flux<MultimodalStreamEvent> textFlow = Flux.concat(
                     Flux.just(status("analyzing", file == null || file.isEmpty() ? "正在整理回复" : "正在分析附件")),
                     attachmentEvents(plan.attachments()),
@@ -61,8 +56,6 @@ public class MultimodalStreamingService {
                     exception);
             return Flux.just(error(exception.getMessage()));
         });
-
-        return Flux.concat(acceptedFlow, processingFlow);
     }
 
     private Flux<MultimodalStreamEvent> attachmentEvents(List<MultimodalChatService.MediaResource> attachments) {

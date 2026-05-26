@@ -9,9 +9,8 @@ public class AiService {
 
     private final ChatClient chatClient;
 
-    // 直接注入自动配置好的 Builder，一行代码搞定
-    public AiService(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
+    public AiService(ChatClient chatClient) {
+        this.chatClient = chatClient;
     }
 
     // 同步调用

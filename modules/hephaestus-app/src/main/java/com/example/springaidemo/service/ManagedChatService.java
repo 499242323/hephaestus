@@ -1,7 +1,6 @@
 package com.example.springaidemo.service;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -13,8 +12,8 @@ public class ManagedChatService {
     private final ChatClient chatClient;
     private final Map<String, ConversationSession> sessions = new ConcurrentHashMap<>();
     
-    public ManagedChatService(ChatModel chatModel) {
-        this.chatClient = ChatClient.builder(chatModel).build();
+    public ManagedChatService(ChatClient chatClient) {
+        this.chatClient = chatClient;
     }
     
     /**

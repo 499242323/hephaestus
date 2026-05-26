@@ -78,6 +78,17 @@ spring:
         max-idle: 16
         min-idle: 4
       shutdown-timeout: 1s
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 app:
   media:
@@ -94,10 +105,12 @@ app:
     weather-base-url: ${WEATHER_BASE_URL:}
     connect-timeout-millis: ${WEATHER_CONNECT_TIMEOUT_MILLIS:5000}
     read-timeout-millis: ${WEATHER_READ_TIMEOUT_MILLIS:5000}
+  mail:
+    from-address: ${APP_MAIL_FROM_ADDRESS:}
 
 logging:
   level:
     liquibase: info
     org.springframework.boot.autoconfigure.liquibase: info
     org.springframework.ai: info # AI对话的日志级别
-    com.itheima.ai: info # 本项目的日志级别
+    com.itheima.ai: info # 本项目的日志级别 用谷歌浏览器打开的，用 browser-qa验证
