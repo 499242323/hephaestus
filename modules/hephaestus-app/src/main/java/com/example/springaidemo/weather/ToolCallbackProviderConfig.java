@@ -13,8 +13,7 @@ public class ToolCallbackProviderConfig {
     @Bean
     public ToolCallbackProvider toolCallbackProvider(WeatherServiceTool weatherServiceTool, EmailTools emailTools) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(weatherServiceTool)
-                .toolObjects(emailTools)
+                .toolObjects(weatherServiceTool,emailTools)
                 .build();
     }
 }

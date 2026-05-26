@@ -9,6 +9,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.ByteArrayInputStream;
@@ -47,29 +48,63 @@ public class QWeatherService {
             }
 
             JSONObject now = queryNowWeather(lookup.locationId());
-            return TodayWeatherResult.available(
-                    lookup.name(),
-                    lookup.adm2(),
-                    lookup.adm1(),
-                    now.getString("text"),
-                    now.getString("temp"),
-                    now.getString("feelsLike"),
-                    now.getString("windDir"),
-                    now.getString("windScale"),
-                    now.getString("humidity"),
-                    now.getString("precip"),
-                    now.getString("obsTime")
-            );
+            return buildWeatherResult(lookup, now);
         } catch (Exception exception) {
             log.error("天气服务调用失败", exception);
             return TodayWeatherResult.unavailable(normalizedCity, "天气服务调用失败: " + exception.getMessage());
         }
     }
 
+    public TodayWeatherResult getTodayWeatherByCoordinates(String latitude, String longitude) {
+        if (!StringUtils.hasText(latitude) || !StringUtils.hasText(longitude)) {
+            return TodayWeatherResult.unavailable("当前位置", "缺少经纬度参数");
+        }
+        if (!StringUtils.hasText(properties.getApiKey())) {
+            return TodayWeatherResult.unavailable("当前位置", "未配置天气服务 API Key");
+        }
+
+        try {
+            CityLookupResult lookup = lookupCoordinates(latitude, longitude);
+            if (!lookup.available()) {
+                return TodayWeatherResult.unavailable("当前位置", lookup.message());
+            }
+
+            JSONObject now = queryNowWeather(lookup.locationId());
+            return buildWeatherResult(lookup, now);
+        } catch (Exception exception) {
+            log.error("坐标天气服务调用失败", exception);
+            return TodayWeatherResult.unavailable("当前位置", "天气服务调用失败: " + exception.getMessage());
+        }
+    }
+
+    private TodayWeatherResult buildWeatherResult(CityLookupResult lookup, JSONObject now) {
+        return TodayWeatherResult.available(
+                lookup.name(),
+                lookup.adm2(),
+                lookup.adm1(),
+                now.getString("text"),
+                now.getString("temp"),
+                now.getString("feelsLike"),
+                now.getString("windDir"),
+                now.getString("windScale"),
+                now.getString("humidity"),
+                now.getString("precip"),
+                now.getString("obsTime")
+        );
+    }
+
     private CityLookupResult lookupCity(String city) throws Exception {
+        return lookupLocation(city);
+    }
+
+    private CityLookupResult lookupCoordinates(String latitude, String longitude) throws Exception {
+        return lookupLocation(longitude.trim() + "," + latitude.trim());
+    }
+
+    private CityLookupResult lookupLocation(String location) throws Exception {
         String url = UriComponentsBuilder.fromHttpUrl(trimTrailingSlash(properties.resolveGeoBaseUrl()))
                 .path("/geo/v2/city/lookup")
-                .queryParam("location", city)
+                .queryParam("location", location)
                 .queryParam("number", 1)
                 .encode()
                 .build()
@@ -83,6 +118,17 @@ public class QWeatherService {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(byte[].class);
+        } catch (RestClientResponseException exception) {
+            String errorBody = readErrorBody(exception);
+            log.error("城市查询请求失败，URL={}, status={}, body={}",
+                    url,
+                    exception.getStatusCode(),
+                    errorBody,
+                    exception);
+            throw new IllegalStateException(
+                    "城市查询请求失败，URL=" + url + ", status=" + exception.getStatusCode() + ", body=" + errorBody,
+                    exception
+            );
         } catch (Exception exception) {
             log.error("城市查询请求失败，URL={}", url, exception);
             throw new IllegalStateException("城市查询请求失败，URL=" + url, exception);
@@ -102,7 +148,7 @@ public class QWeatherService {
 
         return CityLookupResult.available(
                 first.getString("id"),
-                defaultString(first.getString("name"), city),
+                defaultString(first.getString("name"), location),
                 defaultString(first.getString("adm2"), ""),
                 defaultString(first.getString("adm1"), "")
         );
@@ -124,6 +170,17 @@ public class QWeatherService {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(byte[].class);
+        } catch (RestClientResponseException exception) {
+            String errorBody = readErrorBody(exception);
+            log.error("实时天气请求失败，URL={}, status={}, body={}",
+                    url,
+                    exception.getStatusCode(),
+                    errorBody,
+                    exception);
+            throw new IllegalStateException(
+                    "实时天气请求失败，URL=" + url + ", status=" + exception.getStatusCode() + ", body=" + errorBody,
+                    exception
+            );
         } catch (Exception exception) {
             log.error("实时天气请求失败，URL={}", url, exception);
             throw new IllegalStateException("实时天气请求失败，URL=" + url, exception);
@@ -149,6 +206,19 @@ public class QWeatherService {
             }
         }
         return new String(body, StandardCharsets.UTF_8);
+    }
+
+    private String readErrorBody(RestClientResponseException exception) {
+        byte[] responseBody = exception.getResponseBodyAsByteArray();
+        if (responseBody == null || responseBody.length == 0) {
+            return "";
+        }
+        try {
+            return readResponseBody(responseBody);
+        } catch (Exception readException) {
+            log.warn("解析天气服务错误响应体失败", readException);
+            return new String(responseBody, StandardCharsets.UTF_8);
+        }
     }
 
     private boolean isGzip(byte[] body) {

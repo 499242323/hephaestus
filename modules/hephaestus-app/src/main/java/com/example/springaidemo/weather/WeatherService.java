@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class WeatherService {
 
+    private static final String CONVERSATION_ID_KEY = "chat_memory_conversation_id";
+
     private final ChatClient chatClient;
     private final QWeatherService qWeatherService;
 
@@ -14,7 +16,7 @@ public class WeatherService {
         this.qWeatherService = qWeatherService;
     }
 
-    public String todayWeather(String city,String conversationId) {
+    public String todayWeather(String city, String conversationId) {
         QWeatherService.TodayWeatherResult result = qWeatherService.getTodayWeather(city);
         String normalizedCity = result.city() == null || result.city().isBlank() ? "北京" : result.city().trim();
         if (!result.available()) {
@@ -55,7 +57,7 @@ public class WeatherService {
                         不要虚构额外数据，不要补充未提供的预报信息。
                         """)
                 .user("请根据以下实时天气数据，告诉我今天" + normalizedCity + "的天气情况：\n" + weatherFacts)
-                .advisors(advisor -> advisor.param("chat_memory_weather_id", conversationId))
+                .advisors(advisor -> advisor.param(CONVERSATION_ID_KEY, conversationId))
                 .call()
                 .content();
     }

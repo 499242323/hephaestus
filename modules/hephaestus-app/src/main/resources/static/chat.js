@@ -35,6 +35,7 @@
     let previewUrl = null;
     let activeSessionId = "";
     let pendingUserMessage = null;
+    let cachedLocation = null;
 
     const sessions = [];
     const streamStates = new Map();
@@ -300,6 +301,88 @@
         input.focus();
     }
 
+    function shouldSendLocation(message) {
+        const normalized = (message || "").trim().toLowerCase();
+        if (!normalized) {
+            return false;
+        }
+        return [
+            "天气",
+            "气温",
+            "下雨",
+            "温度",
+            "穿什么",
+            "冷不冷",
+            "热不热",
+            "附近",
+            "当前位置",
+            "定位"
+        ].some((keyword) => normalized.includes(keyword));
+    }
+
+    function loadCachedLocation() {
+        if (cachedLocation) {
+            return cachedLocation;
+        }
+        try {
+            const raw = window.sessionStorage.getItem("hephaestus_user_location");
+            cachedLocation = raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            cachedLocation = null;
+        }
+        return cachedLocation;
+    }
+
+    function saveCachedLocation(location) {
+        cachedLocation = location;
+        try {
+            if (location) {
+                window.sessionStorage.setItem("hephaestus_user_location", JSON.stringify(location));
+            } else {
+                window.sessionStorage.removeItem("hephaestus_user_location");
+            }
+        } catch (error) {
+            cachedLocation = location;
+        }
+    }
+
+    function resolveUserLocation() {
+        const existing = loadCachedLocation();
+        if (existing) {
+            return Promise.resolve(existing);
+        }
+        if (!navigator.geolocation) {
+            return Promise.resolve(null);
+        }
+        return new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const location = {
+                        latitude: String(position.coords.latitude),
+                        longitude: String(position.coords.longitude)
+                    };
+                    saveCachedLocation(location);
+                    resolve(location);
+                },
+                () => resolve(null),
+                {
+                    enableHighAccuracy: false,
+                    timeout: 3000,
+                    maximumAge: 10 * 60 * 1000
+                }
+            );
+        });
+    }
+
+    function appendLocationToMessage(message, location) {
+        if (!location || !location.latitude || !location.longitude) {
+            return message;
+        }
+        const normalized = (message || "").trim();
+        const suffix = `\n\n当前坐标：纬度 ${location.latitude}，经度 ${location.longitude}`;
+        return normalized ? `${normalized}${suffix}` : suffix.trim();
+    }
+
     function updateSessionTitleFromMessage(message, hasAttachment) {
         const session = getActiveSession();
         if (!session || session.title !== DEFAULT_SESSION_TITLE) {
@@ -517,6 +600,67 @@
         return message || "";
     }
 
+    function syncLiveStatusAnimation() {
+        if (!liveStatusText || !liveStatusTrack || liveStatusText.hidden) {
+            return;
+        }
+
+        const viewport = liveStatusText.querySelector(".composer-status__viewport");
+        if (!viewport) {
+            return;
+        }
+
+        const viewportWidth = viewport.clientWidth || 0;
+        const trackWidth = liveStatusTrack.scrollWidth || 0;
+        if (viewportWidth <= 0 || trackWidth <= 0) {
+            return;
+        }
+
+        liveStatusTrack.style.setProperty("--status-start-x", `${viewportWidth}px`);
+        liveStatusTrack.style.setProperty("--status-end-x", `${-trackWidth}px`);
+        liveStatusTrack.style.setProperty("--status-duration", `${Math.max(4, Math.min(10, (viewportWidth + trackWidth) / 80))}s`);
+    }
+
+    function showLiveStatus(message) {
+        if (!liveStatusText || !liveStatusTrack) {
+            return;
+        }
+        const shouldStickBottom = isNearBottom();
+        liveStatusTrack.textContent = message || "";
+        liveStatusText.hidden = !message;
+        liveStatusText.classList.toggle("is-active", Boolean(message));
+        requestAnimationFrame(syncLiveStatusAnimation);
+        if (shouldStickBottom) {
+            requestAnimationFrame(scrollMessagesToBottom);
+        }
+    }
+
+    function clearLiveStatus() {
+        if (!liveStatusText || !liveStatusTrack) {
+            return;
+        }
+        const shouldStickBottom = isNearBottom();
+        liveStatusTrack.style.removeProperty("--status-start-x");
+        liveStatusTrack.style.removeProperty("--status-end-x");
+        liveStatusTrack.style.removeProperty("--status-duration");
+        liveStatusTrack.textContent = "";
+        liveStatusText.classList.remove("is-active");
+        liveStatusText.hidden = true;
+        if (shouldStickBottom) {
+            requestAnimationFrame(scrollMessagesToBottom);
+        }
+    }
+
+    function mapLiveStatusMessage(phase, message, hasAttachment) {
+        if (phase === "accepted" || phase === "analyzing") {
+            return hasAttachment ? "正在分析附件" : "正在分析消息";
+        }
+        if (phase === "image_generating") {
+            return "正在生成图片";
+        }
+        return message || "";
+    }
+
     function buildAssistantRowHtml(text, status, mediaItems) {
         const statusHtml = status ? `<div class="status-note">${escapeHtml(status)}</div>` : "";
         const mediaHtml = mediaItems && mediaItems.length
@@ -691,7 +835,8 @@
 
         try {
             const formData = new FormData();
-            formData.append("message", content);
+            const location = shouldSendLocation(content) ? await resolveUserLocation() : null;
+            formData.append("message", appendLocationToMessage(content, location));
             if (fileForRequest) {
                 formData.append("file", fileForRequest);
             }
@@ -701,6 +846,7 @@
                 state.status = initialStatus;
             }
             if (requestSessionId === activeSessionId) {
+                showLiveStatus(fileForRequest ? "正在分析附件" : "正在分析消息");
                 syncComposerState();
             }
 
@@ -799,6 +945,8 @@
 
         const state = streamStates.get(requestSessionId);
         const currentAssistant = getActiveStreamAssistantView(requestSessionId, assistant);
+        const hasAttachment = Boolean(pendingUserMessage && pendingUserMessage.mediaContainer)
+                || Boolean(state && state.attachments && state.attachments.length);
         if (state) {
             if (eventName === "status") {
                 state.status = payload.message || "";
@@ -828,8 +976,10 @@
 
         if (eventName === "status") {
             currentAssistant.status.textContent = payload.message || "";
-            showLiveStatus(mapLiveStatusMessage(payload.phase, payload.message || ""));
+            showLiveStatus(mapLiveStatusMessage(payload.phase, payload.message || "", hasAttachment));
         } else if (eventName === "delta") {
+            currentAssistant.status.textContent = "";
+            clearLiveStatus();
             currentAssistant.text += payload.content || "";
             currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
         } else if (eventName === "attachments" && Array.isArray(payload.attachments)) {

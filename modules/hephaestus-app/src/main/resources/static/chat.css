@@ -634,7 +634,7 @@ textarea {
     line-height: 1;
     letter-spacing: 0.02em;
     color: #1d4ed8;
-    transform: translate(100%, -50%);
+    transform: translate(var(--status-start-x, 100%), -50%);
     text-shadow:
         0 0 6px rgba(96, 165, 250, 0.42),
         0 0 10px rgba(191, 219, 254, 0.3);
@@ -666,10 +666,10 @@ textarea {
 
 @keyframes composer-status-marquee {
     0% {
-        transform: translate(100%, -50%);
+        transform: translate(var(--status-start-x, 100%), -50%);
     }
     100% {
-        transform: translate(-100%, -50%);
+        transform: translate(var(--status-end-x, -100%), -50%);
     }
 }
 
