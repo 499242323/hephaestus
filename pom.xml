@@ -29,6 +29,7 @@
         <module>modules/mybatis</module>
         <module>modules/hephaestus-media</module>
         <module>modules/hephaestus-org</module>
+        <module>modules/hephaestus-login</module>
         <module>modules/hephaestus-app</module>
     </modules>
 

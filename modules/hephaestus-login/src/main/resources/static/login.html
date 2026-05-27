@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hephaestus 登录</title>
+    <link rel="stylesheet" href="./login.css?v=20260527-login1">
+</head>
+<body>
+<main class="login-page">
+    <section class="login-panel">
+        <span class="login-panel__line login-panel__line--top" aria-hidden="true"></span>
+        <span class="login-panel__line login-panel__line--right" aria-hidden="true"></span>
+        <span class="login-panel__line login-panel__line--bottom" aria-hidden="true"></span>
+        <span class="login-panel__line login-panel__line--left" aria-hidden="true"></span>
+        <div class="login-brand">
+            <span class="login-brand__mark">H</span>
+            <div>
+                <h1 id="loginTitle">Hephaestus</h1>
+                <p id="loginSubtitle">登录后继续使用智能对话与组织配置能力</p>
+            </div>
+        </div>
+
+        <form id="loginForm" class="login-form">
+            <label class="login-field">
+                <span>用户名</span>
+                <input id="usernameInput" name="username" type="text" autocomplete="username" required>
+            </label>
+            <label class="login-field">
+                <span>密码</span>
+                <input id="passwordInput" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <div id="loginError" class="login-error" hidden></div>
+            <button id="loginButton" class="login-button" type="submit">登录</button>
+        </form>
+    </section>
+</main>
+<script src="./login.js?v=20260527-login1"></script>
+</body>
+</html>

@@ -69,7 +69,7 @@ spring:
     mode: ${REDIS_MODE:standalone}
     host: ${REDIS_URL:127.0.0.1}
     port: ${REDIS_PORT:6379}
-    database: ${REDIS_DATABASE:0}
+    database: ${REDIS_DATABASE:1}
     password: ${REDIS_PASSWORD:}
     lettuce:
       pool:
@@ -91,6 +91,11 @@ spring:
             enable: true
 
 app:
+  login:
+    password:
+      encrypt:
+        public-key: ${LOGIN_PASSWORD_ENCRYPT_PUBLIC_KEY:}
+        private-key: ${LOGIN_PASSWORD_ENCRYPT_PRIVATE_KEY:}
   media:
     base-url: ${MEDIA_BASE_URL:http://localhost:18080/HttpFile}
     username: ${MEDIA_USERNAME:egovahttp}

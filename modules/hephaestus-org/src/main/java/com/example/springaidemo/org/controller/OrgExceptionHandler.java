@@ -2,6 +2,7 @@ package com.example.springaidemo.org.controller;
 
 import com.example.springaidemo.org.exception.OrgAccessDeniedException;
 import com.example.springaidemo.org.exception.OrgValidationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,24 +11,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice(basePackageClasses = {OrgUnitController.class, OrgPersonController.class})
 public class OrgExceptionHandler {
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleMissingHeader(MissingRequestHeaderException exception) {
+        log.warn("组织设置请求缺少请求头: {}", exception.getHeaderName(), exception);
         return Map.of("message", "缺少请求头: " + exception.getHeaderName());
     }
 
     @ExceptionHandler(OrgValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleValidation(OrgValidationException exception) {
+        log.warn("组织设置业务校验异常: {}", exception.getMessage(), exception);
         return Map.of("message", exception.getMessage());
     }
 
     @ExceptionHandler(OrgAccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public Map<String, String> handleAccessDenied(OrgAccessDeniedException exception) {
+        log.warn("组织设置权限异常: {}", exception.getMessage(), exception);
         return Map.of("message", exception.getMessage());
     }
 }

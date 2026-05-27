@@ -273,4 +273,281 @@
             <where>id = 101</where>
         </update>
     </changeSet>
+
+    <changeSet id="sys-config-definition-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="sys_config_definition"/>
+            </not>
+        </preConditions>
+        <createTable tableName="sys_config_definition">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_sys_config_definition"/>
+            </column>
+            <column name="config_code" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_group" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_tab" type="varchar(64)" defaultValue="general">
+                <constraints nullable="false"/>
+            </column>
+            <column name="section_code" type="varchar(64)" defaultValue="main-system">
+                <constraints nullable="false"/>
+            </column>
+            <column name="section_name" type="varchar(128)" defaultValue="主系统配置">
+                <constraints nullable="false"/>
+            </column>
+            <column name="component_type" type="varchar(32)" defaultValue="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="default_value" type="text"/>
+            <column name="options_json" type="text"/>
+            <column name="placeholder_text" type="varchar(255)"/>
+            <column name="help_text" type="varchar(512)"/>
+            <column name="required_flag" type="tinyint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="public_flag" type="tinyint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sensitive_flag" type="tinyint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled_flag" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="sys_config_definition"
+                             columnNames="config_code"
+                             constraintName="uk_sys_config_definition_code"/>
+        <createIndex tableName="sys_config_definition" indexName="idx_sys_config_definition_group">
+            <column name="config_group"/>
+            <column name="enabled_flag"/>
+            <column name="sort_order"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="sys-config-value-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="sys_config_value"/>
+            </not>
+        </preConditions>
+        <createTable tableName="sys_config_value">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_sys_config_value"/>
+            </column>
+            <column name="config_code" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_value" type="text"/>
+            <column name="updated_by" type="varchar(128)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="sys_config_value"
+                             columnNames="config_code"
+                             constraintName="uk_sys_config_value_code"/>
+    </changeSet>
+
+    <changeSet id="sys-config-seed-main-system-login" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM sys_config_definition WHERE config_group = 'main-system'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.session.timeout.minutes"/>
+            <column name="config_name" value="登录超时时间"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="number"/>
+            <column name="default_value" value="30"/>
+            <column name="placeholder_text" value="请输入分钟数"/>
+            <column name="help_text" value="配置保存后对新登录会话生效，单位：分钟。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="0"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="10"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.password.encrypt.enabled"/>
+            <column name="config_name" value="开启密码传输加密"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="switch"/>
+            <column name="default_value" value="true"/>
+            <column name="help_text" value="开启后登录页使用公钥加密密码，后端使用私钥解密。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="20"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.password.encrypt.algorithm"/>
+            <column name="config_name" value="加密算法"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="text"/>
+            <column name="default_value" value="RSA-OAEP"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="30"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.password.encrypt.cipher-transformation"/>
+            <column name="config_name" value="加密转换模式"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="text"/>
+            <column name="default_value" value="RSA/ECB/OAEPWithSHA-256AndMGF1Padding"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="40"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.password.encrypt.public-key"/>
+            <column name="config_name" value="密码加密公钥"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="textarea"/>
+            <column name="default_value" value=""/>
+            <column name="help_text" value="PEM 或 Base64 X.509 公钥，可公开下发给登录页。"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="50"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.password.encrypt.private-key"/>
+            <column name="config_name" value="密码加密私钥"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="textarea"/>
+            <column name="default_value" value=""/>
+            <column name="help_text" value="PEM 或 Base64 PKCS8 私钥，仅服务端解密使用，不会通过公开接口返回。"/>
+            <column name="public_flag" valueNumeric="0"/>
+            <column name="sensitive_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="60"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.page.title"/>
+            <column name="config_name" value="登录页标题"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login-page"/>
+            <column name="section_name" value="登录页面"/>
+            <column name="component_type" value="text"/>
+            <column name="default_value" value="Hephaestus"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="70"/>
+        </insert>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.page.subtitle"/>
+            <column name="config_name" value="登录页副标题"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login-page"/>
+            <column name="section_name" value="登录页面"/>
+            <column name="component_type" value="text"/>
+            <column name="default_value" value="登录后继续使用智能对话与组织配置能力"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="80"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="sys-config-seed-login-mouse-trail-effect" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM sys_config_definition WHERE config_code = 'login.mouse.trail.effect'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.mouse.trail.effect"/>
+            <column name="config_name" value="登录页鼠标拖尾"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login-page"/>
+            <column name="section_name" value="登录页面"/>
+            <column name="component_type" value="select"/>
+            <column name="default_value" value="music"/>
+            <column name="options_json" value="[{&quot;label&quot;:&quot;乐符拖尾&quot;,&quot;value&quot;:&quot;music&quot;},{&quot;label&quot;:&quot;飘动线条&quot;,&quot;value&quot;:&quot;flowing-lines&quot;},{&quot;label&quot;:&quot;绚丽流星&quot;,&quot;value&quot;:&quot;meteor&quot;},{&quot;label&quot;:&quot;大波浪&quot;,&quot;value&quot;:&quot;wave&quot;},{&quot;label&quot;:&quot;鼠标涂鸦&quot;,&quot;value&quot;:&quot;doodle&quot;},{&quot;label&quot;:&quot;连线点阵&quot;,&quot;value&quot;:&quot;constellation&quot;},{&quot;label&quot;:&quot;萤火之光&quot;,&quot;value&quot;:&quot;firefly&quot;},{&quot;label&quot;:&quot;多彩烟花&quot;,&quot;value&quot;:&quot;firework&quot;},{&quot;label&quot;:&quot;放大镜&quot;,&quot;value&quot;:&quot;magnifier&quot;}]"/>
+            <column name="help_text" value="控制登录页鼠标拖尾效果，配置保存后刷新登录页生效。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="90"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="sys-config-seed-login-background-media" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM sys_config_definition WHERE config_code = 'login.page.background.media-id'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.page.background.media-id"/>
+            <column name="config_name" value="登录页背景图"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login-page"/>
+            <column name="section_name" value="登录页面"/>
+            <column name="component_type" value="number"/>
+            <column name="default_value" value="1"/>
+            <column name="placeholder_text" value="请输入媒体文件 ID"/>
+            <column name="help_text" value="登录页背景图 media_id，默认读取 media_id = 1 的图片。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="100"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="sys-config-seed-login-background-grid-enabled" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM sys_config_definition WHERE config_code = 'login.page.background.grid.enabled'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.page.background.grid.enabled"/>
+            <column name="config_name" value="登录页网格背景"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login-page"/>
+            <column name="section_name" value="登录页面"/>
+            <column name="component_type" value="switch"/>
+            <column name="default_value" value="true"/>
+            <column name="help_text" value="开启后在登录页背景图上叠加白色霓虹网格效果，不影响背景图 media_id。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="1"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="95"/>
+        </insert>
+    </changeSet>
 </databaseChangeLog>

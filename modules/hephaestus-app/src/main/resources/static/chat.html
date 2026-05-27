@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hephaestus</title>
-    <link rel="stylesheet" href="./chat.css?v=20260525-inputfix">
-    <link rel="stylesheet" href="./org-settings.css?v=20260527-people-menu14">
+    <link rel="stylesheet" href="./chat.css?v=20260527-profile9">
+    <link rel="stylesheet" href="./org-settings.css?v=20260527-profile9">
+    <link rel="stylesheet" href="./org-profile.css?v=20260527-profile9">
 </head>
 <body>
+<div class="chat-effects" aria-hidden="true"></div>
 <div class="app">
     <aside class="sidebar">
         <div class="sidebar-top">
@@ -37,15 +39,48 @@
             </div>
         </section>
 
-        <div class="sidebar-footer">
-            <button id="settingsButton" class="settings-entry" type="button">
-                <span class="settings-entry-accent" aria-hidden="true"></span>
-                <span class="settings-entry-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                        <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.36 7.36 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.22-1.13.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.22 1.13-.53 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4Z"></path>
-                    </svg>
+        <div id="sidebarUserMenu" class="sidebar-footer">
+            <div id="userActionMenu" class="user-action-menu" hidden>
+                <button id="profileInfoButton" class="settings-entry" type="button">
+                    <span class="settings-entry-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M12 12.25a4.25 4.25 0 1 1 0-8.5 4.25 4.25 0 0 1 0 8.5Zm0-1.5a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5Zm0 2.25c4.11 0 7.25 2.2 7.25 5.05 0 1.55-1.28 2.7-2.83 2.7H7.58c-1.55 0-2.83-1.15-2.83-2.7C4.75 15.2 7.89 13 12 13Zm0 1.5c-3.31 0-5.75 1.67-5.75 3.55 0 .72.57 1.2 1.33 1.2h8.84c.76 0 1.33-.48 1.33-1.2 0-1.88-2.44-3.55-5.75-3.55Z"></path>
+                        </svg>
+                    </span>
+                    <span class="settings-entry-label">个人资料</span>
+                </button>
+                <button id="settingsButton" class="settings-entry" type="button">
+                    <span class="settings-entry-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0-1.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm8.25-1.15-1.82 1.41c-.13.43-.3.84-.51 1.23l.29 2.28a1.25 1.25 0 0 1-.61 1.22l-2.02 1.17c-.43.25-.96.22-1.36-.08l-1.83-1.39a7.22 7.22 0 0 1-1.42 0l-1.83 1.39c-.4.3-.93.33-1.36.08l-2.02-1.17a1.25 1.25 0 0 1-.61-1.22l.29-2.28a6.7 6.7 0 0 1-.51-1.23l-1.82-1.41a1.25 1.25 0 0 1-.43-1.29l.6-2.25c.13-.48.53-.84 1.02-.91l2.28-.33c.3-.32.64-.61 1-.86l.87-2.14c.19-.46.63-.76 1.13-.76h2.34c.5 0 .94.3 1.13.76l.87 2.14c.36.25.7.54 1 .86l2.28.33c.49.07.89.43 1.02.91l.6 2.25c.13.48-.04.99-.43 1.29Zm-2.9.28 1.48-1.15-.5-1.87-1.86-.27a.75.75 0 0 1-.49-.29 5.66 5.66 0 0 0-1.38-1.18.75.75 0 0 1-.33-.42l-.71-1.74h-1.94l-.71 1.74a.75.75 0 0 1-.33.42c-.51.3-.97.7-1.38 1.18a.75.75 0 0 1-.49.29l-1.86.27-.5 1.87 1.48 1.15c.18.14.3.36.3.59.12.57.33 1.09.63 1.57.13.2.16.43.13.66l-.24 1.85 1.68.97 1.48-1.12c.19-.14.43-.19.66-.13.59.07 1.17.07 1.76 0 .23-.06.47-.01.66.13l1.48 1.12 1.68-.97-.24-1.85a.75.75 0 0 1 .13-.66c.3-.48.51-1 .63-1.57 0-.23.12-.45.3-.59Z"></path>
+                        </svg>
+                    </span>
+                    <span class="settings-entry-label">设置</span>
+                </button>
+                <span class="settings-entry-separator" aria-hidden="true"></span>
+                <button id="helpButton" class="settings-entry settings-entry--with-arrow" type="button">
+                    <span class="settings-entry-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M12 2.75a9.25 9.25 0 1 1 0 18.5 9.25 9.25 0 0 1 0-18.5Zm0 1.5a7.75 7.75 0 1 0 0 15.5 7.75 7.75 0 0 0 0-15.5Zm.04 11.45a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9Zm-.05-8.35c1.84 0 3.21 1.12 3.21 2.79 0 1.16-.59 1.82-1.55 2.43-.76.49-.96.77-.96 1.42v.22h-1.45v-.3c0-1.13.51-1.69 1.45-2.29.77-.5 1.04-.84 1.04-1.46 0-.8-.66-1.35-1.74-1.35-.98 0-1.66.52-1.8 1.39H8.73c.16-1.7 1.45-2.85 3.26-2.85Z"></path>
+                        </svg>
+                    </span>
+                    <span class="settings-entry-label">帮助</span>
+                    <span class="settings-entry-arrow" aria-hidden="true">›</span>
+                </button>
+                <button id="logoutButton" class="settings-entry" type="button">
+                    <span class="settings-entry-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M10.25 4.75a.75.75 0 0 1 .75.75v1.25H8.2c-.8 0-1.45.65-1.45 1.45v7.6c0 .8.65 1.45 1.45 1.45H11v1.25a.75.75 0 0 1-.75.75H8.2a2.95 2.95 0 0 1-2.95-2.95V8.2A2.95 2.95 0 0 1 8.2 5.25h2.05Zm5.72 3.22 3.5 3.5a.75.75 0 0 1 0 1.06l-3.5 3.5-1.06-1.06 2.22-2.22H10v-1.5h7.13l-2.22-2.22 1.06-1.06Z"></path>
+                        </svg>
+                    </span>
+                    <span class="settings-entry-label">退出登录</span>
+                </button>
+            </div>
+            <button id="userProfileButton" class="user-profile" type="button" aria-expanded="false" aria-controls="userActionMenu">
+                <span id="userAvatar" class="user-avatar" aria-hidden="true">H</span>
+                <span class="user-profile-text">
+                    <span id="userDisplayName" class="user-name">Hephaestus</span>
                 </span>
-                <span class="settings-entry-label">设置</span>
             </button>
         </div>
     </aside>
@@ -67,7 +102,7 @@
 
                     <div class="input-shell">
                         <button id="chooseFileButton" class="icon-button action-left" type="button" aria-label="上传附件">+</button>
-                        <textarea id="messageInput" placeholder="Enter 发送、Shift + Enter 换行、Ctrl + V 粘贴图片或文件" rows="1"></textarea>
+                        <textarea id="messageInput" placeholder="询问任何问题" rows="1"></textarea>
                         <button id="sendButton" class="send-button action-right" type="submit" aria-label="发送">↑</button>
                         <input id="attachmentInput" class="file-input" type="file">
                     </div>
@@ -90,8 +125,10 @@
 </div>
 
 <div id="orgSettingsMount"></div>
+<div id="orgProfileMount"></div>
 
-<script src="./org-settings.js?v=20260527-people-menu14"></script>
-<script src="./chat.js?v=20260525-inputfix"></script>
+<script src="./org-settings.js?v=20260527-profile9"></script>
+<script src="./org-profile.js?v=20260527-profile9"></script>
+<script src="./chat.js?v=20260527-profile9"></script>
 </body>
 </html>

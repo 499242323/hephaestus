@@ -1,0 +1,33 @@
+<div id="profileDialogBackdrop" class="profile-dialog-backdrop" hidden>
+    <div id="profileDialog" class="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profileDialogTitle">
+        <div class="profile-dialog__header">
+            <div>
+                <strong id="profileDialogTitle">个人信息</strong>
+                <span>修改自己的头像与基础资料</span>
+            </div>
+            <button id="closeProfileDialogButton" class="profile-dialog__close" type="button" aria-label="关闭个人信息">×</button>
+        </div>
+        <div id="profileError" class="profile-dialog__error" hidden></div>
+        <div id="profileToast" class="profile-dialog__toast" hidden></div>
+        <form id="profileForm" class="profile-form">
+            <div class="profile-avatar-row">
+                <button id="profileAvatarButton" class="profile-avatar-button" type="button" aria-label="点击上传头像">
+                    <span id="profileAvatarPreview" class="profile-avatar">B</span>
+                </button>
+                <input id="profileAvatarInput" name="avatar" type="file" accept="image/*" hidden>
+            </div>
+            <div class="profile-form__grid">
+                <label class="profile-field"><span>用户名</span><input id="profileUsernameInput" name="username" type="text" readonly></label>
+                <label class="profile-field"><span>姓名</span><input id="profileNameInput" name="personName" type="text" placeholder="请输入姓名"></label>
+                <label class="profile-field"><span>部门</span><input id="profileUnitNameInput" name="unitName" type="text" readonly></label>
+                <label class="profile-field"><span>手机号</span><input id="profileMobileInput" name="mobile" type="text" placeholder="请输入手机号"></label>
+                <label class="profile-field"><span>邮箱</span><input id="profileEmailInput" name="email" type="email" placeholder="请输入邮箱"></label>
+            </div>
+            <label class="profile-field"><span>备注</span><textarea id="profileRemarkInput" name="remark" rows="3" placeholder="请输入备注"></textarea></label>
+            <div class="profile-form__actions">
+                <button id="profileCancelButton" class="profile-action" type="button">取消</button>
+                <button class="profile-action profile-action--primary" type="submit">保存个人信息</button>
+            </div>
+        </form>
+    </div>
+</div>

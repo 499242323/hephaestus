@@ -33,7 +33,20 @@
 
             <div class="settings-drawer__body">
                 <section id="generalPanel" class="settings-panel">
-                    <div class="settings-section settings-section--blank"></div>
+                    <div class="settings-section settings-config">
+                        <div class="settings-form-tabs">
+                            <span class="settings-form-tabs__item active">主系统配置</span>
+                            <span class="settings-config-header-actions">
+                                <button id="refreshSystemConfigButton" class="settings-action settings-action--compact" type="button">刷新</button>
+                                <button class="settings-action settings-action--compact settings-action--primary" type="submit" form="systemConfigForm">保存配置</button>
+                            </span>
+                        </div>
+                        <form id="systemConfigForm" class="settings-config-form">
+                            <div id="systemConfigFields" class="settings-config-fields">
+                                <div class="settings-empty">正在加载配置。</div>
+                            </div>
+                        </form>
+                    </div>
                 </section>
 
                 <section id="unitsPanel" class="settings-panel" hidden>
@@ -46,10 +59,10 @@
                                     </div>
                                     <div class="settings-section__header settings-section__header--tree">
                                         <strong>部门树</strong>
-                                        <button id="unitTreeCreateButton" class="settings-action settings-action--compact" type="button">新增部门</button>
                                     </div>
                                     <div id="unitsTree" class="settings-tree"></div>
                                     <div id="unitTreeContextMenu" class="settings-context-menu" hidden>
+                                        <button class="settings-context-menu__item" type="button" data-action="create-unit">新增下级部门</button>
                                         <button class="settings-context-menu__item settings-context-menu__item--danger" type="button" data-action="delete-unit">删除部门</button>
                                     </div>
                                 </div>
@@ -107,14 +120,11 @@
                                     </div>
                                     <h3>人员编辑</h3>
                                     <div class="settings-avatar-top">
-                                        <div class="settings-field">
-                                            <span>头像</span>
-                                            <div class="settings-avatar-field settings-avatar-field--centered">
-                                                <button id="personAvatarButton" class="settings-avatar-button" type="button" aria-label="点击管理头像">
-                                                    <span id="personAvatarPreview" class="settings-avatar settings-avatar--editor">头像</span>
-                                                </button>
-                                                <input id="personAvatarInput" name="avatar" type="file" accept="image/*" hidden>
-                                            </div>
+                                        <div class="settings-avatar-field settings-avatar-field--centered">
+                                            <button id="personAvatarButton" class="settings-avatar-button" type="button" aria-label="点击管理头像">
+                                                <span id="personAvatarPreview" class="settings-avatar settings-avatar--editor">B</span>
+                                            </button>
+                                            <input id="personAvatarInput" name="avatar" type="file" accept="image/*" hidden>
                                         </div>
                                     </div>
                                     <input id="personEditIdInput" type="hidden">

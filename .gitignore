@@ -44,9 +44,11 @@ modules/hephaestus-app/target/
 modules/hephaestus-media/target/
 modules/liquibase/target/
 modules/mybatis/target/
-modules/>hephaestus-org/target/
+modules/hephaestus-org/target/
+modules/hephaestus-login/target/
 **/target/
 **/test/
 .m2-local/
 .m2-temp/
 .tools/
+*.log

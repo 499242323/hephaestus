@@ -68,6 +68,25 @@ public interface OrgPersonRepository extends BaseAbstractRepository<OrgPersonEnt
             """)
     OrgPersonEntity getByPersonCode(@Param("personCode") String personCode);
 
+    @Select("""
+            SELECT id,
+                   person_code AS personCode,
+                   person_name AS personName,
+                   username,
+                   password,
+                   unit_id AS unitId,
+                   avatar_media_id AS avatarMediaId,
+                   mobile,
+                   email,
+                   remark,
+                   enabled,
+                   created_at AS createdAt,
+                   updated_at AS updatedAt
+            FROM heph_person
+            WHERE username = #{username}
+            """)
+    OrgPersonEntity getByUsername(@Param("username") String username);
+
     @Select("SELECT COUNT(1) FROM heph_person WHERE unit_id = #{unitId}")
     long countByUnitId(@Param("unitId") Long unitId);
 

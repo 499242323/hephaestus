@@ -11,6 +11,7 @@ import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class OrgPersonService {
 
@@ -84,6 +86,8 @@ public class OrgPersonService {
         try {
             orgPersonRepository.save(entity);
         } catch (RuntimeException exception) {
+            log.error("创建人员失败，currentPersonId={}, unitId={}, personCode={}, username={}",
+                    currentPersonId, request.unitId(), request.personCode(), request.username(), exception);
             orgPersistenceGuard.rethrowPersonCodeConflict(exception);
         }
         return toSummary(orgPersonRepository.getById(entity.getId()), unit);
@@ -110,6 +114,8 @@ public class OrgPersonService {
         try {
             orgPersonRepository.update(current);
         } catch (RuntimeException exception) {
+            log.error("更新人员失败，currentPersonId={}, personId={}, unitId={}, personCode={}, username={}",
+                    currentPersonId, personId, request.unitId(), request.personCode(), request.username(), exception);
             orgPersistenceGuard.rethrowPersonCodeConflict(exception);
         }
         return toSummary(orgPersonRepository.getById(personId), requireUnit(request.unitId()));

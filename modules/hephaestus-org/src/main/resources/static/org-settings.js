@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-people-tree10");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-profile9");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -36,9 +36,11 @@
         const generalPanel = document.getElementById("generalPanel");
         const unitsPanel = document.getElementById("unitsPanel");
         const peoplePanel = document.getElementById("peoplePanel");
+        const systemConfigForm = document.getElementById("systemConfigForm");
+        const systemConfigFields = document.getElementById("systemConfigFields");
+        const refreshSystemConfigButton = document.getElementById("refreshSystemConfigButton");
         const unitTreeSearchInput = document.getElementById("unitTreeSearchInput");
         const peopleTreeSearchInput = document.getElementById("peopleTreeSearchInput");
-        const unitTreeCreateButton = document.getElementById("unitTreeCreateButton");
         const unitsTree = document.getElementById("unitsTree");
         const unitTreeContextMenu = document.getElementById("unitTreeContextMenu");
         const unitsSection = unitsTree ? unitsTree.closest(".settings-section--side") : null;
@@ -72,7 +74,6 @@
         const personAvatarPreview = document.getElementById("personAvatarPreview");
         const showPersonCreateButton = document.getElementById("showPersonCreateButton");
         const resetPersonFormButton = document.getElementById("resetPersonFormButton");
-
         let settingsOpen = false;
         let currentSettingsTab = "general";
         let settingsScope = null;
@@ -88,6 +89,9 @@
         let contextMenuPeopleUnitId = null;
         let pendingDeleteUnitId = null;
         let toastTimer = null;
+        let systemConfigFormData = null;
+        let activeSystemConfigTab = "system-login";
+        let currentLoginUserPromise = null;
 
         const expandedUnitIds = new Set();
         const expandedPeopleGroupIds = new Set();
@@ -233,6 +237,7 @@
             settingsDrawer.classList.toggle("is-open", open);
             settingsDrawer.setAttribute("aria-hidden", String(!open));
             settingsBackdrop.hidden = !open;
+            document.body.classList.toggle("settings-effects-muted", open);
             document.body.style.overflow = open ? "hidden" : "";
             showSettingsError("");
             showSettingsToast("");
@@ -240,7 +245,7 @@
             hidePeopleTreeContextMenu();
             closeDeleteConfirmDialog();
             if (open) {
-                loadSettingsData();
+                loadCurrentLoginUser().finally(() => loadSettingsData());
             }
         }
 
@@ -263,8 +268,25 @@
 
         function buildSettingsHeaders(extraHeaders) {
             const headers = new Headers(extraHeaders || {});
-            headers.set("X-Person-Id", "100");
+            const personId = window.hephaestusCurrentLoginUser && window.hephaestusCurrentLoginUser.personId;
+            headers.set("X-Person-Id", personId ? String(personId) : "100");
             return headers;
+        }
+
+        async function loadCurrentLoginUser() {
+            if (window.hephaestusCurrentLoginUser) {
+                return window.hephaestusCurrentLoginUser;
+            }
+            if (!currentLoginUserPromise) {
+                currentLoginUserPromise = fetch(apiUrl("/auth/me"))
+                    .then((response) => response.ok ? response.json() : null)
+                    .then((user) => {
+                        window.hephaestusCurrentLoginUser = user;
+                        return user;
+                    })
+                    .catch(() => null);
+            }
+            return currentLoginUserPromise;
         }
 
         async function requestJson(path, options) {
@@ -290,6 +312,120 @@
                 return null;
             }
             return JSON.parse(text);
+        }
+
+        function flattenSystemConfigFields(formData) {
+            return ((formData && formData.sections) || []).flatMap((section) => section.fields || []);
+        }
+
+        function getSystemConfigTab(field) {
+            const code = String((field && field.code) || "");
+            if (code.startsWith("login.page.") || code.startsWith("login.mouse.")) {
+                return "login-page";
+            }
+            return "system-login";
+        }
+
+        function getSystemConfigTabTitle(tab) {
+            return tab === "login-page" ? "登录页面" : "系统登录";
+        }
+
+        function renderSystemConfigTabButton(tab, fields) {
+            const activeClass = tab === activeSystemConfigTab ? " active" : "";
+            return `<button class="settings-config-tab${activeClass}" type="button" data-config-tab="${tab}">${getSystemConfigTabTitle(tab)}<span>${fields.length}</span></button>`;
+        }
+
+        function renderSystemConfigRows(fields) {
+            const rows = [];
+            for (let index = 0; index < fields.length; index += 2) {
+                rows.push(`<div class="settings-config-row">${fields.slice(index, index + 2).map(renderSystemConfigField).join("")}</div>`);
+            }
+            return rows.join("");
+        }
+
+        function renderSystemConfigForm(formData) {
+            systemConfigFormData = formData;
+            if (!systemConfigFields) {
+                return;
+            }
+            const sections = (formData && formData.sections) || [];
+            if (!sections.length) {
+                systemConfigFields.innerHTML = '<div class="settings-empty">暂无主系统配置。</div>';
+                return;
+            }
+            const grouped = flattenSystemConfigFields(formData).reduce((result, field) => {
+                const tab = getSystemConfigTab(field);
+                result[tab].push(field);
+                return result;
+            }, { "system-login": [], "login-page": [] });
+            if (!grouped[activeSystemConfigTab] || !grouped[activeSystemConfigTab].length) {
+                activeSystemConfigTab = grouped["system-login"].length ? "system-login" : "login-page";
+            }
+            const tabs = ["system-login", "login-page"]
+                .filter((tab) => grouped[tab].length)
+                .map((tab) => renderSystemConfigTabButton(tab, grouped[tab]))
+                .join("");
+            const fields = renderSystemConfigRows(grouped[activeSystemConfigTab] || []);
+            systemConfigFields.innerHTML = `
+                <div class="settings-config-tabs" role="tablist">${tabs}</div>
+                <section class="settings-config-section">
+                    <h3>${getSystemConfigTabTitle(activeSystemConfigTab)}</h3>
+                    <div class="settings-config-grid">${fields}</div>
+                </section>
+            `;
+        }
+
+        function renderSystemConfigField(field) {
+            const type = String(field.componentType || "text").toLowerCase();
+            const value = field.value == null ? "" : String(field.value);
+            const code = escapeHtml(field.code || "");
+            const label = escapeHtml(field.label || field.code || "");
+            const help = field.helpText ? `<small>${escapeHtml(field.helpText)}</small>` : "";
+            const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : "";
+            let control = "";
+            if (type === "textarea") {
+                control = `<textarea name="${code}" rows="4"${placeholder}>${escapeHtml(value)}</textarea>`;
+            } else if (type === "switch") {
+                const checked = value === "true" || value === "1" || value === "yes";
+                control = `<label class="settings-config-switch"><input name="${code}" type="checkbox" ${checked ? "checked" : ""}><span class="settings-config-switch__track"><span class="settings-config-switch__thumb"></span></span><span class="settings-config-switch__text">启用</span></label>`;
+            } else if (type === "select") {
+                const options = (field.options || []).map((option) => {
+                    const optionValue = option.value == null ? "" : String(option.value);
+                    const selected = optionValue === value ? " selected" : "";
+                    return `<option value="${escapeHtml(optionValue)}"${selected}>${escapeHtml(option.label || optionValue)}</option>`;
+                }).join("");
+                control = `<select name="${code}">${options}</select>`;
+            } else if (type === "number") {
+                control = `<input name="${code}" type="number" value="${escapeHtml(value)}"${placeholder}>`;
+            } else {
+                const inputType = field.sensitive ? "password" : "text";
+                control = `<input name="${code}" type="${inputType}" value="${escapeHtml(value)}"${placeholder}>`;
+            }
+            return `
+                <label class="settings-field settings-config-field">
+                    <span>${label}</span>
+                    ${control}
+                    ${help}
+                </label>
+            `;
+        }
+
+        function collectSystemConfigValues() {
+            const values = {};
+            flattenSystemConfigFields(systemConfigFormData).forEach((field) => {
+                const control = systemConfigForm && systemConfigForm.elements ? systemConfigForm.elements[field.code] : null;
+                if (!control) {
+                    values[field.code] = field.value == null ? "" : String(field.value);
+                    return;
+                }
+                values[field.code] = control.type === "checkbox" ? (control.checked ? "true" : "false") : control.value;
+            });
+            return values;
+        }
+
+        async function loadSystemConfigForm() {
+            const formData = await requestJson("/api/system-config/forms/main-system");
+            renderSystemConfigForm(formData);
         }
 
         function populateUnitSelect(select, units, includeAll) {
@@ -337,14 +473,24 @@
 
         function resetAvatarPreview() {
             currentAvatarMediaId = null;
-            personAvatarPreview.innerHTML = "头像";
+            personAvatarPreview.textContent = "B";
             personAvatarInput.value = "";
         }
 
-        function renderAvatarPreview(url) {
-            personAvatarPreview.innerHTML = url
-                ? `<img src="${escapeHtml(url)}" alt="头像">`
-                : "头像";
+        function getPersonInitial(person) {
+            const source = (person && (person.personName || person.username)) || personNameInput.value || personUsernameInput.value || "B";
+            return String(source).trim().slice(0, 1).toUpperCase() || "B";
+        }
+
+        function renderAvatarPreview(url, person) {
+            if (url) {
+                const image = document.createElement("img");
+                image.src = url;
+                image.alt = "头像";
+                personAvatarPreview.replaceChildren(image);
+                return;
+            }
+            personAvatarPreview.textContent = getPersonInitial(person);
         }
 
         function resetPersonForm() {
@@ -380,7 +526,7 @@
             personRemarkInput.value = person.remark || "";
             personEnabledInput.checked = Boolean(person.enabled);
             currentAvatarMediaId = person.avatarMediaId || null;
-            renderAvatarPreview(person.avatarAccessUrl || "");
+            renderAvatarPreview(person.avatarAccessUrl || "", person);
             renderPeopleList(settingsPeople);
             setSettingsTab("people");
             personCodeInput.focus();
@@ -431,7 +577,7 @@
             function renderPerson(person) {
                 const avatar = person.avatarAccessUrl
                     ? `<img src="${escapeHtml(person.avatarAccessUrl)}" alt="${escapeHtml(person.personName || "头像")}">`
-                    : `<span>${escapeHtml((person.personName || "?").slice(0, 1).toUpperCase())}</span>`;
+                    : `<span>${escapeHtml((person.personName || person.username || "B").slice(0, 1).toUpperCase())}</span>`;
                 const activeClass = String(selectedPersonId) === String(person.id) ? " active" : "";
                 return `
                     <li class="settings-person-tree__person${activeClass}" data-person-id="${person.id}">
@@ -553,6 +699,7 @@
                     unitParentSelect.value = String(firstUnit.id);
                     unitParentIdInput.value = String(firstUnit.id);
                 }
+                await loadSystemConfigForm();
             } catch (error) {
                 showSettingsError(error && error.message ? error.message : "加载设置数据失败");
                 renderUnitsTree([]);
@@ -664,6 +811,37 @@
         refreshSettingsButton.addEventListener("click", () => loadSettingsData());
         refreshPeopleButton.addEventListener("click", () => loadPeople().catch((error) => showSettingsError(error.message)));
 
+        if (refreshSystemConfigButton) {
+            refreshSystemConfigButton.addEventListener("click", () => loadSystemConfigForm().catch((error) => showSettingsError(error.message)));
+        }
+        if (systemConfigFields) {
+            systemConfigFields.addEventListener("click", (event) => {
+                const tabButton = event.target.closest("[data-config-tab]");
+                if (!tabButton) {
+                    return;
+                }
+                activeSystemConfigTab = tabButton.dataset.configTab || "system-login";
+                renderSystemConfigForm(systemConfigFormData);
+            });
+        }
+
+        if (systemConfigForm) {
+            systemConfigForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                try {
+                    const saved = await requestJson("/api/system-config/forms/main-system", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ values: collectSystemConfigValues() })
+                    });
+                    renderSystemConfigForm(saved);
+                    showSettingsToast("保存成功");
+                } catch (error) {
+                    showSettingsError(error.message);
+                }
+            });
+        }
+
         if (unitTreeSearchInput) {
             unitTreeSearchInput.addEventListener("input", () => {
                 unitTreeKeyword = unitTreeSearchInput.value.trim().toLowerCase();
@@ -681,10 +859,6 @@
         unitParentSelect.addEventListener("change", () => {
             unitParentIdInput.value = unitParentSelect.value || "";
         });
-
-        if (unitTreeCreateButton) {
-            unitTreeCreateButton.addEventListener("click", () => beginCreateUnit(getDefaultCreateParentId()));
-        }
 
         resetUnitFormButton.addEventListener("click", () => resetUnitForm(""));
 
@@ -780,7 +954,7 @@
 
         if (unitTreeContextMenu) {
             unitTreeContextMenu.addEventListener("click", (event) => {
-                const button = event.target.closest("[data-action='delete-unit']");
+                const button = event.target.closest("[data-action]");
                 if (!button || !contextMenuUnitId) {
                     return;
                 }
@@ -789,7 +963,13 @@
                 if (!unit) {
                     return;
                 }
-                openDeleteConfirmDialog(unit);
+                if (button.dataset.action === "create-unit") {
+                    beginCreateUnit(unit.id);
+                    return;
+                }
+                if (button.dataset.action === "delete-unit") {
+                    openDeleteConfirmDialog(unit);
+                }
             });
         }
 
@@ -949,7 +1129,7 @@
                         body: formData
                     });
                     currentAvatarMediaId = updated && updated.avatarMediaId ? updated.avatarMediaId : null;
-                    renderAvatarPreview(updated && updated.avatarAccessUrl ? updated.avatarAccessUrl : "");
+                    renderAvatarPreview(updated && updated.avatarAccessUrl ? updated.avatarAccessUrl : "", updated);
                 }
 
                 await loadPeople();

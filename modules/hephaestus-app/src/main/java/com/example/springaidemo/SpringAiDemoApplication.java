@@ -1,6 +1,7 @@
 package com.example.springaidemo;
 
 import com.example.springaidemo.media.config.MediaStorageProperties;
+import com.example.springaidemo.login.auth.LoginPasswordCryptoProperties;
 import com.example.springaidemo.weather.tools.EmailProperties;
 import com.example.springaidemo.weather.WeatherProperties;
 import org.springframework.boot.SpringApplication;
@@ -8,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({MediaStorageProperties.class, WeatherProperties.class, EmailProperties.class})
+@EnableConfigurationProperties({MediaStorageProperties.class, LoginPasswordCryptoProperties.class, WeatherProperties.class, EmailProperties.class})
 public class SpringAiDemoApplication {
 
     public static void main(String[] args) {

@@ -16,7 +16,7 @@
     left: 50%;
     width: min(1040px, calc(100vw - 96px));
     height: min(82vh, 860px);
-    background: rgba(255, 255, 255, 0.99);
+    background: rgba(255, 255, 255, 0.9);
     border: 1px solid #dfe3ea;
     border-radius: 24px;
     box-shadow: 0 24px 72px rgba(15, 23, 42, 0.12);
@@ -58,7 +58,7 @@
     gap: 12px;
     padding: 16px 14px 18px;
     border-right: 1px solid #eceff3;
-    background: rgba(251, 251, 252, 0.96);
+    background: rgba(251, 251, 252, 0.88);
 }
 
 .settings-shell__close {
@@ -119,13 +119,13 @@
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     min-height: 0;
-    background: rgba(255, 255, 255, 0.99);
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .settings-shell__header {
     padding: 10px 16px 0;
     border-bottom: 1px solid #dbe3ec;
-    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    background: linear-gradient(180deg, rgba(248, 251, 255, 0.9) 0%, rgba(255, 255, 255, 0.88) 100%);
 }
 
 .settings-drawer__title {
@@ -215,7 +215,7 @@
     padding: 10px;
     border: 1px solid #dde3ec;
     border-radius: 12px;
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .settings-form--detail {
@@ -251,6 +251,186 @@
     border: 0;
     background: transparent;
     box-shadow: none;
+}
+
+.settings-config {
+    align-content: start;
+    min-height: 420px;
+}
+
+.settings-config-form {
+    display: grid;
+    gap: 14px;
+}
+
+.settings-config-fields {
+    display: grid;
+    gap: 16px;
+}
+
+.settings-config-tabs {
+    display: inline-flex;
+    width: fit-content;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: rgba(248, 250, 252, 0.72);
+}
+
+.settings-config-tab {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 12px;
+    border-radius: 9px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.settings-config-tab span {
+    min-width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.18);
+    color: #64748b;
+    font-size: 10px;
+}
+
+.settings-config-tab.active {
+    background: #ffffff;
+    color: #1d4ed8;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.10);
+}
+
+.settings-config-tab.active span {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.settings-config-section {
+    display: grid;
+    gap: 12px;
+}
+
+.settings-config-section h3 {
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dbeafe;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.settings-config-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.settings-config-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    align-items: start;
+    gap: 18px;
+}
+
+.settings-config-field {
+    align-content: start;
+    grid-template-rows: 16px minmax(34px, auto) auto;
+}
+
+.settings-config-field > span:first-child {
+    display: flex;
+    align-items: center;
+}
+
+.settings-config-field small {
+    min-height: 15px;
+    color: #6b7280;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.settings-config-switch {
+    width: 100%;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0;
+    color: #111827;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.settings-config-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.settings-config-switch__track {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    border-radius: 999px;
+    background: #d1d5db;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+    flex: 0 0 auto;
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.settings-config-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+    transition: transform 0.18s ease;
+}
+
+.settings-config-switch__thumb::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    opacity: 0;
+    transform: rotate(45deg);
+}
+
+.settings-config-switch input:checked + .settings-config-switch__track {
+    background: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.settings-config-switch input:checked + .settings-config-switch__track .settings-config-switch__thumb {
+    transform: translateX(20px);
+    background: #ffffff;
+}
+
+.settings-config-switch input:checked + .settings-config-switch__track .settings-config-switch__thumb::after {
+    opacity: 1;
+    border-color: #2563eb;
+}
+
+.settings-config-switch__text {
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 22px;
 }
 
 .settings-form--person {
@@ -406,20 +586,20 @@
 
 .settings-tree {
     display: grid;
-    gap: 2px;
+    gap: 5px;
     max-height: 520px;
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 2px;
+    padding-right: 4px;
     scrollbar-width: thin;
 }
 
 .settings-tree ul {
     list-style: none;
     margin: 0;
-    padding-left: 8px;
+    padding-left: 10px;
     display: grid;
-    gap: 2px;
+    gap: 5px;
 }
 
 .settings-tree::-webkit-scrollbar,
@@ -438,9 +618,9 @@
 .settings-tree__row {
     display: flex;
     align-items: center;
-    gap: 5px;
-    min-height: 24px;
-    padding: 2px 5px;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 8px;
     border-radius: 4px;
     background: #fff;
     border: 1px solid #e5ebf3;
@@ -524,7 +704,7 @@
 }
 
 .settings-tree__row .settings-tree__meta strong {
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.15;
 }
 
@@ -547,6 +727,18 @@
     margin: -2px 0 2px;
     padding-bottom: 8px;
     border-bottom: 1px solid #dbe3ec;
+}
+
+.settings-config .settings-form-tabs {
+    justify-content: space-between;
+}
+
+.settings-config-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding-bottom: 4px;
 }
 
 .settings-form-tabs__item {
@@ -677,36 +869,36 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 8px;
+    gap: 5px;
 }
 
 .settings-person-tree__unit {
     display: grid;
-    gap: 8px;
+    gap: 5px;
 }
 
 .settings-person-tree__list {
-    padding-left: 14px;
+    padding-left: 10px;
 }
 
 .settings-person-tree__unit[data-depth="1"] .settings-person-tree__list {
-    padding-left: 22px;
+    padding-left: 16px;
 }
 
 .settings-person-tree__unit[data-depth="2"] .settings-person-tree__list {
-    padding-left: 30px;
+    padding-left: 22px;
 }
 
 .settings-person-tree__unit[data-depth="3"] .settings-person-tree__list {
-    padding-left: 38px;
+    padding-left: 28px;
 }
 
 .settings-person-tree__person {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 5px 8px;
     border: 1px solid #e5ebf3;
     border-radius: 4px;
     background: #fff;
@@ -716,7 +908,7 @@
 .settings-person-tree__item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
     text-align: left;
 }
@@ -726,12 +918,12 @@
     gap: 2px;
     min-width: 0;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .settings-person-tree__meta strong {
     color: #111827;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
 }
 
@@ -769,31 +961,43 @@
     height: 44px;
     border-radius: 14px;
     overflow: hidden;
-    background: #e5e7eb;
+    background:
+        radial-gradient(circle at 78% 78%, rgba(24, 211, 133, 0.98) 0 25%, rgba(24, 211, 133, 0.62) 34%, transparent 52%),
+        linear-gradient(135deg, #225be8 0%, #2563eb 58%, #1d4ed8 100%);
     display: grid;
     place-items: center;
-    color: var(--muted);
+    color: #fff;
     flex: 0 0 auto;
+    font-weight: 800;
+    line-height: 1;
 }
 
 .settings-avatar--list {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    font-size: 11px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 13px;
 }
 
 .settings-avatar img {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
+}
+
+.settings-avatar span {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
 }
 
 .settings-avatar--editor {
     width: 92px;
     height: 92px;
-    border-radius: 12px;
-    font-size: 12px;
+    border-radius: 22px;
+    font-size: 34px;
 }
 
 .settings-avatar-top {

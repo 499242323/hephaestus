@@ -1,11 +1,13 @@
 (function () {
     const DEFAULT_SESSION_TITLE = "新建聊天";
-    const DEFAULT_HINT_TEXT = "Enter 发送，Shift + Enter 换行，Ctrl + V 可粘贴图片或文件";
+    const DEFAULT_HINT_TEXT = "询问任何问题";
+    const CHAT_CONFIG_KEYS = {
+        mouseTrailEffect: "login.mouse.trail.effect"
+    };
     const EMPTY_STATE_HTML = [
         '<div class="messages-inner">',
         '  <div class="empty">',
-        '    <strong>今天想聊点什么？</strong>',
-        '    <span>Hephaestus 可以理解附件、流式回复，也可以生成图片。</span>',
+        '    <strong>有什么可以帮忙的？</strong>',
         '  </div>',
         '</div>'
     ].join("");
@@ -14,6 +16,7 @@
     const streamUrl = `${basePath}/api/chat/multimodal/stream`;
 
     const messages = document.getElementById("messages");
+    const main = document.querySelector(".main");
     const form = document.getElementById("chatForm");
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
@@ -30,6 +33,14 @@
     const attachmentThumb = document.getElementById("attachmentThumb");
     const attachmentName = document.getElementById("attachmentName");
     const attachmentSize = document.getElementById("attachmentSize");
+    const logoutButton = document.getElementById("logoutButton");
+    const settingsButton = document.getElementById("settingsButton");
+    const profileInfoButton = document.getElementById("profileInfoButton");
+    const helpButton = document.getElementById("helpButton");
+    const userProfileButton = document.getElementById("userProfileButton");
+    const userActionMenu = document.getElementById("userActionMenu");
+    const userAvatar = document.getElementById("userAvatar");
+    const userDisplayName = document.getElementById("userDisplayName");
 
     let selectedFile = null;
     let previewUrl = null;
@@ -41,6 +52,380 @@
 
     const sessions = [];
     const streamStates = new Map();
+
+    async function loadChatVisualConfig() {
+        try {
+            const response = await fetch(`${basePath}/api/system-config/public/main-system`);
+            if (!response.ok) {
+                initChatCurvedGrid();
+                initChatGridRunners();
+                initChatMouseTrail("music");
+                return;
+            }
+            const payload = await response.json();
+            const items = payload.items || {};
+            initChatCurvedGrid();
+            initChatGridRunners();
+            initChatMouseTrail(items[CHAT_CONFIG_KEYS.mouseTrailEffect] || "music");
+        } catch (error) {
+            initChatCurvedGrid();
+            initChatGridRunners();
+            initChatMouseTrail("music");
+        }
+    }
+
+    function initChatCurvedGrid() {
+        if (document.querySelector(".chat-curved-grid-canvas")) {
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.className = "chat-curved-grid-canvas";
+        canvas.setAttribute("aria-hidden", "true");
+        document.body.prepend(canvas);
+
+        const context = canvas.getContext("2d");
+        const gridSize = 56;
+        let width = 0;
+        let height = 0;
+        let pixelRatio = 1;
+
+        function resizeCanvas() {
+            pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = Math.floor(width * pixelRatio);
+            canvas.height = Math.floor(height * pixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+            drawCurvedGrid();
+        }
+
+        function drawCurvedGrid() {
+            context.clearRect(0, 0, width, height);
+            context.save();
+            context.strokeStyle = "rgba(54, 224, 92, 0.105)";
+            context.lineWidth = 1;
+            context.shadowBlur = 2;
+            context.shadowColor = "rgba(25, 210, 54, 0.12)";
+
+            for (let y = 0; y <= height + gridSize; y += gridSize) {
+                const curve = Math.sin(y * 0.018) * 10;
+                context.beginPath();
+                context.moveTo(0, y);
+                context.quadraticCurveTo(width * 0.5, y + curve, width, y);
+                context.stroke();
+            }
+
+            for (let x = 0; x <= width + gridSize; x += gridSize) {
+                const curve = Math.cos(x * 0.018) * 10;
+                context.beginPath();
+                context.moveTo(x, 0);
+                context.quadraticCurveTo(x + curve, height * 0.5, x, height);
+                context.stroke();
+            }
+
+            context.restore();
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+    }
+
+    function initChatGridRunners() {
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            return;
+        }
+        if (document.querySelector(".chat-grid-runner-canvas")) {
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.className = "chat-grid-runner-canvas";
+        canvas.setAttribute("aria-hidden", "true");
+        document.body.prepend(canvas);
+
+        const context = canvas.getContext("2d");
+        const gridSize = 56;
+        const runners = [];
+        const colors = [
+            "rgba(255, 38, 110, 0.66)",
+            "rgba(54, 224, 92, 0.68)",
+            "rgba(67, 235, 244, 0.62)",
+            "rgba(251, 191, 36, 0.64)",
+            "rgba(168, 85, 247, 0.6)",
+            "rgba(59, 130, 246, 0.62)",
+            "rgba(249, 115, 22, 0.6)",
+            "rgba(236, 72, 153, 0.6)"
+        ];
+        let width = 0;
+        let height = 0;
+        let pixelRatio = 1;
+        let lastSpawnAt = 0;
+
+        function resizeCanvas() {
+            pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = Math.floor(width * pixelRatio);
+            canvas.height = Math.floor(height * pixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        }
+
+        function createRunner() {
+            const horizontal = Math.random() > 0.5;
+            const maxLine = Math.max(1, Math.floor((horizontal ? height : width) / gridSize));
+            const lineIndex = Math.floor(Math.random() * (maxLine + 1));
+            const direction = Math.random() > 0.5 ? 1 : -1;
+            const length = 90 + Math.random() * 180;
+            const speed = 1.25 + Math.random() * 2.5;
+            const start = direction > 0 ? -length : (horizontal ? width : height) + length;
+            runners.push({
+                horizontal,
+                line: lineIndex * gridSize,
+                position: start,
+                direction,
+                length,
+                speed,
+                life: 1,
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        function drawRunner(runner) {
+            const start = runner.position;
+            const end = runner.position - runner.direction * runner.length;
+            const gradient = runner.horizontal
+                ? context.createLinearGradient(end, runner.line, start, runner.line)
+                : context.createLinearGradient(runner.line, end, runner.line, start);
+
+            gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+            gradient.addColorStop(0.45, runner.color);
+            gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+            context.save();
+            context.globalAlpha = Math.max(0, runner.life) * 0.58;
+            context.strokeStyle = gradient;
+            context.lineWidth = 1.5;
+            context.lineCap = "round";
+            context.shadowBlur = 6;
+            context.shadowColor = runner.color;
+            context.beginPath();
+            if (runner.horizontal) {
+                context.moveTo(end, runner.line);
+                context.lineTo(start, runner.line);
+            } else {
+                context.moveTo(runner.line, end);
+                context.lineTo(runner.line, start);
+            }
+            context.stroke();
+            context.restore();
+        }
+
+        function animate(now) {
+            context.clearRect(0, 0, width, height);
+            if (now - lastSpawnAt > 180 + Math.random() * 260 && runners.length < 28) {
+                lastSpawnAt = now;
+                createRunner();
+            }
+
+            for (let index = runners.length - 1; index >= 0; index -= 1) {
+                const runner = runners[index];
+                runner.position += runner.direction * runner.speed;
+                const boundary = runner.horizontal ? width : height;
+                if (runner.direction > 0 && runner.position - runner.length > boundary) {
+                    runner.life -= 0.08;
+                }
+                if (runner.direction < 0 && runner.position + runner.length < 0) {
+                    runner.life -= 0.08;
+                }
+                if (runner.life <= 0) {
+                    runners.splice(index, 1);
+                    continue;
+                }
+                drawRunner(runner);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+        requestAnimationFrame(animate);
+    }
+
+    function setUserMenuOpen(open) {
+        if (!userProfileButton || !userActionMenu) {
+            return;
+        }
+        userActionMenu.hidden = !open;
+        userProfileButton.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function getAvatarInitial(name) {
+        const normalized = String(name || "").trim();
+        return normalized ? normalized.slice(0, 1).toUpperCase() : "H";
+    }
+
+    function renderUserAvatar(url, displayName) {
+        if (!userAvatar) {
+            return;
+        }
+        userAvatar.innerHTML = url
+            ? `<img src="${escapeAttribute(url)}" alt="">`
+            : getAvatarInitial(displayName);
+    }
+
+    async function loadCurrentUser() {
+        if (!userDisplayName || !userAvatar) {
+            return;
+        }
+        try {
+            const response = await fetch(`${basePath}/auth/me`);
+            if (!response.ok) {
+                return;
+            }
+            const user = await response.json();
+            window.hephaestusCurrentLoginUser = user;
+            let profile = null;
+            if (user.personId) {
+                profile = await loadCurrentUserProfile(user.personId);
+            }
+            const displayName = (profile && profile.personName) || user.personName || user.username || "Hephaestus";
+            userDisplayName.textContent = displayName;
+            renderUserAvatar(profile && profile.avatarAccessUrl ? profile.avatarAccessUrl : "", displayName);
+        } catch (error) {
+            // Keep the default local fallback if the session user cannot be loaded.
+        }
+    }
+
+    async function loadCurrentUserProfile(personId) {
+        try {
+            const response = await fetch(`${basePath}/api/org/persons/current-scope`, {
+                headers: { "X-Person-Id": String(personId) }
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const scope = await response.json();
+            return scope && scope.currentPerson ? scope.currentPerson : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function initChatMouseTrail(effectName) {
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.className = "chat-trail-canvas";
+        canvas.setAttribute("aria-hidden", "true");
+        document.body.prepend(canvas);
+
+        const context = canvas.getContext("2d");
+        const particles = [];
+        const symbols = ["♪", "♫", "♬", "✦", "✧"];
+        const colors = ["#2c8fb4", "#37b899", "#22c55e", "#06b6d4", "#ec4899"];
+        const effect = String(effectName || "music").toLowerCase();
+        let width = 0;
+        let height = 0;
+        let pixelRatio = 1;
+        let lastSpawnAt = 0;
+
+        function resizeCanvas() {
+            pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = Math.floor(width * pixelRatio);
+            canvas.height = Math.floor(height * pixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        }
+
+        function randomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function spawnTrail(x, y, burst) {
+            const now = performance.now();
+            if (!burst && now - lastSpawnAt < 24) {
+                return;
+            }
+            lastSpawnAt = now;
+            const useDots = effect === "firefly" || effect === "firework";
+            const count = burst || effect === "firework" ? 10 : 2;
+            for (let index = 0; index < count; index += 1) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.5 + Math.random() * 1.8;
+                particles.push({
+                    type: useDots ? "dot" : "text",
+                    x: x + (Math.random() - 0.5) * 10,
+                    y: y + (Math.random() - 0.5) * 10,
+                    vx: effect === "firework" ? Math.cos(angle) * speed : (Math.random() - 0.5) * 1.1,
+                    vy: effect === "firework" ? Math.sin(angle) * speed : -0.3 - Math.random() * 1.1,
+                    life: 0.82,
+                    decay: effect === "firework" ? 0.022 : 0.016 + Math.random() * 0.008,
+                    size: 10 + Math.random() * 9,
+                    radius: 2.2 + Math.random() * 3.8,
+                    rotate: (Math.random() - 0.5) * 0.8,
+                    symbol: symbols[Math.floor(Math.random() * symbols.length)],
+                    color: randomColor()
+                });
+            }
+            if (particles.length > 110) {
+                particles.splice(0, particles.length - 110);
+            }
+        }
+
+        function drawParticle(particle) {
+            context.save();
+            context.globalAlpha = Math.max(0, particle.life) * 0.42;
+            context.shadowBlur = particle.type === "dot" ? 10 : 7;
+            context.shadowColor = particle.color;
+            context.fillStyle = particle.color;
+            if (particle.type === "dot") {
+                context.beginPath();
+                context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                context.fill();
+            } else {
+                context.translate(particle.x, particle.y);
+                context.rotate(particle.rotate);
+                context.font = `${particle.size}px "Times New Roman", serif`;
+                context.textAlign = "center";
+                context.textBaseline = "middle";
+                context.fillText(particle.symbol, 0, 0);
+            }
+            context.restore();
+        }
+
+        function animate() {
+            context.clearRect(0, 0, width, height);
+            for (let index = particles.length - 1; index >= 0; index -= 1) {
+                const particle = particles[index];
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vy += 0.012;
+                particle.rotate += 0.01;
+                particle.life -= particle.decay;
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                    continue;
+                }
+                drawParticle(particle);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        window.addEventListener("mousemove", (event) => spawnTrail(event.clientX, event.clientY), { passive: true });
+        window.addEventListener("click", (event) => spawnTrail(event.clientX, event.clientY, true), { passive: true });
+        resizeCanvas();
+        animate();
+    }
 
     function createSessionId() {
         return `hephaestus_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
@@ -80,6 +465,14 @@
 
     function renderEmptyState() {
         messages.innerHTML = EMPTY_STATE_HTML;
+        syncConversationLayoutState();
+    }
+
+    function syncConversationLayoutState() {
+        if (!main) {
+            return;
+        }
+        main.classList.toggle("is-empty-session", Boolean(messages.querySelector(".empty")));
     }
 
     function ensureMessagesInner() {
@@ -95,6 +488,7 @@
         const empty = messages.querySelector(".empty");
         if (empty) {
             empty.remove();
+            syncConversationLayoutState();
         }
     }
 
@@ -262,6 +656,7 @@
 
     function showSession(session) {
         messages.innerHTML = session && session.messagesHtml ? session.messagesHtml : EMPTY_STATE_HTML;
+        syncConversationLayoutState();
         pendingUserMessage = null;
         requestAnimationFrame(() => {
             if (!session) {
@@ -773,6 +1168,10 @@
             .replace(/'/g, "&#39;");
     }
 
+    function escapeAttribute(text) {
+        return escapeHtml(text);
+    }
+
     function renderRichText(text) {
         if (!text) {
             return "";
@@ -1162,6 +1561,61 @@
         input.focus();
     });
 
+    if (userProfileButton && userActionMenu) {
+        userProfileButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            setUserMenuOpen(userActionMenu.hidden);
+        });
+
+        userActionMenu.addEventListener("click", (event) => {
+            event.stopPropagation();
+        });
+
+        document.addEventListener("click", () => setUserMenuOpen(false));
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                setUserMenuOpen(false);
+            }
+        });
+    }
+
+    if (settingsButton) {
+        settingsButton.addEventListener("click", () => setUserMenuOpen(false));
+    }
+
+    if (helpButton) {
+        helpButton.addEventListener("click", () => setUserMenuOpen(false));
+    }
+
+    if (profileInfoButton) {
+        profileInfoButton.addEventListener("click", async () => {
+            setUserMenuOpen(false);
+            if (typeof window.openHephaestusProfileDialog !== "function" && typeof window.initOrgProfile === "function") {
+                await window.initOrgProfile();
+            }
+            if (typeof window.openHephaestusProfileDialog === "function") {
+                window.openHephaestusProfileDialog();
+            }
+        });
+    }
+
+    window.addEventListener("hephaestus:user-profile-updated", (event) => {
+        const profile = event.detail || {};
+        const displayName = profile.personName || profile.username || "Hephaestus";
+        userDisplayName.textContent = displayName;
+        renderUserAvatar(profile.avatarAccessUrl || "", displayName);
+    });
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", async () => {
+            try {
+                await fetch(`${basePath}/auth/logout`, { method: "POST" });
+            } finally {
+                window.location.href = `${basePath}/login.html`;
+            }
+        });
+    }
+
     messages.addEventListener("scroll", () => {
         if (suppressScrollStateSync > 0) {
             return;
@@ -1187,4 +1641,6 @@
     renderSessionList();
     resizeInput();
     syncComposerState();
+    loadChatVisualConfig();
+    loadCurrentUser();
 })();

@@ -7,12 +7,14 @@ import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
 
+@Slf4j
 @Service
 public class OrgUnitService {
 
@@ -58,6 +60,8 @@ public class OrgUnitService {
             entity.setAncestorPath(parent.getAncestorPath() + "/" + entity.getId());
             orgUnitRepository.update(entity);
         } catch (RuntimeException exception) {
+            log.error("创建部门失败，currentPersonId={}, parentId={}, unitCode={}",
+                    currentPersonId, request.parentId(), request.unitCode(), exception);
             orgPersistenceGuard.rethrowUnitCodeConflict(exception);
         }
         return orgUnitRepository.getById(entity.getId());
@@ -92,6 +96,8 @@ public class OrgUnitService {
             orgUnitRepository.update(entity);
             refreshDescendantAncestorPaths(originalAncestorPath, updatedAncestorPath, unitId);
         } catch (RuntimeException exception) {
+            log.error("更新部门失败，currentPersonId={}, unitId={}, parentId={}, unitCode={}",
+                    currentPersonId, unitId, request.parentId(), request.unitCode(), exception);
             orgPersistenceGuard.rethrowUnitCodeConflict(exception);
         }
         return orgUnitRepository.getById(unitId);
