@@ -38,6 +38,7 @@ out/
 ### Runtime Outputs ###
 ${logging.file.path}/
 .codex-chrome-profile/
+.codex-qa/
 modules/hephaestus-app/${logging.file.path}/
 modules/hephaestus-app/target/
 modules/hephaestus-media/target/

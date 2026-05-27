@@ -41,10 +41,7 @@ public class OrgUnitService {
         validateCreateRequest(request);
         OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
         orgScopeService.assertUnitInScope(scope, request.parentId());
-        OrgUnitEntity parent = orgUnitRepository.getById(request.parentId());
-        if (parent == null) {
-            throw new OrgValidationException("父级单位不存在");
-        }
+        OrgUnitEntity parent = requireParentUnit(request.parentId());
         if (orgUnitRepository.getByUnitCode(request.unitCode()) != null) {
             throw new OrgValidationException("单位编码已存在");
         }
@@ -66,21 +63,34 @@ public class OrgUnitService {
         return orgUnitRepository.getById(entity.getId());
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public OrgUnitEntity updateUnit(Long currentPersonId, Long unitId, UpdateOrgUnitRequest request) {
         validateUpdateRequest(request);
         OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
         orgScopeService.assertUnitInScope(scope, unitId);
+        orgScopeService.assertUnitInScope(scope, request.parentId());
+
         OrgUnitEntity entity = requireUnit(unitId);
+        OrgUnitEntity parent = requireParentUnit(request.parentId());
+        validateParentChange(entity, parent);
+
         OrgUnitEntity duplicate = orgUnitRepository.getByUnitCode(request.unitCode());
         if (duplicate != null && !Objects.equals(duplicate.getId(), unitId)) {
             throw new OrgValidationException("单位编码已存在");
         }
+
+        String originalAncestorPath = entity.getAncestorPath();
+        String updatedAncestorPath = parent.getAncestorPath() + "/" + entity.getId();
+
         entity.setUnitCode(request.unitCode().trim());
         entity.setUnitName(request.unitName().trim());
+        entity.setParentId(parent.getId());
+        entity.setAncestorPath(updatedAncestorPath);
         entity.setSortOrder(defaultSortOrder(request.sortOrder()));
         entity.setEnabled(request.enabled() == null || request.enabled());
         try {
             orgUnitRepository.update(entity);
+            refreshDescendantAncestorPaths(originalAncestorPath, updatedAncestorPath, unitId);
         } catch (RuntimeException exception) {
             orgPersistenceGuard.rethrowUnitCodeConflict(exception);
         }
@@ -113,15 +123,52 @@ public class OrgUnitService {
         return entity;
     }
 
+    private OrgUnitEntity requireParentUnit(Long parentId) {
+        OrgUnitEntity parent = orgUnitRepository.getById(parentId);
+        if (parent == null) {
+            throw new OrgValidationException("上级单位不存在");
+        }
+        return parent;
+    }
+
+    private void validateParentChange(OrgUnitEntity entity, OrgUnitEntity parent) {
+        if (Objects.equals(entity.getId(), parent.getId())) {
+            throw new OrgValidationException("上级单位不能是当前单位");
+        }
+        String currentPath = entity.getAncestorPath();
+        String parentPath = parent.getAncestorPath();
+        if (currentPath != null && parentPath != null && (parentPath.equals(currentPath) || parentPath.startsWith(currentPath + "/"))) {
+            throw new OrgValidationException("上级单位不能是当前单位或其子单位");
+        }
+    }
+
+    private void refreshDescendantAncestorPaths(String originalAncestorPath, String updatedAncestorPath, Long unitId) {
+        if (originalAncestorPath == null || updatedAncestorPath == null || Objects.equals(originalAncestorPath, updatedAncestorPath)) {
+            return;
+        }
+        List<OrgUnitEntity> descendants = orgUnitRepository.findSelfAndDescendants(originalAncestorPath, originalAncestorPath + "/%");
+        for (OrgUnitEntity descendant : descendants) {
+            if (Objects.equals(descendant.getId(), unitId)) {
+                continue;
+            }
+            String ancestorPath = descendant.getAncestorPath();
+            if (ancestorPath == null || !ancestorPath.startsWith(originalAncestorPath + "/")) {
+                continue;
+            }
+            descendant.setAncestorPath(updatedAncestorPath + ancestorPath.substring(originalAncestorPath.length()));
+            orgUnitRepository.update(descendant);
+        }
+    }
+
     private void validateCreateRequest(CreateOrgUnitRequest request) {
         if (request == null || isBlank(request.unitCode()) || isBlank(request.unitName()) || request.parentId() == null) {
-            throw new OrgValidationException("单位编码、名称和父级单位不能为空");
+            throw new OrgValidationException("单位编码、名称和上级单位不能为空");
         }
     }
 
     private void validateUpdateRequest(UpdateOrgUnitRequest request) {
-        if (request == null || isBlank(request.unitCode()) || isBlank(request.unitName())) {
-            throw new OrgValidationException("单位编码和名称不能为空");
+        if (request == null || isBlank(request.unitCode()) || isBlank(request.unitName()) || request.parentId() == null) {
+            throw new OrgValidationException("单位编码、名称和上级单位不能为空");
         }
     }
 

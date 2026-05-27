@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260525-inputfix");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-people-tree10");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -23,8 +23,13 @@
         const refreshSettingsButton = document.getElementById("refreshSettingsButton");
         const refreshPeopleButton = document.getElementById("refreshPeopleButton");
         const settingsError = document.getElementById("settingsError");
+        const settingsToast = document.getElementById("settingsToast");
         const settingsPanelTitle = document.getElementById("settingsPanelTitle");
         const settingsDrawerBody = document.querySelector(".settings-drawer__body");
+        const settingsConfirmDialog = document.getElementById("settingsConfirmDialog");
+        const settingsConfirmMessage = document.getElementById("settingsConfirmMessage");
+        const settingsConfirmCancelButton = document.getElementById("settingsConfirmCancelButton");
+        const settingsConfirmOkButton = document.getElementById("settingsConfirmOkButton");
         const generalTabButton = document.getElementById("generalTabButton");
         const unitsTabButton = document.getElementById("unitsTabButton");
         const peopleTabButton = document.getElementById("peopleTabButton");
@@ -33,8 +38,15 @@
         const peoplePanel = document.getElementById("peoplePanel");
         const unitTreeSearchInput = document.getElementById("unitTreeSearchInput");
         const peopleTreeSearchInput = document.getElementById("peopleTreeSearchInput");
+        const unitTreeCreateButton = document.getElementById("unitTreeCreateButton");
         const unitsTree = document.getElementById("unitsTree");
+        const unitTreeContextMenu = document.getElementById("unitTreeContextMenu");
+        const unitsSection = unitsTree ? unitsTree.closest(".settings-section--side") : null;
         const peopleList = document.getElementById("peopleList");
+        const peopleTreeContextMenu = document.getElementById("peopleTreeContextMenu");
+        const peopleCreateMenuButton = peopleTreeContextMenu ? peopleTreeContextMenu.querySelector("[data-action='create-person']") : null;
+        const peopleDeleteMenuButton = peopleTreeContextMenu ? peopleTreeContextMenu.querySelector("[data-action='delete-person']") : null;
+        const peopleSection = peopleList ? peopleList.closest(".settings-section--side") : null;
         const unitEditorForm = document.getElementById("unitEditorForm");
         const unitEditIdInput = document.getElementById("unitEditIdInput");
         const unitParentIdInput = document.getElementById("unitParentIdInput");
@@ -43,7 +55,6 @@
         const unitNameInput = document.getElementById("unitNameInput");
         const unitSortOrderInput = document.getElementById("unitSortOrderInput");
         const unitEnabledInput = document.getElementById("unitEnabledInput");
-        const showUnitCreateButton = document.getElementById("showUnitCreateButton");
         const resetUnitFormButton = document.getElementById("resetUnitFormButton");
         const personEditorForm = document.getElementById("personEditorForm");
         const personEditIdInput = document.getElementById("personEditIdInput");
@@ -59,8 +70,6 @@
         const personAvatarInput = document.getElementById("personAvatarInput");
         const personAvatarButton = document.getElementById("personAvatarButton");
         const personAvatarPreview = document.getElementById("personAvatarPreview");
-        const personAvatarUploadButton = document.getElementById("personAvatarUploadButton");
-        const personAvatarDeleteButton = document.getElementById("personAvatarDeleteButton");
         const showPersonCreateButton = document.getElementById("showPersonCreateButton");
         const resetPersonFormButton = document.getElementById("resetPersonFormButton");
 
@@ -74,6 +83,11 @@
         let isSettingsLoading = false;
         let unitTreeKeyword = "";
         let peopleTreeKeyword = "";
+        let contextMenuUnitId = null;
+        let contextMenuPersonId = null;
+        let contextMenuPeopleUnitId = null;
+        let pendingDeleteUnitId = null;
+        let toastTimer = null;
 
         const expandedUnitIds = new Set();
         const expandedPeopleGroupIds = new Set();
@@ -102,6 +116,62 @@
         function showSettingsError(message) {
             settingsError.hidden = !message;
             settingsError.textContent = message || "";
+        }
+
+        function showSettingsToast(message) {
+            if (!settingsToast) {
+                return;
+            }
+            if (toastTimer) {
+                window.clearTimeout(toastTimer);
+            }
+            settingsToast.textContent = message || "";
+            settingsToast.hidden = !message;
+            if (!message) {
+                return;
+            }
+            toastTimer = window.setTimeout(() => {
+                settingsToast.hidden = true;
+                settingsToast.textContent = "";
+            }, 2200);
+        }
+
+        function hideUnitTreeContextMenu() {
+            contextMenuUnitId = null;
+            if (!unitTreeContextMenu) {
+                return;
+            }
+            unitTreeContextMenu.hidden = true;
+            unitTreeContextMenu.style.left = "";
+            unitTreeContextMenu.style.top = "";
+        }
+
+        function hidePeopleTreeContextMenu() {
+            contextMenuPersonId = null;
+            contextMenuPeopleUnitId = null;
+            if (!peopleTreeContextMenu) {
+                return;
+            }
+            peopleTreeContextMenu.hidden = true;
+            peopleTreeContextMenu.style.left = "";
+            peopleTreeContextMenu.style.top = "";
+        }
+
+        function closeDeleteConfirmDialog() {
+            pendingDeleteUnitId = null;
+            if (!settingsConfirmDialog) {
+                return;
+            }
+            settingsConfirmDialog.hidden = true;
+        }
+
+        function openDeleteConfirmDialog(unit) {
+            if (!settingsConfirmDialog || !settingsConfirmMessage || !unit) {
+                return;
+            }
+            pendingDeleteUnitId = String(unit.id);
+            settingsConfirmMessage.textContent = `确认删除部门“${unit.unitName}”吗？`;
+            settingsConfirmDialog.hidden = false;
         }
 
         function flattenUnitTree(units, depth) {
@@ -165,6 +235,10 @@
             settingsBackdrop.hidden = !open;
             document.body.style.overflow = open ? "hidden" : "";
             showSettingsError("");
+            showSettingsToast("");
+            hideUnitTreeContextMenu();
+            hidePeopleTreeContextMenu();
+            closeDeleteConfirmDialog();
             if (open) {
                 loadSettingsData();
             }
@@ -180,6 +254,8 @@
             peoplePanel.hidden = tab !== "people";
             settingsPanelTitle.textContent = panelTitleMap[tab] || "设置";
             showSettingsError("");
+            hideUnitTreeContextMenu();
+            hidePeopleTreeContextMenu();
             if (settingsDrawerBody) {
                 settingsDrawerBody.scrollTop = 0;
             }
@@ -209,7 +285,11 @@
             if (response.status === 204) {
                 return null;
             }
-            return response.json();
+            const text = await response.text();
+            if (!text || !text.trim()) {
+                return null;
+            }
+            return JSON.parse(text);
         }
 
         function populateUnitSelect(select, units, includeAll) {
@@ -258,7 +338,6 @@
         function resetAvatarPreview() {
             currentAvatarMediaId = null;
             personAvatarPreview.innerHTML = "头像";
-            personAvatarDeleteButton.disabled = true;
             personAvatarInput.value = "";
         }
 
@@ -266,7 +345,6 @@
             personAvatarPreview.innerHTML = url
                 ? `<img src="${escapeHtml(url)}" alt="头像">`
                 : "头像";
-            personAvatarDeleteButton.disabled = !url;
         }
 
         function resetPersonForm() {
@@ -276,7 +354,11 @@
             personUsernameInput.value = "";
             personPasswordInput.value = "";
             personNameInput.value = "";
-            personUnitIdInput.value = "";
+            if (personUnitIdInput.options.length) {
+                personUnitIdInput.value = personUnitIdInput.value || personUnitIdInput.options[0].value || "";
+            } else {
+                personUnitIdInput.value = "";
+            }
             personMobileInput.value = "";
             personEmailInput.value = "";
             personRemarkInput.value = "";
@@ -306,6 +388,7 @@
 
         function renderUnitsTree(units) {
             const visibleUnits = filterUnitTree(units, unitTreeKeyword);
+            hideUnitTreeContextMenu();
             if (!visibleUnits || !visibleUnits.length) {
                 unitsTree.innerHTML = '<div class="settings-empty">当前权限范围内暂无部门。</div>';
                 return;
@@ -315,23 +398,19 @@
                 const hasChildren = (node.children || []).length > 0;
                 const expanded = hasChildren ? isExpanded(expandedUnitIds, node.id) : false;
                 const activeClass = String(selectedUnitId) === String(node.id) ? " active" : "";
-                const toggleIcon = hasChildren ? (expanded ? "▾" : "▸") : "•";
+                const toggleIcon = hasChildren ? (expanded ? "▾" : "▸") : "";
                 const children = hasChildren && expanded
                     ? `<ul>${node.children.map(renderNode).join("")}</ul>`
                     : "";
                 return `
                     <li>
-                        <div class="settings-tree__row${activeClass}">
-                            <button class="settings-tree__label" type="button" data-action="edit-unit" data-unit-id="${node.id}">
+                        <div class="settings-tree__row${activeClass}" data-unit-id="${node.id}">
+                            <button class="settings-tree__label" type="button" data-action="edit-unit" data-unit-id="${node.id}" title="${escapeHtml(node.unitName || "")}">
                                 <span class="settings-tree__toggle" data-action="${hasChildren ? "toggle-unit" : ""}" data-unit-id="${node.id}">${toggleIcon}</span>
                                 <span class="settings-tree__meta">
                                     <strong>${escapeHtml(node.unitName || "")}</strong>
                                 </span>
                             </button>
-                            <div class="settings-tree__actions">
-                                <button class="settings-tree__action" type="button" data-action="create-unit" data-unit-id="${node.id}">新增下级</button>
-                                <button class="settings-tree__action settings-action--danger" type="button" data-action="delete-unit" data-unit-id="${node.id}">删除</button>
-                            </div>
                         </div>
                         ${children}
                     </li>
@@ -347,55 +426,105 @@
                 return;
             }
 
-            const units = flattenUnitTree((settingsScope && settingsScope.units) || []);
-            const html = units.map((unit) => {
+            const normalizedKeyword = (peopleTreeKeyword || "").trim().toLowerCase();
+
+            function renderPerson(person) {
+                const avatar = person.avatarAccessUrl
+                    ? `<img src="${escapeHtml(person.avatarAccessUrl)}" alt="${escapeHtml(person.personName || "头像")}">`
+                    : `<span>${escapeHtml((person.personName || "?").slice(0, 1).toUpperCase())}</span>`;
+                const activeClass = String(selectedPersonId) === String(person.id) ? " active" : "";
+                return `
+                    <li class="settings-person-tree__person${activeClass}" data-person-id="${person.id}">
+                        <button class="settings-person-tree__item" type="button" data-action="edit-person" data-person-id="${person.id}">
+                            <span class="settings-avatar settings-avatar--list">${avatar}</span>
+                            <span class="settings-person-tree__meta">
+                                <strong>${escapeHtml(person.personName || "")}</strong>
+                            </span>
+                        </button>
+                    </li>
+                `;
+            }
+
+            function renderUnitNode(unit, depth) {
+                const children = unit.children || [];
                 const persons = items.filter((person) => {
                     if (String(person.unitId) !== String(unit.id)) {
                         return false;
                     }
-                    if (!peopleTreeKeyword) {
+                    if (!normalizedKeyword) {
                         return true;
                     }
-                    return String(person.personName || "").toLowerCase().includes(peopleTreeKeyword);
+                    return String(person.personName || "").toLowerCase().includes(normalizedKeyword)
+                        || String(person.username || "").toLowerCase().includes(normalizedKeyword)
+                        || String(person.personCode || "").toLowerCase().includes(normalizedKeyword);
                 });
+                const renderedChildren = children
+                    .map((child) => renderUnitNode(child, (depth || 0) + 1))
+                    .filter(Boolean);
+                const unitMatched = normalizedKeyword
+                    ? String(unit.unitName || "").toLowerCase().includes(normalizedKeyword)
+                        || String(unit.unitCode || "").toLowerCase().includes(normalizedKeyword)
+                    : true;
+                const hasChildren = children.length > 0;
                 const hasPersons = persons.length > 0;
-                const expanded = hasPersons ? isExpanded(expandedPeopleGroupIds, unit.id) : false;
-                const toggleIcon = hasPersons ? (expanded ? "▾" : "▸") : "•";
-                const personItems = hasPersons && expanded
-                    ? persons.map((person) => {
-                        const avatar = person.avatarAccessUrl
-                            ? `<img src="${escapeHtml(person.avatarAccessUrl)}" alt="${escapeHtml(person.personName || "头像")}">`
-                            : `<span>${escapeHtml((person.personName || "?").slice(0, 1).toUpperCase())}</span>`;
-                        const activeClass = String(selectedPersonId) === String(person.id) ? " active" : "";
-                        return `
-                            <li class="settings-person-tree__person${activeClass}">
-                                <button class="settings-person-tree__item" type="button" data-action="edit-person" data-person-id="${person.id}">
-                                    <span class="settings-avatar settings-avatar--list">${avatar}</span>
-                                    <span class="settings-person-tree__meta">
-                                        <strong>${escapeHtml(person.personName || "")}</strong>
-                                    </span>
-                                </button>
-                                <button class="settings-tree__action settings-action--danger" type="button" data-action="delete-person" data-person-id="${person.id}">删除</button>
-                            </li>
-                        `;
-                    }).join("")
-                    : "";
+                const hasVisibleChildren = renderedChildren.length > 0;
+                const hasVisibleContent = unitMatched || hasPersons || hasVisibleChildren;
+                if (!hasVisibleContent) {
+                    return "";
+                }
+                const forceExpanded = Boolean(normalizedKeyword) && (hasPersons || hasVisibleChildren);
+                const expanded = (hasChildren || hasPersons)
+                    ? (forceExpanded || isExpanded(expandedPeopleGroupIds, unit.id))
+                    : false;
+                const toggleIcon = (hasChildren || hasPersons) ? (expanded ? "▾" : "▸") : "";
+                const nested = [];
+                if (expanded) {
+                    renderedChildren.forEach((childHtml) => nested.push(childHtml));
+                    persons.forEach((person) => nested.push(renderPerson(person)));
+                }
                 return `
-                    <li class="settings-person-tree__unit" data-depth="${unit.depth || 0}">
+                    <li class="settings-person-tree__unit" data-depth="${depth || 0}">
                         <div class="settings-tree__row settings-tree__row--group">
-                            <button class="settings-tree__label" type="button" data-action="${hasPersons ? "toggle-people-group" : ""}" data-unit-id="${unit.id}">
+                            <button class="settings-tree__label" type="button" data-action="${(hasChildren || hasPersons) ? "toggle-people-group" : ""}" data-unit-id="${unit.id}">
                                 <span class="settings-tree__toggle">${toggleIcon}</span>
                                 <span class="settings-tree__meta">
                                     <strong>${escapeHtml(unit.unitName || "")}</strong>
                                 </span>
                             </button>
                         </div>
-                        ${hasPersons && expanded ? `<ul class="settings-person-tree__list">${personItems}</ul>` : ""}
+                        ${expanded && nested.length ? `<ul class="settings-person-tree__list">${nested.join("")}</ul>` : ""}
                     </li>
                 `;
-            }).join("");
+            }
 
-            peopleList.innerHTML = `<ul class="settings-person-tree">${html}</ul>`;
+            const treeHtml = ((settingsScope && settingsScope.units) || [])
+                .map((unit) => renderUnitNode(unit, 0))
+                .filter(Boolean)
+                .join("");
+            if (!treeHtml) {
+                peopleList.innerHTML = '<div class="settings-empty">当前权限范围内暂无人员。</div>';
+                return;
+            }
+            peopleList.innerHTML = `<ul class="settings-person-tree">${treeHtml}</ul>`;
+        }
+
+        function scrollPersonIntoView(personId) {
+            if (!peopleList || !personId) {
+                return;
+            }
+            const target = peopleList.querySelector(`.settings-person-tree__person[data-person-id="${CSS.escape(String(personId))}"]`);
+            if (target && typeof target.scrollIntoView === "function") {
+                target.scrollIntoView({ block: "nearest", inline: "nearest" });
+            }
+        }
+
+        function beginCreatePerson(unitId) {
+            resetPersonForm();
+            if (unitId && personUnitIdInput) {
+                personUnitIdInput.value = String(unitId);
+            }
+            setSettingsTab("people");
+            personCodeInput.focus();
         }
 
         async function loadPeople() {
@@ -433,6 +562,99 @@
             }
         }
 
+        function getDefaultCreateParentId() {
+            if (selectedUnitId) {
+                return selectedUnitId;
+            }
+            if (unitParentSelect.value) {
+                return unitParentSelect.value;
+            }
+            const firstRoot = settingsScope ? (settingsScope.units || [])[0] : null;
+            return firstRoot ? String(firstRoot.id) : "";
+        }
+
+        function beginCreateUnit(parentId) {
+            resetUnitForm(parentId || getDefaultCreateParentId());
+            setSettingsTab("units");
+            unitCodeInput.focus();
+        }
+
+        async function deleteUnitById(unitId) {
+            const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
+            if (!unit) {
+                return;
+            }
+            hideUnitTreeContextMenu();
+            try {
+                await requestJson(`/api/org/units/${unit.id}`, { method: "DELETE" });
+                closeDeleteConfirmDialog();
+                resetUnitForm("");
+                await loadSettingsData();
+                showSettingsToast("删除成功");
+            } catch (error) {
+                showSettingsError(error.message);
+            }
+        }
+
+        function showUnitTreeContextMenu(unitId, clientX, clientY) {
+            if (!unitTreeContextMenu || !unitsSection) {
+                return;
+            }
+            contextMenuUnitId = String(unitId);
+            unitTreeContextMenu.hidden = false;
+            const sectionRect = unitsSection.getBoundingClientRect();
+            const menuWidth = unitTreeContextMenu.offsetWidth || 132;
+            const menuHeight = unitTreeContextMenu.offsetHeight || 36;
+            const left = Math.min(Math.max(clientX - sectionRect.left + 2, 6), sectionRect.width - menuWidth - 6);
+            const top = Math.min(Math.max(clientY - sectionRect.top + 2, 6), sectionRect.height - menuHeight - 6);
+            unitTreeContextMenu.style.left = `${left}px`;
+            unitTreeContextMenu.style.top = `${top}px`;
+        }
+
+        function showPeopleTreeContextMenu(personId, clientX, clientY) {
+            if (!peopleTreeContextMenu || !peopleSection) {
+                return;
+            }
+            contextMenuPersonId = String(personId);
+            contextMenuPeopleUnitId = null;
+            if (peopleCreateMenuButton) {
+                peopleCreateMenuButton.hidden = true;
+            }
+            if (peopleDeleteMenuButton) {
+                peopleDeleteMenuButton.hidden = false;
+            }
+            peopleTreeContextMenu.hidden = false;
+            const sectionRect = peopleSection.getBoundingClientRect();
+            const menuWidth = peopleTreeContextMenu.offsetWidth || 132;
+            const menuHeight = peopleTreeContextMenu.offsetHeight || 36;
+            const left = Math.min(Math.max(clientX - sectionRect.left + 2, 6), sectionRect.width - menuWidth - 6);
+            const top = Math.min(Math.max(clientY - sectionRect.top + 2, 6), sectionRect.height - menuHeight - 6);
+            peopleTreeContextMenu.style.left = `${left}px`;
+            peopleTreeContextMenu.style.top = `${top}px`;
+        }
+
+        function showPeopleUnitContextMenu(unitId, clientX, clientY) {
+            if (!peopleTreeContextMenu || !peopleSection) {
+                return;
+            }
+            contextMenuPeopleUnitId = String(unitId);
+            contextMenuPersonId = null;
+            if (peopleCreateMenuButton) {
+                peopleCreateMenuButton.hidden = false;
+            }
+            if (peopleDeleteMenuButton) {
+                peopleDeleteMenuButton.hidden = true;
+            }
+            peopleTreeContextMenu.hidden = false;
+            const sectionRect = peopleSection.getBoundingClientRect();
+            const menuWidth = peopleTreeContextMenu.offsetWidth || 132;
+            const menuHeight = peopleTreeContextMenu.offsetHeight || 36;
+            const left = Math.min(Math.max(clientX - sectionRect.left + 2, 6), sectionRect.width - menuWidth - 6);
+            const top = Math.min(Math.max(clientY - sectionRect.top + 2, 6), sectionRect.height - menuHeight - 6);
+            peopleTreeContextMenu.style.left = `${left}px`;
+            peopleTreeContextMenu.style.top = `${top}px`;
+        }
+
         settingsButton.addEventListener("click", () => setSettingsDrawerOpen(true));
         closeSettingsButton.addEventListener("click", () => setSettingsDrawerOpen(false));
         settingsBackdrop.addEventListener("click", () => setSettingsDrawerOpen(false));
@@ -460,10 +682,9 @@
             unitParentIdInput.value = unitParentSelect.value || "";
         });
 
-        showUnitCreateButton.addEventListener("click", () => {
-            resetUnitForm("");
-            setSettingsTab("units");
-        });
+        if (unitTreeCreateButton) {
+            unitTreeCreateButton.addEventListener("click", () => beginCreateUnit(getDefaultCreateParentId()));
+        }
 
         resetUnitFormButton.addEventListener("click", () => resetUnitForm(""));
 
@@ -474,24 +695,6 @@
 
         resetPersonFormButton.addEventListener("click", () => resetPersonForm());
         personAvatarButton.addEventListener("click", () => personAvatarInput.click());
-        personAvatarUploadButton.addEventListener("click", () => personAvatarInput.click());
-
-        personAvatarDeleteButton.addEventListener("click", async () => {
-            if (!personEditIdInput.value || !currentAvatarMediaId) {
-                resetAvatarPreview();
-                return;
-            }
-            try {
-                const updated = await requestJson(`/api/org/persons/${personEditIdInput.value}/avatar`, {
-                    method: "DELETE"
-                });
-                currentAvatarMediaId = updated.avatarMediaId || null;
-                renderAvatarPreview(updated.avatarAccessUrl || "");
-                await loadPeople();
-            } catch (error) {
-                showSettingsError(error.message);
-            }
-        });
 
         personAvatarInput.addEventListener("change", () => {
             const file = personAvatarInput.files && personAvatarInput.files[0];
@@ -502,51 +705,159 @@
             renderAvatarPreview(objectUrl);
         });
 
-        unitsTree.addEventListener("click", async (event) => {
+        document.addEventListener("click", (event) => {
+            if (unitTreeContextMenu && !unitTreeContextMenu.hidden && !unitTreeContextMenu.contains(event.target)) {
+                hideUnitTreeContextMenu();
+            }
+            if (peopleTreeContextMenu && !peopleTreeContextMenu.hidden && !peopleTreeContextMenu.contains(event.target)) {
+                hidePeopleTreeContextMenu();
+            }
+        });
+
+        document.addEventListener("scroll", () => {
+            hideUnitTreeContextMenu();
+            hidePeopleTreeContextMenu();
+        }, true);
+
+        if (settingsConfirmCancelButton) {
+            settingsConfirmCancelButton.addEventListener("click", () => closeDeleteConfirmDialog());
+        }
+
+        if (settingsConfirmDialog) {
+            settingsConfirmDialog.addEventListener("click", (event) => {
+                if (event.target === settingsConfirmDialog) {
+                    closeDeleteConfirmDialog();
+                }
+            });
+        }
+
+        if (settingsConfirmOkButton) {
+            settingsConfirmOkButton.addEventListener("click", async () => {
+                if (!pendingDeleteUnitId) {
+                    return;
+                }
+                await deleteUnitById(pendingDeleteUnitId);
+            });
+        }
+
+        unitsTree.addEventListener("contextmenu", (event) => {
+            const row = event.target.closest(".settings-tree__row[data-unit-id]");
+            if (!row) {
+                hideUnitTreeContextMenu();
+                return;
+            }
+            event.preventDefault();
+            const unitId = row.dataset.unitId;
+            const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
+            if (!unit) {
+                return;
+            }
+            fillUnitForm(unit);
+            showUnitTreeContextMenu(unit.id, event.clientX, event.clientY);
+        });
+
+        unitsTree.addEventListener("click", (event) => {
             const button = event.target.closest("[data-action]");
             if (!button) {
                 return;
             }
+            hideUnitTreeContextMenu();
             const action = button.dataset.action;
             const unitId = button.dataset.unitId;
             const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
             if (!unit) {
                 return;
             }
-
             if (action === "toggle-unit") {
                 toggleExpanded(expandedUnitIds, unit.id);
                 renderUnitsTree((settingsScope && settingsScope.units) || []);
                 return;
             }
-            if (action === "create-unit") {
-                resetUnitForm(unit.id);
-                unitCodeInput.focus();
-                return;
-            }
             if (action === "edit-unit") {
                 fillUnitForm(unit);
+            }
+        });
+
+        if (unitTreeContextMenu) {
+            unitTreeContextMenu.addEventListener("click", (event) => {
+                const button = event.target.closest("[data-action='delete-unit']");
+                if (!button || !contextMenuUnitId) {
+                    return;
+                }
+                const unit = settingsScope ? findUnitById(settingsScope.units || [], contextMenuUnitId) : null;
+                hideUnitTreeContextMenu();
+                if (!unit) {
+                    return;
+                }
+                openDeleteConfirmDialog(unit);
+            });
+        }
+
+        peopleList.addEventListener("contextmenu", (event) => {
+            const unitRow = event.target.closest(".settings-person-tree__unit .settings-tree__row[data-unit-id], .settings-person-tree__unit .settings-tree__label[data-unit-id]");
+            if (unitRow) {
+                event.preventDefault();
+                const unitId = unitRow.dataset.unitId;
+            const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
+            if (!unit) {
                 return;
             }
-            if (action === "delete-unit") {
-                if (!window.confirm(`确认删除部门“${unit.unitName}”吗？`)) {
+            contextMenuPeopleUnitId = String(unit.id);
+            contextMenuPersonId = null;
+            showPeopleUnitContextMenu(unit.id, event.clientX, event.clientY);
+            return;
+        }
+            const row = event.target.closest(".settings-person-tree__person[data-person-id]");
+            if (!row) {
+                hidePeopleTreeContextMenu();
+                return;
+            }
+            event.preventDefault();
+            const personId = row.dataset.personId;
+            const person = settingsPeople.find((item) => String(item.id) === String(personId));
+            if (!person) {
+                return;
+            }
+            fillPersonForm(person);
+            showPeopleTreeContextMenu(person.id, event.clientX, event.clientY);
+        });
+
+        if (peopleTreeContextMenu) {
+            peopleTreeContextMenu.addEventListener("click", async (event) => {
+                const createButton = event.target.closest("[data-action='create-person']");
+                if (createButton && contextMenuPeopleUnitId) {
+                    const unitId = contextMenuPeopleUnitId;
+                    hidePeopleTreeContextMenu();
+                    beginCreatePerson(unitId);
+                    return;
+                }
+
+                const deleteButton = event.target.closest("[data-action='delete-person']");
+                if (!deleteButton || !contextMenuPersonId) {
+                    return;
+                }
+                const person = settingsPeople.find((item) => String(item.id) === String(contextMenuPersonId));
+                hidePeopleTreeContextMenu();
+                if (!person) {
                     return;
                 }
                 try {
-                    await requestJson(`/api/org/units/${unit.id}`, { method: "DELETE" });
-                    resetUnitForm("");
-                    await loadSettingsData();
+                    await requestJson(`/api/org/persons/${person.id}`, { method: "DELETE" });
+                    resetPersonForm();
+                    await loadPeople();
+                    showSettingsToast("删除成功");
                 } catch (error) {
                     showSettingsError(error.message);
                 }
-            }
-        });
+            });
+        }
 
         peopleList.addEventListener("click", async (event) => {
             const button = event.target.closest("[data-action]");
             if (!button) {
                 return;
             }
+            hidePeopleTreeContextMenu();
             const action = button.dataset.action;
             if (action === "toggle-people-group") {
                 toggleExpanded(expandedPeopleGroupIds, button.dataset.unitId);
@@ -559,19 +870,7 @@
             }
             if (action === "edit-person") {
                 fillPersonForm(person);
-                return;
-            }
-            if (action === "delete-person") {
-                if (!window.confirm(`确认删除人员“${person.personName}”吗？`)) {
-                    return;
-                }
-                try {
-                    await requestJson(`/api/org/persons/${person.id}`, { method: "DELETE" });
-                    resetPersonForm();
-                    await loadPeople();
-                } catch (error) {
-                    showSettingsError(error.message);
-                }
+                scrollPersonIntoView(person.id);
             }
         });
 
@@ -592,6 +891,7 @@
                         body: JSON.stringify({
                             unitCode: payload.unitCode,
                             unitName: payload.unitName,
+                            parentId: payload.parentId,
                             sortOrder: payload.sortOrder,
                             enabled: payload.enabled
                         })
@@ -605,6 +905,7 @@
                 }
                 resetUnitForm("");
                 await loadSettingsData();
+                showSettingsToast("保存成功");
             } catch (error) {
                 showSettingsError(error.message);
             }
@@ -647,11 +948,12 @@
                         method: "POST",
                         body: formData
                     });
-                    currentAvatarMediaId = updated.avatarMediaId || null;
-                    renderAvatarPreview(updated.avatarAccessUrl || "");
+                    currentAvatarMediaId = updated && updated.avatarMediaId ? updated.avatarMediaId : null;
+                    renderAvatarPreview(updated && updated.avatarAccessUrl ? updated.avatarAccessUrl : "");
                 }
 
                 await loadPeople();
+                showSettingsToast("保存成功");
             } catch (error) {
                 showSettingsError(error.message);
             }

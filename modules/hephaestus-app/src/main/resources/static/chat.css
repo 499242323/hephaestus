@@ -279,7 +279,7 @@ textarea {
 .messages {
     min-height: 0;
     overflow: auto;
-    padding: 28px 0 20px;
+    padding: 28px 0 156px;
 }
 
 .messages-inner {
@@ -405,10 +405,12 @@ textarea {
     margin-top: 12px;
     display: grid;
     gap: 10px;
+    justify-items: start;
 }
 
 .media-card {
-    max-width: 540px;
+    width: fit-content;
+    max-width: min(100%, 540px);
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -417,9 +419,11 @@ textarea {
 
 .media-card img {
     display: block;
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
     max-height: 380px;
-    object-fit: contain;
+    object-fit: cover;
     background: #fafafa;
 }
 
@@ -698,7 +702,7 @@ textarea {
     }
 
     .messages {
-        padding-top: 18px;
+        padding: 18px 0 136px;
     }
 
     .messages-inner,

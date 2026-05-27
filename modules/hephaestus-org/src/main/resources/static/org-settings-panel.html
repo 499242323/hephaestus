@@ -6,15 +6,15 @@
             <div class="settings-shell__menu-title">设置</div>
             <nav class="settings-menu">
                 <button id="generalTabButton" class="settings-menu__item active" type="button">
-                    <span class="settings-menu__icon">○</span>
+                    <span class="settings-menu__icon">•</span>
                     <span>常规</span>
                 </button>
                 <button id="unitsTabButton" class="settings-menu__item" type="button">
-                    <span class="settings-menu__icon">◫</span>
+                    <span class="settings-menu__icon">•</span>
                     <span>部门</span>
                 </button>
                 <button id="peopleTabButton" class="settings-menu__item" type="button">
-                    <span class="settings-menu__icon">◎</span>
+                    <span class="settings-menu__icon">•</span>
                     <span>人员</span>
                 </button>
             </nav>
@@ -29,6 +29,7 @@
             </div>
 
             <div id="settingsError" class="settings-error" hidden></div>
+            <div id="settingsToast" class="settings-toast" hidden></div>
 
             <div class="settings-drawer__body">
                 <section id="generalPanel" class="settings-panel">
@@ -43,10 +44,14 @@
                                     <div class="settings-tree-search">
                                         <input id="unitTreeSearchInput" type="text" placeholder="搜索部门">
                                     </div>
-                                    <div class="settings-section__header">
+                                    <div class="settings-section__header settings-section__header--tree">
                                         <strong>部门树</strong>
+                                        <button id="unitTreeCreateButton" class="settings-action settings-action--compact" type="button">新增部门</button>
                                     </div>
                                     <div id="unitsTree" class="settings-tree"></div>
+                                    <div id="unitTreeContextMenu" class="settings-context-menu" hidden>
+                                        <button class="settings-context-menu__item settings-context-menu__item--danger" type="button" data-action="delete-unit">删除部门</button>
+                                    </div>
                                 </div>
                             </aside>
 
@@ -68,7 +73,6 @@
                                     <div class="settings-form__actions">
                                         <button class="settings-action settings-action--primary" type="submit">保存部门</button>
                                         <button id="resetUnitFormButton" class="settings-action" type="button">重置</button>
-                                        <button id="showUnitCreateButton" class="settings-action" type="button">新增下级</button>
                                         <button id="refreshSettingsButton" class="settings-action" type="button">刷新</button>
                                     </div>
                                 </form>
@@ -89,6 +93,10 @@
                                         <strong>人员树</strong>
                                     </div>
                                     <div id="peopleList" class="settings-people"></div>
+                                    <div id="peopleTreeContextMenu" class="settings-context-menu" hidden>
+                                        <button class="settings-context-menu__item" type="button" data-action="create-person">新增人员</button>
+                                        <button class="settings-context-menu__item settings-context-menu__item--danger" type="button" data-action="delete-person">删除人员</button>
+                                    </div>
                                 </div>
                             </aside>
 
@@ -101,14 +109,10 @@
                                     <div class="settings-avatar-top">
                                         <div class="settings-field">
                                             <span>头像</span>
-                                            <div class="settings-avatar-field">
+                                            <div class="settings-avatar-field settings-avatar-field--centered">
                                                 <button id="personAvatarButton" class="settings-avatar-button" type="button" aria-label="点击管理头像">
                                                     <span id="personAvatarPreview" class="settings-avatar settings-avatar--editor">头像</span>
                                                 </button>
-                                                <div class="settings-avatar-actions">
-                                                    <button id="personAvatarUploadButton" class="settings-action" type="button">上传头像</button>
-                                                    <button id="personAvatarDeleteButton" class="settings-action settings-action--danger" type="button">删除头像</button>
-                                                </div>
                                                 <input id="personAvatarInput" name="avatar" type="file" accept="image/*" hidden>
                                             </div>
                                         </div>
@@ -136,6 +140,17 @@
                         </div>
                     </div>
                 </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsConfirmDialog" class="settings-dialog-backdrop" hidden>
+        <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsConfirmTitle">
+            <div class="settings-dialog__title" id="settingsConfirmTitle">删除部门</div>
+            <div id="settingsConfirmMessage" class="settings-dialog__message"></div>
+            <div class="settings-dialog__actions">
+                <button id="settingsConfirmCancelButton" class="settings-action" type="button">取消</button>
+                <button id="settingsConfirmOkButton" class="settings-action settings-action--danger settings-action--primary-danger" type="button">确认删除</button>
             </div>
         </div>
     </div>

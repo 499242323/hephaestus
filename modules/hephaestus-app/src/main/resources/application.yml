@@ -79,10 +79,10 @@ spring:
         min-idle: 4
       shutdown-timeout: 1s
   mail:
-    host: ${SPRING_MAIL_HOST:}
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
+    username: ${SPRING_MAIL_USERNAME:ws499242323@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:kgat ddzx yyuo qhgf}
     properties:
       mail:
         smtp:
@@ -106,7 +106,7 @@ app:
     connect-timeout-millis: ${WEATHER_CONNECT_TIMEOUT_MILLIS:5000}
     read-timeout-millis: ${WEATHER_READ_TIMEOUT_MILLIS:5000}
   mail:
-    from-address: ${APP_MAIL_FROM_ADDRESS:}
+    from-address: ${APP_MAIL_FROM_ADDRESS:ws499242323@gmail.com}
 
 logging:
   level:

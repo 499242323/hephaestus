@@ -36,6 +36,8 @@
     let activeSessionId = "";
     let pendingUserMessage = null;
     let cachedLocation = null;
+    let suppressScrollStateSync = 0;
+    let autoScrollTaskVersion = 0;
 
     const sessions = [];
     const streamStates = new Map();
@@ -111,14 +113,92 @@
     }
 
     function scrollMessagesToBottom() {
+        suppressScrollStateSync += 1;
         messages.scrollTop = messages.scrollHeight;
+        requestAnimationFrame(() => {
+            suppressScrollStateSync = Math.max(0, suppressScrollStateSync - 1);
+        });
+    }
+
+    function scrollMessageIntoView(messageView) {
+        if (!messageView || !messageView.row) {
+            return;
+        }
+        const rowRect = messageView.row.getBoundingClientRect();
+        const messagesRect = messages.getBoundingClientRect();
+        const composerRect = form.getBoundingClientRect();
+        const liveRect = liveStatusText && !liveStatusText.hidden
+            ? liveStatusText.getBoundingClientRect()
+            : null;
+        const obstructionTop = liveRect ? liveRect.top : composerRect.top;
+        const targetBottom = obstructionTop - 16;
+        const overflow = rowRect.bottom - targetBottom;
+        const underflow = messagesRect.top - rowRect.top;
+
+        if (overflow > 0) {
+            suppressScrollStateSync += 1;
+            messages.scrollTop += overflow;
+            requestAnimationFrame(() => {
+                suppressScrollStateSync = Math.max(0, suppressScrollStateSync - 1);
+            });
+        } else if (underflow > 0) {
+            suppressScrollStateSync += 1;
+            messages.scrollTop -= underflow;
+            requestAnimationFrame(() => {
+                suppressScrollStateSync = Math.max(0, suppressScrollStateSync - 1);
+            });
+        }
+    }
+
+    function stickMessageToBottom(messageView) {
+        if (!messageView || !messageView.row) {
+            requestAnimationFrame(scrollMessagesToBottom);
+            return;
+        }
+        requestAnimationFrame(() => scrollMessageIntoView(messageView));
+    }
+
+    function settleMessageIntoView(messageView, remainingFrames = 6, taskVersion = autoScrollTaskVersion) {
+        if (remainingFrames <= 0) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            if (taskVersion !== autoScrollTaskVersion) {
+                return;
+            }
+            const activeSession = getActiveSession();
+            if (!activeSession || activeSession.autoScroll) {
+                if (messageView && messageView.row && messageView.row.isConnected) {
+                    scrollMessageIntoView(messageView);
+                } else {
+                    scrollMessagesToBottom();
+                }
+                saveActiveSessionSnapshot();
+            }
+            settleMessageIntoView(messageView, remainingFrames - 1, taskVersion);
+        });
+    }
+
+    function stopAutoScrollFollowing() {
+        autoScrollTaskVersion += 1;
+        const session = getActiveSession();
+        if (!session) {
+            return;
+        }
+        session.scrollTop = messages.scrollTop;
+        session.autoScroll = false;
     }
 
     function stickToBottomAfterImageLoad(img) {
         const tryScroll = () => {
             const activeSession = getActiveSession();
             if (!activeSession || activeSession.autoScroll) {
-                scrollMessagesToBottom();
+                if (pendingUserMessage && pendingUserMessage.row && pendingUserMessage.row.contains(img)) {
+                    scrollMessageIntoView(pendingUserMessage);
+                    settleMessageIntoView(pendingUserMessage, 4);
+                } else {
+                    scrollMessagesToBottom();
+                }
                 saveActiveSessionSnapshot();
             }
         };
@@ -147,6 +227,14 @@
             return;
         }
         session.messagesHtml = messages.innerHTML || EMPTY_STATE_HTML;
+        session.scrollTop = messages.scrollTop;
+    }
+
+    function syncActiveSessionScrollState() {
+        const session = getActiveSession();
+        if (!session) {
+            return;
+        }
         session.scrollTop = messages.scrollTop;
         session.autoScroll = isNearBottom();
     }
@@ -569,37 +657,6 @@
         statusProgress.hidden = true;
     }
 
-    function showLiveStatus(message) {
-        if (!liveStatusText || !liveStatusTrack) {
-            return;
-        }
-        liveStatusTrack.textContent = message || "";
-        liveStatusText.hidden = !message;
-        liveStatusText.classList.toggle("is-active", Boolean(message));
-    }
-
-    function clearLiveStatus() {
-        if (!liveStatusText || !liveStatusTrack) {
-            return;
-        }
-        liveStatusTrack.textContent = "";
-        liveStatusText.classList.remove("is-active");
-        liveStatusText.hidden = true;
-    }
-
-    function mapLiveStatusMessage(phase, message) {
-        if (phase === "accepted") {
-            return "已收到消息";
-        }
-        if (phase === "analyzing") {
-            return "正在分析附件";
-        }
-        if (phase === "image_generating") {
-            return "正在生成图片";
-        }
-        return message || "";
-    }
-
     function syncLiveStatusAnimation() {
         if (!liveStatusText || !liveStatusTrack || liveStatusText.hidden) {
             return;
@@ -631,7 +688,14 @@
         liveStatusText.classList.toggle("is-active", Boolean(message));
         requestAnimationFrame(syncLiveStatusAnimation);
         if (shouldStickBottom) {
-            requestAnimationFrame(scrollMessagesToBottom);
+            requestAnimationFrame(() => {
+                if (pendingUserMessage) {
+                    scrollMessageIntoView(pendingUserMessage);
+                    settleMessageIntoView(pendingUserMessage, 4);
+                } else {
+                    scrollMessagesToBottom();
+                }
+            });
         }
     }
 
@@ -816,17 +880,25 @@
         }
 
         pendingUserMessage = appendMessage("user", content || "", optimisticMedia);
+        const activeSession = getActiveSession();
+        if (activeSession) {
+            activeSession.autoScroll = true;
+        }
         input.value = "";
         resizeInput();
         clearAttachment();
+        requestAnimationFrame(() => scrollMessageIntoView(pendingUserMessage));
+        settleMessageIntoView(pendingUserMessage);
 
         const initialMessagesHtml = messages.innerHTML;
         streamStates.set(requestSessionId, {
             baseHtml: initialMessagesHtml,
             text: "",
             status: "",
+            phase: "",
             attachments: [],
             assistantView: null,
+            requestHasAttachment: Boolean(fileForRequest),
             startedAt: Date.now()
         });
 
@@ -945,16 +1017,17 @@
 
         const state = streamStates.get(requestSessionId);
         const currentAssistant = getActiveStreamAssistantView(requestSessionId, assistant);
-        const hasAttachment = Boolean(pendingUserMessage && pendingUserMessage.mediaContainer)
-                || Boolean(state && state.attachments && state.attachments.length);
+        const hasAttachment = Boolean(state && state.requestHasAttachment);
         if (state) {
             if (eventName === "status") {
+                state.phase = payload.phase || "";
                 state.status = payload.message || "";
             } else if (eventName === "delta") {
                 state.text += payload.content || "";
             } else if (eventName === "image" && payload.generatedImage) {
                 state.attachments.push(payload.generatedImage);
             } else if (eventName === "done" || eventName === "error") {
+                state.phase = "";
                 state.status = "";
             }
 
@@ -978,19 +1051,29 @@
             currentAssistant.status.textContent = payload.message || "";
             showLiveStatus(mapLiveStatusMessage(payload.phase, payload.message || "", hasAttachment));
         } else if (eventName === "delta") {
-            currentAssistant.status.textContent = "";
-            clearLiveStatus();
+            if (!state || state.phase !== "image_generating") {
+                currentAssistant.status.textContent = "";
+                clearLiveStatus();
+            }
             currentAssistant.text += payload.content || "";
             currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
+            stickMessageToBottom(currentAssistant);
         } else if (eventName === "attachments" && Array.isArray(payload.attachments)) {
             replaceUserAttachmentMedia(pendingUserMessage, payload.attachments);
             pendingUserMessage = null;
         } else if (eventName === "image" && payload.generatedImage) {
+            if (state) {
+                state.phase = "";
+            }
+            currentAssistant.status.textContent = "";
+            clearLiveStatus();
             ensureMediaContainer(currentAssistant).appendChild(renderMediaList([payload.generatedImage]));
+            stickMessageToBottom(currentAssistant);
         } else if (eventName === "done") {
             currentAssistant.status.textContent = "";
             clearLiveStatus();
             pendingUserMessage = null;
+            stickMessageToBottom(currentAssistant);
         } else if (eventName === "error") {
             currentAssistant.status.textContent = "";
             currentAssistant.text += `${currentAssistant.text ? "\n" : ""}${payload.message || "处理请求时发生错误。"}`;
@@ -1080,13 +1163,23 @@
     });
 
     messages.addEventListener("scroll", () => {
-        const session = getActiveSession();
-        if (!session) {
+        if (suppressScrollStateSync > 0) {
             return;
         }
-        session.scrollTop = messages.scrollTop;
-        session.autoScroll = isNearBottom();
+        syncActiveSessionScrollState();
     });
+
+    messages.addEventListener("wheel", () => {
+        stopAutoScrollFollowing();
+    }, { passive: true });
+
+    messages.addEventListener("pointerdown", () => {
+        stopAutoScrollFollowing();
+    });
+
+    messages.addEventListener("touchstart", () => {
+        stopAutoScrollFollowing();
+    }, { passive: true });
 
     sessions.push(createSession(DEFAULT_SESSION_TITLE));
     activeSessionId = sessions[0].id;
