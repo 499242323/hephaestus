@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-profile9");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-profile11");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -388,6 +388,13 @@
             } else if (type === "switch") {
                 const checked = value === "true" || value === "1" || value === "yes";
                 control = `<label class="settings-config-switch"><input name="${code}" type="checkbox" ${checked ? "checked" : ""}><span class="settings-config-switch__track"><span class="settings-config-switch__thumb"></span></span><span class="settings-config-switch__text">启用</span></label>`;
+                return `
+                    <label class="settings-field settings-config-field settings-config-field--switch">
+                        <span>${label}</span>
+                        ${control}
+                        ${help}
+                    </label>
+                `;
             } else if (type === "select") {
                 const options = (field.options || []).map((option) => {
                     const optionValue = option.value == null ? "" : String(option.value);
@@ -835,6 +842,9 @@
                         body: JSON.stringify({ values: collectSystemConfigValues() })
                     });
                     renderSystemConfigForm(saved);
+                    window.dispatchEvent(new CustomEvent("hephaestus:system-config-updated", {
+                        detail: { groupCode: "main-system", form: saved }
+                    }));
                     showSettingsToast("保存成功");
                 } catch (error) {
                     showSettingsError(error.message);

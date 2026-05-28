@@ -13,6 +13,9 @@ public final class LoginConfigConst {
     /** 登录会话超时时间，单位：分钟。 */
     public static final String SESSION_TIMEOUT_MINUTES = "login.session.timeout.minutes";
 
+    /** Single-session login switch. When enabled, a user keeps only the latest login session. */
+    public static final String SESSION_SINGLE_LOGIN_ENABLED = "login.session.single-login.enabled";
+
     /** 是否启用登录密码前端 RSA 加密传输。 */
     public static final String PASSWORD_ENCRYPT_ENABLED = "login.password.encrypt.enabled";
 

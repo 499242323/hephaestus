@@ -5,11 +5,16 @@ import com.example.springaidemo.login.config.LoginConfigConst;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.Map;
 
+@Slf4j
 @Service
 public class AuthService {
 
@@ -18,13 +23,16 @@ public class AuthService {
     private final OrgPersonRepository orgPersonRepository;
     private final SystemConfigService systemConfigService;
     private final RsaPasswordCryptoService passwordCryptoService;
+    private final FindByIndexNameSessionRepository<? extends Session> sessionRepository;
 
     public AuthService(OrgPersonRepository orgPersonRepository,
                        SystemConfigService systemConfigService,
-                       RsaPasswordCryptoService passwordCryptoService) {
+                       RsaPasswordCryptoService passwordCryptoService,
+                       FindByIndexNameSessionRepository<? extends Session> sessionRepository) {
         this.orgPersonRepository = orgPersonRepository;
         this.systemConfigService = systemConfigService;
         this.passwordCryptoService = passwordCryptoService;
+        this.sessionRepository = sessionRepository;
     }
 
     public LoginResponse login(LoginRequest request, HttpSession session) {
@@ -47,7 +55,9 @@ public class AuthService {
                 Instant.now().toString()
         );
         session.setAttribute(SESSION_USER_KEY, user);
+        session.setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, username);
         session.setMaxInactiveInterval(resolveSessionTimeoutSeconds());
+        invalidateOtherSessionsIfNecessary(username, session.getId());
         return new LoginResponse(true, user, "登录成功");
     }
 
@@ -65,6 +75,24 @@ public class AuthService {
             return request.password();
         }
         return passwordCryptoService.decrypt(request.password());
+    }
+
+    private void invalidateOtherSessionsIfNecessary(String username, String currentSessionId) {
+        boolean singleLoginEnabled = systemConfigService.getBoolean(LoginConfigConst.SESSION_SINGLE_LOGIN_ENABLED, false);
+        if (!singleLoginEnabled) {
+            return;
+        }
+        try {
+            Map<String, ? extends Session> sessions = sessionRepository.findByPrincipalName(username);
+            sessions.forEach((sessionId, existingSession) -> {
+                if (!sessionId.equals(currentSessionId)) {
+                    sessionRepository.deleteById(sessionId);
+                }
+            });
+        } catch (RuntimeException exception) {
+            log.error("Failed to invalidate old login sessions, username={}, currentSessionId={}",
+                    username, currentSessionId, exception);
+        }
     }
 
     private int resolveSessionTimeoutSeconds() {

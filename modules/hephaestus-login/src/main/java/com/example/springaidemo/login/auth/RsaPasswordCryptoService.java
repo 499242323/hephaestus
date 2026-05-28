@@ -16,12 +16,14 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.MessageDigest;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 
 @Slf4j
@@ -31,7 +33,8 @@ public class RsaPasswordCryptoService {
     private final SystemConfigService systemConfigService;
     private final SystemConfigCacheService cacheService;
     private final LoginPasswordCryptoProperties cryptoProperties;
-    private final KeyPair fallbackKeyPair;
+    private volatile KeyPair fallbackKeyPair;
+    private volatile String lastResolvedSource = "";
 
     public RsaPasswordCryptoService(SystemConfigService systemConfigService,
                                     SystemConfigCacheService cacheService,
@@ -39,7 +42,6 @@ public class RsaPasswordCryptoService {
         this.systemConfigService = systemConfigService;
         this.cacheService = cacheService;
         this.cryptoProperties = cryptoProperties;
-        this.fallbackKeyPair = createFallbackKeyPair();
     }
 
     public String decrypt(String encryptedPassword) {
@@ -78,13 +80,23 @@ public class RsaPasswordCryptoService {
         String privateKey = systemConfigService.getValue(LoginConfigConst.PASSWORD_ENCRYPT_PRIVATE_KEY, "");
         KeyPair configKeyPair = resolveKeyPair(publicKey, privateKey, "配置中心");
         if (configKeyPair != null) {
-            return configKeyPair;
+            return markResolvedKeyPair(configKeyPair, "配置中心");
         }
         KeyPair ymlKeyPair = resolveKeyPair(cryptoProperties.getPublicKey(), cryptoProperties.getPrivateKey(), "YML");
         if (ymlKeyPair != null) {
-            return ymlKeyPair;
+            return markResolvedKeyPair(ymlKeyPair, "YML");
         }
-        return fallbackKeyPair;
+        return markResolvedKeyPair(resolveFallbackKeyPair(), "运行期自动生成");
+    }
+
+    private KeyPair markResolvedKeyPair(KeyPair keyPair, String sourceName) {
+        String fingerprint = fingerprint(keyPair.getPublic());
+        String marker = sourceName + ":" + fingerprint;
+        if (!marker.equals(lastResolvedSource)) {
+            lastResolvedSource = marker;
+            log.info("登录密码 RSA 密钥来源已生效：source={}, publicKeyFingerprint={}", sourceName, fingerprint);
+        }
+        return keyPair;
     }
 
     private KeyPair resolveKeyPair(String publicKey, String privateKey, String sourceName) {
@@ -120,6 +132,28 @@ public class RsaPasswordCryptoService {
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s+", "");
+    }
+
+    private String fingerprint(PublicKey publicKey) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(publicKey.getEncoded());
+            return HexFormat.of().formatHex(digest, 0, 8);
+        } catch (Exception exception) {
+            return "unknown";
+        }
+    }
+
+    private KeyPair resolveFallbackKeyPair() {
+        KeyPair current = fallbackKeyPair;
+        if (current != null) {
+            return current;
+        }
+        synchronized (this) {
+            if (fallbackKeyPair == null) {
+                fallbackKeyPair = createFallbackKeyPair();
+            }
+            return fallbackKeyPair;
+        }
     }
 
     private KeyPair createFallbackKeyPair() {

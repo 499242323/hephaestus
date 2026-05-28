@@ -550,4 +550,28 @@
             <column name="sort_order" valueNumeric="95"/>
         </insert>
     </changeSet>
+
+    <changeSet id="sys-config-seed-login-single-session-enabled" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM sys_config_definition WHERE config_code = 'login.session.single-login.enabled'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="sys_config_definition">
+            <column name="config_code" value="login.session.single-login.enabled"/>
+            <column name="config_name" value="同账号单点登录"/>
+            <column name="config_group" value="main-system"/>
+            <column name="config_tab" value="general"/>
+            <column name="section_code" value="login"/>
+            <column name="section_name" value="系统登录"/>
+            <column name="component_type" value="switch"/>
+            <column name="default_value" value="false"/>
+            <column name="help_text" value="开启后，同一账号新登录成功时会清理该账号的其他旧会话；默认关闭，允许多处同时登录。"/>
+            <column name="required_flag" valueNumeric="1"/>
+            <column name="public_flag" valueNumeric="0"/>
+            <column name="sensitive_flag" valueNumeric="0"/>
+            <column name="sort_order" valueNumeric="15"/>
+        </insert>
+    </changeSet>
 </databaseChangeLog>

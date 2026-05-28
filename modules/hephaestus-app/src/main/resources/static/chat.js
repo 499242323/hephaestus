@@ -41,6 +41,8 @@
     const userActionMenu = document.getElementById("userActionMenu");
     const userAvatar = document.getElementById("userAvatar");
     const userDisplayName = document.getElementById("userDisplayName");
+    const sessionExpiredDialog = document.getElementById("sessionExpiredDialog");
+    const sessionExpiredLoginButton = document.getElementById("sessionExpiredLoginButton");
 
     let selectedFile = null;
     let previewUrl = null;
@@ -49,6 +51,9 @@
     let cachedLocation = null;
     let suppressScrollStateSync = 0;
     let autoScrollTaskVersion = 0;
+    let chatTrailController = null;
+    let sessionExpired = false;
+    let sessionCheckInFlight = false;
 
     const sessions = [];
     const streamStates = new Map();
@@ -57,21 +62,20 @@
         try {
             const response = await fetch(`${basePath}/api/system-config/public/main-system`);
             if (!response.ok) {
-                initChatCurvedGrid();
-                initChatGridRunners();
-                initChatMouseTrail("music");
+                applyChatVisualConfig({});
                 return;
             }
             const payload = await response.json();
-            const items = payload.items || {};
-            initChatCurvedGrid();
-            initChatGridRunners();
-            initChatMouseTrail(items[CHAT_CONFIG_KEYS.mouseTrailEffect] || "music");
+            applyChatVisualConfig(payload.items || {});
         } catch (error) {
-            initChatCurvedGrid();
-            initChatGridRunners();
-            initChatMouseTrail("music");
+            applyChatVisualConfig({});
         }
+    }
+
+    function applyChatVisualConfig(items) {
+        initChatCurvedGrid();
+        initChatGridRunners();
+        initChatMouseTrail((items && items[CHAT_CONFIG_KEYS.mouseTrailEffect]) || "music");
     }
 
     function initChatCurvedGrid() {
@@ -284,6 +288,10 @@
         }
         try {
             const response = await fetch(`${basePath}/auth/me`);
+            if (response.status === 401) {
+                showSessionExpiredDialog();
+                return;
+            }
             if (!response.ok) {
                 return;
             }
@@ -298,6 +306,46 @@
             renderUserAvatar(profile && profile.avatarAccessUrl ? profile.avatarAccessUrl : "", displayName);
         } catch (error) {
             // Keep the default local fallback if the session user cannot be loaded.
+        }
+    }
+
+    function redirectToLogin() {
+        window.location.href = `${basePath}/login.html`;
+    }
+
+    function showSessionExpiredDialog() {
+        if (sessionExpired) {
+            return;
+        }
+        sessionExpired = true;
+        if (sessionExpiredDialog) {
+            sessionExpiredDialog.hidden = false;
+        }
+        input.disabled = true;
+        sendButton.disabled = true;
+        chooseFileButton.disabled = true;
+        removeFileButton.disabled = true;
+        attachmentInput.disabled = true;
+        window.setTimeout(redirectToLogin, 2800);
+    }
+
+    async function checkSessionStillActive() {
+        if (sessionExpired || sessionCheckInFlight) {
+            return;
+        }
+        sessionCheckInFlight = true;
+        try {
+            const response = await fetch(`${basePath}/auth/me`, {
+                cache: "no-store",
+                headers: { "X-Session-Check": "1" }
+            });
+            if (response.status === 401) {
+                showSessionExpiredDialog();
+            }
+        } catch (error) {
+            // Network hiccups should not force logout. The next check will retry.
+        } finally {
+            sessionCheckInFlight = false;
         }
     }
 
@@ -317,6 +365,8 @@
     }
 
     function initChatMouseTrail(effectName) {
+        initChatMouseTrailRuntime(effectName);
+        return;
         if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
             return;
         }
@@ -425,6 +475,435 @@
         window.addEventListener("click", (event) => spawnTrail(event.clientX, event.clientY, true), { passive: true });
         resizeCanvas();
         animate();
+    }
+
+    function initChatMouseTrailRuntime(effectName) {
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            return;
+        }
+        const effect = normalizeTrailEffect(effectName);
+        if (chatTrailController && chatTrailController.effect === effect) {
+            return;
+        }
+        if (chatTrailController) {
+            chatTrailController.destroy();
+            chatTrailController = null;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.className = "chat-trail-canvas";
+        canvas.setAttribute("aria-hidden", "true");
+        document.body.prepend(canvas);
+
+        const context = canvas.getContext("2d");
+        const particles = [];
+        const doodlePoints = [];
+        const symbols = ["♪", "♫", "♬", "✦", "✧"];
+        const colors = ["#2c8fb4", "#37b899", "#22c55e", "#06b6d4", "#ec4899", "#f59e0b", "#8b5cf6"];
+        let width = 0;
+        let height = 0;
+        let pixelRatio = 1;
+        let lastSpawnAt = 0;
+        let cursor = null;
+        let alive = true;
+        let animationFrame = 0;
+
+        function normalizeTrailEffect(value) {
+            const normalized = String(value || "music").toLowerCase();
+            const aliases = {
+                "floating-lines": "flowing-lines",
+                "big-data": "wave"
+            };
+            const candidate = aliases[normalized] || normalized;
+            const supported = ["music", "flowing-lines", "meteor", "wave", "doodle", "constellation", "firefly", "firework", "magnifier"];
+            return supported.includes(candidate) ? candidate : "music";
+        }
+
+        function resizeCanvas() {
+            pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = Math.floor(width * pixelRatio);
+            canvas.height = Math.floor(height * pixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        }
+
+        function randomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function trimParticles(limit) {
+            if (particles.length > limit) {
+                particles.splice(0, particles.length - limit);
+            }
+        }
+
+        function pushParticle(particle, limit) {
+            particles.push(particle);
+            trimParticles(limit);
+        }
+
+        function spawnMusic(x, y) {
+            for (let index = 0; index < 2; index += 1) {
+                pushParticle({
+                    type: "text",
+                    x: x + (Math.random() - 0.5) * 10,
+                    y: y + (Math.random() - 0.5) * 10,
+                    vx: (Math.random() - 0.5) * 1.1,
+                    vy: -0.3 - Math.random() * 1.1,
+                    life: 0.82,
+                    decay: 0.016 + Math.random() * 0.008,
+                    size: 10 + Math.random() * 9,
+                    rotate: (Math.random() - 0.5) * 0.8,
+                    symbol: symbols[Math.floor(Math.random() * symbols.length)],
+                    color: randomColor()
+                }, 110);
+            }
+        }
+
+        function spawnFlowingLines(x, y) {
+            for (let index = 0; index < 3; index += 1) {
+                pushParticle({
+                    type: "line",
+                    x,
+                    y,
+                    vx: (Math.random() - 0.5) * 2.2,
+                    vy: (Math.random() - 0.5) * 2.2,
+                    angle: Math.random() * Math.PI * 2,
+                    length: 18 + Math.random() * 34,
+                    life: 0.88,
+                    decay: 0.018 + Math.random() * 0.01,
+                    width: 0.8 + Math.random() * 1.2,
+                    color: randomColor()
+                }, 120);
+            }
+        }
+
+        function spawnMeteor(x, y) {
+            for (let index = 0; index < 2; index += 1) {
+                pushParticle({
+                    type: "meteor",
+                    x: x + (Math.random() - 0.5) * 24,
+                    y: y + (Math.random() - 0.5) * 24,
+                    vx: -1.9 - Math.random() * 1.8,
+                    vy: 1.1 + Math.random() * 1.5,
+                    length: 34 + Math.random() * 48,
+                    life: 0.9,
+                    decay: 0.02 + Math.random() * 0.01,
+                    color: randomColor()
+                }, 90);
+            }
+        }
+
+        function spawnWave(x, y) {
+            pushParticle({
+                type: "ring",
+                x,
+                y,
+                radius: 4,
+                growth: 2.4 + Math.random() * 2.2,
+                life: 0.86,
+                decay: 0.022,
+                color: randomColor()
+            }, 70);
+        }
+
+        function spawnDoodle(x, y) {
+            doodlePoints.push({ x, y, life: 0.8, color: randomColor() });
+            if (doodlePoints.length > 42) {
+                doodlePoints.splice(0, doodlePoints.length - 42);
+            }
+        }
+
+        function spawnConstellation(x, y) {
+            pushParticle({
+                type: "point",
+                x,
+                y,
+                vx: (Math.random() - 0.5) * 0.8,
+                vy: (Math.random() - 0.5) * 0.8,
+                radius: 1.8 + Math.random() * 2.2,
+                life: 0.9,
+                decay: 0.011 + Math.random() * 0.008,
+                color: randomColor()
+            }, 44);
+        }
+
+        function spawnFirefly(x, y) {
+            for (let index = 0; index < 2; index += 1) {
+                pushParticle({
+                    type: "dot",
+                    x: x + (Math.random() - 0.5) * 14,
+                    y: y + (Math.random() - 0.5) * 14,
+                    vx: (Math.random() - 0.5) * 1.1,
+                    vy: -0.25 - Math.random() * 0.8,
+                    radius: 2.6 + Math.random() * 4.2,
+                    life: 0.82,
+                    decay: 0.014 + Math.random() * 0.01,
+                    color: randomColor()
+                }, 130);
+            }
+        }
+
+        function spawnFirework(x, y, burst) {
+            const count = burst ? 26 : 7;
+            for (let index = 0; index < count; index += 1) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = (burst ? 1.6 : 0.7) + Math.random() * (burst ? 2.9 : 1.5);
+                pushParticle({
+                    type: "spark",
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 1.6 + Math.random() * 2.5,
+                    life: 0.86,
+                    decay: (burst ? 0.016 : 0.024) + Math.random() * 0.012,
+                    color: randomColor()
+                }, 180);
+            }
+        }
+
+        function spawnTrail(x, y, burst) {
+            cursor = { x, y };
+            if (effect === "magnifier") {
+                return;
+            }
+            const now = performance.now();
+            if (!burst && now - lastSpawnAt < 18) {
+                return;
+            }
+            lastSpawnAt = now;
+            if (effect === "flowing-lines") {
+                spawnFlowingLines(x, y);
+            } else if (effect === "meteor") {
+                spawnMeteor(x, y);
+            } else if (effect === "wave") {
+                spawnWave(x, y);
+            } else if (effect === "doodle") {
+                spawnDoodle(x, y);
+            } else if (effect === "constellation") {
+                spawnConstellation(x, y);
+            } else if (effect === "firefly") {
+                spawnFirefly(x, y);
+            } else if (effect === "firework") {
+                spawnFirework(x, y, burst);
+            } else {
+                spawnMusic(x, y);
+            }
+        }
+
+        function drawParticle(particle) {
+            const alpha = Math.max(0, particle.life);
+            context.save();
+            context.globalAlpha = alpha * 0.48;
+            context.shadowColor = particle.color;
+            context.strokeStyle = particle.color;
+            context.fillStyle = particle.color;
+            if (particle.type === "text") {
+                const scale = 0.55 + alpha * 0.45;
+                context.translate(particle.x, particle.y);
+                context.rotate(particle.rotate);
+                context.scale(scale, scale);
+                context.shadowBlur = 7;
+                context.font = `${particle.size}px "Times New Roman", serif`;
+                context.textAlign = "center";
+                context.textBaseline = "middle";
+                context.fillText(particle.symbol, 0, 0);
+            } else if (particle.type === "line") {
+                const dx = Math.cos(particle.angle) * particle.length;
+                const dy = Math.sin(particle.angle) * particle.length;
+                context.lineWidth = particle.width;
+                context.shadowBlur = 8;
+                context.beginPath();
+                context.moveTo(particle.x - dx * 0.5, particle.y - dy * 0.5);
+                context.lineTo(particle.x + dx * 0.5, particle.y + dy * 0.5);
+                context.stroke();
+            } else if (particle.type === "meteor") {
+                context.lineWidth = 1.8;
+                context.shadowBlur = 12;
+                const gradient = context.createLinearGradient(particle.x, particle.y, particle.x - particle.vx * particle.length, particle.y - particle.vy * particle.length);
+                gradient.addColorStop(0, particle.color);
+                gradient.addColorStop(1, "rgba(255,255,255,0)");
+                context.strokeStyle = gradient;
+                context.beginPath();
+                context.moveTo(particle.x, particle.y);
+                context.lineTo(particle.x - particle.vx * particle.length, particle.y - particle.vy * particle.length);
+                context.stroke();
+            } else if (particle.type === "ring") {
+                context.lineWidth = 1.6;
+                context.shadowBlur = 9;
+                context.beginPath();
+                context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                context.stroke();
+            } else {
+                context.shadowBlur = particle.type === "dot" ? 10 : 8;
+                context.beginPath();
+                context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                context.fill();
+            }
+            context.restore();
+        }
+
+        function drawConstellationLines() {
+            if (effect !== "constellation") {
+                return;
+            }
+            for (let leftIndex = 0; leftIndex < particles.length; leftIndex += 1) {
+                for (let rightIndex = leftIndex + 1; rightIndex < particles.length; rightIndex += 1) {
+                    const left = particles[leftIndex];
+                    const right = particles[rightIndex];
+                    const distance = Math.hypot(left.x - right.x, left.y - right.y);
+                    if (distance > 108) {
+                        continue;
+                    }
+                    context.save();
+                    context.globalAlpha = Math.min(left.life, right.life, 1 - distance / 108) * 0.42;
+                    context.strokeStyle = left.color;
+                    context.lineWidth = 1;
+                    context.beginPath();
+                    context.moveTo(left.x, left.y);
+                    context.lineTo(right.x, right.y);
+                    context.stroke();
+                    context.restore();
+                }
+            }
+        }
+
+        function drawDoodle() {
+            if (effect !== "doodle") {
+                return;
+            }
+            for (let index = doodlePoints.length - 1; index >= 0; index -= 1) {
+                doodlePoints[index].life -= 0.018;
+                if (doodlePoints[index].life <= 0) {
+                    doodlePoints.splice(index, 1);
+                }
+            }
+            for (let index = 1; index < doodlePoints.length; index += 1) {
+                const previous = doodlePoints[index - 1];
+                const point = doodlePoints[index];
+                context.save();
+                context.globalAlpha = Math.min(previous.life, point.life) * 0.42;
+                context.strokeStyle = point.color;
+                context.lineWidth = 2.2;
+                context.lineCap = "round";
+                context.shadowBlur = 8;
+                context.shadowColor = point.color;
+                context.beginPath();
+                context.moveTo(previous.x, previous.y);
+                context.lineTo(point.x, point.y);
+                context.stroke();
+                context.restore();
+            }
+        }
+
+        function drawMagnifier() {
+            if (effect !== "magnifier" || !cursor) {
+                return;
+            }
+            const radius = 50;
+            context.save();
+            context.beginPath();
+            context.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
+            context.clip();
+            context.fillStyle = "rgba(255,255,255,0.10)";
+            context.fillRect(cursor.x - radius, cursor.y - radius, radius * 2, radius * 2);
+            context.strokeStyle = "rgba(44,143,180,0.14)";
+            context.lineWidth = 1;
+            for (let offset = -radius; offset <= radius; offset += 12) {
+                context.beginPath();
+                context.moveTo(cursor.x - radius, cursor.y + offset);
+                context.lineTo(cursor.x + radius, cursor.y + offset);
+                context.stroke();
+                context.beginPath();
+                context.moveTo(cursor.x + offset, cursor.y - radius);
+                context.lineTo(cursor.x + offset, cursor.y + radius);
+                context.stroke();
+            }
+            context.restore();
+            context.save();
+            context.strokeStyle = "rgba(44,143,180,0.42)";
+            context.lineWidth = 2;
+            context.shadowBlur = 10;
+            context.shadowColor = "#2c8fb4";
+            context.beginPath();
+            context.arc(cursor.x, cursor.y, radius, 0, Math.PI * 2);
+            context.stroke();
+            context.restore();
+        }
+
+        function updateParticle(particle) {
+            particle.x += particle.vx || 0;
+            particle.y += particle.vy || 0;
+            if (particle.type === "text") {
+                particle.vy += 0.012;
+                particle.rotate += 0.01;
+            } else if (particle.type === "spark") {
+                particle.vy += 0.035;
+            } else if (particle.type === "ring") {
+                particle.radius += particle.growth;
+            }
+            particle.life -= particle.decay;
+        }
+
+        function animate() {
+            if (!alive) {
+                return;
+            }
+            context.clearRect(0, 0, width, height);
+            drawDoodle();
+            drawConstellationLines();
+            for (let index = particles.length - 1; index >= 0; index -= 1) {
+                const particle = particles[index];
+                updateParticle(particle);
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                    continue;
+                }
+                drawParticle(particle);
+            }
+            drawMagnifier();
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function handleMouseMove(event) {
+            spawnTrail(event.clientX, event.clientY);
+        }
+
+        function handleClick(event) {
+            spawnTrail(event.clientX, event.clientY, true);
+        }
+
+        function handleTouch(event) {
+            const touch = event.touches && event.touches[0];
+            if (touch) {
+                spawnTrail(touch.clientX, touch.clientY);
+            }
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        window.addEventListener("mousemove", handleMouseMove, { passive: true });
+        window.addEventListener("click", handleClick, { passive: true });
+        window.addEventListener("touchmove", handleTouch, { passive: true });
+        window.addEventListener("touchstart", handleTouch, { passive: true });
+        resizeCanvas();
+        animationFrame = requestAnimationFrame(animate);
+        chatTrailController = {
+            effect,
+            destroy() {
+                alive = false;
+                cancelAnimationFrame(animationFrame);
+                window.removeEventListener("resize", resizeCanvas);
+                window.removeEventListener("mousemove", handleMouseMove);
+                window.removeEventListener("click", handleClick);
+                window.removeEventListener("touchmove", handleTouch);
+                window.removeEventListener("touchstart", handleTouch);
+                canvas.remove();
+            }
+        };
     }
 
     function createSessionId() {
@@ -1329,6 +1808,10 @@
                 body: formData
             });
 
+            if (response.status === 401) {
+                showSessionExpiredDialog();
+                return;
+            }
             if (!response.ok || !response.body) {
                 throw new Error("发送失败，请稍后重试。");
             }
@@ -1611,10 +2094,29 @@
             try {
                 await fetch(`${basePath}/auth/logout`, { method: "POST" });
             } finally {
-                window.location.href = `${basePath}/login.html`;
+                redirectToLogin();
             }
         });
     }
+
+    if (sessionExpiredLoginButton) {
+        sessionExpiredLoginButton.addEventListener("click", redirectToLogin);
+    }
+
+    window.addEventListener("hephaestus:system-config-updated", (event) => {
+        const detail = event.detail || {};
+        if (!detail.groupCode || detail.groupCode === "main-system") {
+            loadChatVisualConfig();
+        }
+    });
+
+    window.addEventListener("focus", checkSessionStillActive);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            checkSessionStillActive();
+        }
+    });
+    window.setInterval(checkSessionStillActive, 30000);
 
     messages.addEventListener("scroll", () => {
         if (suppressScrollStateSync > 0) {

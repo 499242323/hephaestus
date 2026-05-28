@@ -31,6 +31,11 @@ spring:
       max-request-size: 2MB
   application:
     name: Hephaestus
+  session:
+    store-type: redis
+    redis:
+      namespace: hephaestus:session
+      repository-type: indexed
   ai:
     openai:
       api-key: sk-faa98d42a27af1cb9b31ebb1287eaf3a9e6247582b607e47b0d3c885678d5dbb
@@ -65,19 +70,20 @@ spring:
       max-lifetime: 1800000
       maximum-pool-size: 128
       minimum-idle: 20
-  redis:
-    mode: ${REDIS_MODE:standalone}
-    host: ${REDIS_URL:127.0.0.1}
-    port: ${REDIS_PORT:6379}
-    database: ${REDIS_DATABASE:1}
-    password: ${REDIS_PASSWORD:}
-    lettuce:
-      pool:
-        max-active: 64
-        max-wait: 10s
-        max-idle: 16
-        min-idle: 4
-      shutdown-timeout: 1s
+  data:
+    redis:
+      mode: ${REDIS_MODE:standalone}
+      host: ${REDIS_URL:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:1}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 64
+          max-wait: 10s
+          max-idle: 16
+          min-idle: 4
+        shutdown-timeout: 1s
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
@@ -94,8 +100,8 @@ app:
   login:
     password:
       encrypt:
-        public-key: ${LOGIN_PASSWORD_ENCRYPT_PUBLIC_KEY:}
-        private-key: ${LOGIN_PASSWORD_ENCRYPT_PRIVATE_KEY:}
+        public-key: ${LOGIN_PASSWORD_ENCRYPT_PUBLIC_KEY:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuNvx0bFuL8ZRAx3GYTkJo6rfCtknJVOHqBE9OVqKOfzKuCEnenJWnUzov/xCPGWvmmLvfkQl6mgIKZiKsJ43fJGa12BOxiio5XjpOnRUjd2pLSbgt7vXxpnHt4GC6Yn3LRAKu3CZt7Txo9XJI4In8PdAcsU6J8LrvTPGLnSeZg4/cq3gZdjiiP+ki8TM8rlwHuPXOyjy87ABnK7nK66t21a4YcdfOiIeiqP1tgSUi96dbbcUkzkjsgfpb50JJrGu1g3YKQAY8JzgS6lZVKcuxFnCT5t9gBCd91UQoX73ddIpj+JlGeJBmUCSr2Drkg+URwkJeREB8ZtW9u6eRC7MiwIDAQAB}
+        private-key: ${LOGIN_PASSWORD_ENCRYPT_PRIVATE_KEY:MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC42/HRsW4vxlEDHcZhOQmjqt8K2SclU4eoET05Woo5/Mq4ISd6cladTOi//EI8Za+aYu9+RCXqaAgpmIqwnjd8kZrXYE7GKKjleOk6dFSN3aktJuC3u9fGmce3gYLpifctEAq7cJm3tPGj1ckjgifw90ByxTonwuu9M8YudJ5mDj9yreBl2OKI/6SLxMzyuXAe49c7KPLzsAGcrucrrq3bVrhhx186Ih6Ko/W2BJSL3p1ttxSTOSOyB+lvnQkmsa7WDdgpABjwnOBLqVlUpy7EWcJPm32AEJ33VRChfvd10imP4mUZ4kGZQJKvYOuSD5RHCQl5EQHxm1b27p5ELsyLAgMBAAECggEAEuq7B8Ta7DuknaeF3fwavutk8LTBG0I9fxboh3565601R3tpEVAzCdzNcpwLYSfcvPVD4c1yfdbQgwUvqBxAvFggGssptICDrBvf7hHqdywIPG0ekN7BmXqyI9a2gVSTfUKHfp/qsxBqq+PcNeyDTtbWewgwx9HcEtwB+04GyZWd1L9u1P4kOmDh4jGtW4Y7bO05E0J8VIuW16QrZrqvl6XCUR4UsqM+JBO/z4CNeVPnW8L68kGBxwb9elK3d0pm74oLaqH2oole+ApTleuvI3kNxPk0RaP1vjUyx2DBs/Q59UJa9w8k32RTz3DnWPsF8gHoRn7O847uJlNahbUSTQKBgQDBID3qgiu7LXTnfBNQGvN1xZ3zPsvNafAiHl+jAaZhOeoksHnPwt/YLiAUNr0Xh0MAZyy52f/jqHvf1a79zOw7LFLgM7GkpCA9w3e58P88eGaZlnceU95Fph2Dv6jw5Y3p1xmc6cA1DhxrbTKZUxP4r81eTFMu/5D9lwzk3TVHxQKBgQD1Crin6C6CjK8gHVGAnTu4nFD6vKcQKR7PlgOR2RECZH0C5GGDJaZLMm9PeuAoahyW1du6nxjDuqePLAaFRYHNchOROxbdolq4C5bjToljOOnuaiCQdWHpYhw9I1tWhpLZJ4c2kL3yG6vsVHUGFBA+FmOuXafWyW4VnA9E5jK4DwKBgQC2uICcPeiOQeXXlkbXhYhPJ1fX6tP8V30BaudlXIxEdP0ZFXdKoMAU0x86wMeLWUiFOxjQBnfat2/sSUo1iwr+uWL4CTDL6xUuGqBOZru2RNwd+IRfR06HazGFk3KN6UKpuf/bvDVEfUNaSIiVFEtTAVI3I9OYJejSZXWnm7trWQKBgDLo91RrOL6G3Buf+77s6+t/DpQJfewtnukiEbvLjW0h05c2O8wzlkkpQVcSAGBlK2trIyuywkJoFUf5raEiv8UfXlFeJXIGuTJjtgWj24dx26hdBEb/HEiQya0qG1/utbPIMp9zkwMqHJ4NLgMFSBqeLDed3bESSHzU35dA/GihAoGBALLpC9sjUUkd8KzCpW/THdCVWsrr1LQbzysEde9z+IAECiJc5D2KTuTNwlwFfzs817aSillq+Wki1PGjvRIXPp/+jGMbFfh1DTQ43vO9v47yuYHbwEtGK73XBKxe4G84fSvVuNfyuUiczGcdLzs8pekMxpKI7RUvXG19USoRqATK}
   media:
     base-url: ${MEDIA_BASE_URL:http://localhost:18080/HttpFile}
     username: ${MEDIA_USERNAME:egovahttp}

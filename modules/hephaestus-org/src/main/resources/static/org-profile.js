@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgProfileMount");
         if (mount && !mount.hasChildNodes()) {
-            const response = await fetch("./org-profile-dialog.html?v=20260527-profile9");
+            const response = await fetch("./org-profile-dialog.html?v=20260527-profile11");
             mount.innerHTML = await response.text();
         }
 

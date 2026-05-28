@@ -89,6 +89,55 @@ body.settings-effects-muted .chat-curved-grid-canvas {
     z-index: 31;
 }
 
+.session-expired-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.22);
+    backdrop-filter: blur(10px);
+}
+
+.session-expired-dialog[hidden] {
+    display: none;
+}
+
+.session-expired-dialog__card {
+    width: min(360px, 100%);
+    padding: 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(229, 231, 235, 0.92);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+    text-align: center;
+}
+
+.session-expired-dialog__card strong {
+    display: block;
+    color: #111827;
+    font-size: 18px;
+    line-height: 1.4;
+}
+
+.session-expired-dialog__card p {
+    margin: 10px 0 18px;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.session-expired-dialog__card button {
+    min-width: 112px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: #111827;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
 button,
 textarea {
     font: inherit;
@@ -286,10 +335,13 @@ textarea {
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    background: linear-gradient(135deg, #0f172a, #1d4ed8 48%, #22c55e);
+    background:
+        radial-gradient(circle at 78% 78%, rgba(24, 211, 133, 0.98) 0 25%, rgba(24, 211, 133, 0.62) 34%, transparent 52%),
+        linear-gradient(135deg, #225be8 0%, #2563eb 58%, #1d4ed8 100%);
     color: #fff;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 900;
+    line-height: 1;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
 }
 

@@ -45,8 +45,7 @@ public class SystemConfigController {
     @GetMapping("/public/{groupCode}")
     public SystemConfigPublicResponse getPublicConfig(@PathVariable("groupCode") String groupCode) {
         SystemConfigPublicResponse response = systemConfigService.getPublicConfig(groupCode);
-        if (SystemConfigService.MAIN_SYSTEM_GROUP.equals(groupCode)
-                && response.items().containsKey(LoginConfigConst.PASSWORD_ENCRYPT_PUBLIC_KEY)) {
+        if (SystemConfigService.MAIN_SYSTEM_GROUP.equals(groupCode)) {
             response.items().put(LoginConfigConst.PASSWORD_ENCRYPT_PUBLIC_KEY, rsaPasswordCryptoService.publicKeyBase64());
         }
         return response;

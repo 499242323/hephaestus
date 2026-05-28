@@ -14,6 +14,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -83,7 +85,7 @@ public class SystemConfigService {
         Map<String, SystemConfigDefinitionEntity> definitionMap = definitions.stream()
                 .collect(Collectors.toMap(SystemConfigDefinitionEntity::getConfigCode, Function.identity()));
         values.forEach((code, value) -> saveValue(definitionMap.get(code), value, updatedBy));
-        cacheService.evictGroup(groupCode, allowedCodes);
+        refreshRedisCache(groupCode, definitions);
         return getForm(groupCode);
     }
 
@@ -110,6 +112,29 @@ public class SystemConfigService {
 
     public Map<String, String> getPublicItems(String groupCode) {
         return getPublicConfig(groupCode).items();
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void reloadRedisCacheOnStartup() {
+        int evictedCount = cacheService.evictAll();
+        List<SystemConfigDefinitionEntity> definitions = loadDefinitions(MAIN_SYSTEM_GROUP);
+        int publicCount = refreshRedisCache(MAIN_SYSTEM_GROUP, definitions);
+        log.info("Reloaded Redis system config cache on startup, evictedCount={}, valueCount={}, publicCount={}",
+                evictedCount, definitions.size(), publicCount);
+    }
+
+    private int refreshRedisCache(String groupCode, List<SystemConfigDefinitionEntity> definitions) {
+        Map<String, String> values = loadValues(definitions);
+        Map<String, String> publicValues = new LinkedHashMap<>();
+        for (SystemConfigDefinitionEntity definition : definitions) {
+            String value = valueOrDefault(definition, values.get(definition.getConfigCode()));
+            cacheService.putValue(definition.getConfigCode(), value);
+            if (Boolean.TRUE.equals(definition.getPublicFlag()) && !Boolean.TRUE.equals(definition.getSensitiveFlag())) {
+                publicValues.put(definition.getConfigCode(), value);
+            }
+        }
+        cacheService.putPublicItems(groupCode, publicValues);
+        return publicValues.size();
     }
 
     public String getValue(String code, String fallback) {
