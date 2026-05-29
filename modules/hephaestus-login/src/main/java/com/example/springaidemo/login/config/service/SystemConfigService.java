@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -71,6 +72,7 @@ public class SystemConfigService {
         return new SystemConfigFormResponse(groupCode, resolveGroupName(groupCode), sectionResponses);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public SystemConfigFormResponse saveForm(String groupCode, Map<String, String> values, String updatedBy) {
         List<SystemConfigDefinitionEntity> definitions = loadDefinitions(groupCode);
         Set<String> allowedCodes = definitions.stream()

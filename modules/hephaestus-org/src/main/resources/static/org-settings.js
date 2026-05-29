@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260528-log-time-range1");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260529-config-cards1");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -421,6 +421,14 @@
             return true;
         }
 
+        function syncLoginLogRangeBeforeQuery() {
+            if (syncLoginLogRangeFromInput()) {
+                return true;
+            }
+            showSettingsError("时间范围格式应为：YYYY-MM-DD HH:mm:ss - YYYY-MM-DD HH:mm:ss");
+            return false;
+        }
+
         function updateLoginLogTimeRangeText() {
             if (!loginLogTimeRangeInput) {
                 return;
@@ -520,8 +528,10 @@
                 <div class="settings-time-range-picker__time">
                     <div class="settings-time-range-picker__time-title">开始时间</div>
                     <div class="settings-time-range-picker__time-title">结束时间</div>
-                    <div class="settings-time-range-picker__time-group">${timeColumn("start", "hour", startTimeParts[0])}${timeColumn("start", "minute", startTimeParts[1])}</div>
-                    <div class="settings-time-range-picker__time-group">${timeColumn("end", "hour", endTimeParts[0])}${timeColumn("end", "minute", endTimeParts[1])}</div>
+                    ${timeColumn("start", "hour", startTimeParts[0])}
+                    ${timeColumn("start", "minute", startTimeParts[1])}
+                    ${timeColumn("end", "hour", endTimeParts[0])}
+                    ${timeColumn("end", "minute", endTimeParts[1])}
                 </div>
             `;
             loginLogTimeRangePicker.innerHTML = `
@@ -532,6 +542,21 @@
                     <button type="button" data-range-action="confirm">确定</button>
                 </div>
             `;
+            if (loginLogState.showRangeTime) {
+                requestAnimationFrame(() => scrollSelectedLoginLogTimeColumns());
+            }
+        }
+
+        function scrollSelectedLoginLogTimeColumns() {
+            if (!loginLogTimeRangePicker) {
+                return;
+            }
+            loginLogTimeRangePicker.querySelectorAll(".settings-time-range-picker__time-column").forEach((column) => {
+                const selected = column.querySelector(".settings-time-range-picker__time-option.is-selected");
+                if (selected) {
+                    column.scrollTop = selected.offsetTop;
+                }
+            });
         }
 
         function setLoginLogTimeRangePickerOpen(open) {
@@ -600,6 +625,18 @@
             updateLoginLogTimeRangeText();
         }
 
+        function queryLoginLogsFromFilters() {
+            if (loginLogState.showRangeTime) {
+                applyLoginLogRangeTime();
+            }
+            if (!syncLoginLogRangeBeforeQuery()) {
+                return;
+            }
+            setLoginLogTimeRangePickerOpen(false);
+            loginLogState.page = 1;
+            loadLoginLogs().catch((error) => showSettingsError(error.message));
+        }
+
         function loginLogOperationLabel(value) {
             const labels = {
                 LOGIN_SUCCESS: "登录成功",
@@ -632,14 +669,36 @@
         }
 
         function getLoginLogPageNumbers(totalPages) {
-            const visibleCount = Math.min(10, totalPages);
-            let start = Math.max(1, loginLogState.page - Math.floor(visibleCount / 2));
-            let end = start + visibleCount - 1;
-            if (end > totalPages) {
-                end = totalPages;
-                start = Math.max(1, end - visibleCount + 1);
+            const currentPage = Math.min(Math.max(loginLogState.page, 1), totalPages);
+            const edgeVisibleCount = 6;
+            if (totalPages <= edgeVisibleCount + 1) {
+                return Array.from({ length: totalPages }, (_, index) => ({ type: "page", page: index + 1 }));
             }
-            return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+            if (currentPage <= edgeVisibleCount) {
+                return [
+                    ...Array.from({ length: edgeVisibleCount }, (_, index) => ({ type: "page", page: index + 1 })),
+                    { type: "jump-next", page: edgeVisibleCount + 1, label: "»" },
+                    { type: "page", page: totalPages }
+                ];
+            }
+            if (currentPage >= totalPages - edgeVisibleCount + 1) {
+                return [
+                    { type: "page", page: 1 },
+                    { type: "jump-prev", page: totalPages - edgeVisibleCount, label: "«" },
+                    ...Array.from({ length: edgeVisibleCount }, (_, index) => ({ type: "page", page: totalPages - edgeVisibleCount + 1 + index }))
+                ];
+            }
+            return [
+                { type: "page", page: 1 },
+                { type: "jump-prev", page: currentPage - edgeVisibleCount, label: "«" },
+                { type: "page", page: currentPage - 2 },
+                { type: "page", page: currentPage - 1 },
+                { type: "page", page: currentPage },
+                { type: "page", page: currentPage + 1 },
+                { type: "page", page: currentPage + 2 },
+                { type: "jump-next", page: currentPage + edgeVisibleCount, label: "»" },
+                { type: "page", page: totalPages }
+            ];
         }
 
         function renderLoginLogPageCards(totalPages) {
@@ -649,16 +708,17 @@
             const pages = getLoginLogPageNumbers(totalPages);
             const prevDisabled = loginLogState.page <= 1;
             const nextDisabled = loginLogState.page >= totalPages;
-            const prevButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="prev" ${prevDisabled ? "disabled" : ""}>上一页</button>`;
-            const nextButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="next" ${nextDisabled ? "disabled" : ""}>下一页</button>`;
-            const pageButtons = pages.map((page) => {
-                const active = page === loginLogState.page;
-                const directionClass = page < loginLogState.page ? " is-prev" : page > loginLogState.page ? " is-next" : "";
+            const prevButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="prev" ${prevDisabled ? "disabled" : ""}>‹</button>`;
+            const nextButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="next" ${nextDisabled ? "disabled" : ""}>›</button>`;
+            const pageButtons = pages.map((item) => {
+                const active = item.page === loginLogState.page;
+                const directionClass = item.page < loginLogState.page ? " is-prev" : item.page > loginLogState.page ? " is-next" : "";
                 const activeClass = active ? " is-active" : "";
-                return `<button class="settings-log-page-card${directionClass}${activeClass}" type="button" data-page="${page}" ${active ? 'aria-current="page"' : ""}>${page}</button>`;
+                const action = item.type === "page" ? "" : ` data-page-action="${item.type}"`;
+                return `<button class="settings-log-page-card${directionClass}${activeClass}" type="button" data-page="${item.page}"${action} ${active ? 'aria-current="page"' : ""}>${item.label || item.page}</button>`;
             }).join("");
             const totalCard = `<span class="settings-log-page-card settings-log-page-card--total">共${loginLogState.total}条</span>`;
-            const pageSizeInput = `<label class="settings-log-page-size"><span>每页行数</span><input id="loginLogPageSizeInput" type="number" min="1" max="100" step="1" value="${loginLogState.pageSize}"></label>`;
+            const pageSizeInput = `<label class="settings-log-page-size"><input id="loginLogPageSizeInput" type="number" min="1" max="100" step="1" value="${loginLogState.pageSize}" aria-label="每页行数"></label>`;
             loginLogPageCards.innerHTML = `<div class="settings-log-page-stage">${prevButton}${pageButtons}${nextButton}${totalCard}${pageSizeInput}</div>`;
             bindLoginLogPageSizeInput();
         }
@@ -696,8 +756,8 @@
                             <td>${escapeHtml(item.id || "-")}</td>
                             <td>${formatLoginLogTime(item.createdAt)}</td>
                             <td>${escapeHtml(loginLogOperationLabel(item.operationType))}</td>
-                            <td>${escapeHtml(item.username || "-")}</td>
                             <td>${escapeHtml(item.personName || "-")}</td>
+                            <td>${escapeHtml(item.unitName || "-")}</td>
                             <td><span class="settings-log-status ${statusClass}">${statusText}</span></td>
                             <td>${escapeHtml(item.clientIp || "-")}</td>
                             <td>${escapeHtml(item.message || "-")}</td>
@@ -711,8 +771,8 @@
                                 <th>ID</th>
                                 <th>时间</th>
                                 <th>操作</th>
-                                <th>账号</th>
-                                <th>人员</th>
+                                <th>姓名</th>
+                                <th>部门</th>
                                 <th>结果</th>
                                 <th>客户端 IP</th>
                                 <th>说明</th>
@@ -729,6 +789,9 @@
 
         async function loadLoginLogs() {
             if (!loginLogTable) {
+                return;
+            }
+            if (!syncLoginLogRangeBeforeQuery()) {
                 return;
             }
             loginLogTable.innerHTML = '<div class="settings-empty">正在加载登录日志。</div>';
@@ -1267,7 +1330,9 @@
             refreshSystemConfigButton.addEventListener("click", () => loadSystemConfigForm().catch((error) => showSettingsError(error.message)));
         }
         if (refreshLoginLogsButton) {
-            refreshLoginLogsButton.addEventListener("click", () => loadLoginLogs().catch((error) => showSettingsError(error.message)));
+            refreshLoginLogsButton.addEventListener("click", () => {
+                queryLoginLogsFromFilters();
+            });
         }
         if (logsPanel) {
             logsPanel.addEventListener("click", (event) => {
@@ -1297,16 +1362,25 @@
                 loginLogTimeRangeInput.title = "";
             });
             loginLogTimeRangeInput.addEventListener("change", () => {
-                if (syncLoginLogRangeFromInput()) {
+                if (syncLoginLogRangeBeforeQuery()) {
                     loginLogState.page = 1;
                     loadLoginLogs().catch((error) => showSettingsError(error.message));
-                } else {
-                    showSettingsError("时间范围格式应为：YYYY-MM-DD HH:mm:ss - YYYY-MM-DD HH:mm:ss");
                 }
+            });
+            loginLogTimeRangeInput.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter") {
+                    return;
+                }
+                event.preventDefault();
+                if (!syncLoginLogRangeBeforeQuery()) {
+                    return;
+                }
+                queryLoginLogsFromFilters();
             });
         }
         if (loginLogTimeRangePicker) {
             loginLogTimeRangePicker.addEventListener("click", (event) => {
+                event.stopPropagation();
                 const dayButton = event.target.closest("[data-date]");
                 if (dayButton) {
                     chooseLoginLogRangeDate(dayButton.dataset.date);
@@ -1372,10 +1446,7 @@
                     renderLoginLogTimeRangePicker();
                     return;
                 }
-                applyLoginLogRangeTime();
-                setLoginLogTimeRangePickerOpen(false);
-                loginLogState.page = 1;
-                loadLoginLogs().catch((error) => showSettingsError(error.message));
+                queryLoginLogsFromFilters();
             });
         }
         if (loginLogPageCards) {
@@ -1472,6 +1543,13 @@
             }
             if (peopleTreeContextMenu && !peopleTreeContextMenu.hidden && !peopleTreeContextMenu.contains(event.target)) {
                 hidePeopleTreeContextMenu();
+            }
+            if (loginLogTimeRangePicker
+                && !loginLogTimeRangePicker.hidden
+                && !loginLogTimeRangePicker.contains(event.target)
+                && loginLogTimeRangeInput
+                && !loginLogTimeRangeInput.contains(event.target)) {
+                setLoginLogTimeRangePickerOpen(false);
             }
         });
 

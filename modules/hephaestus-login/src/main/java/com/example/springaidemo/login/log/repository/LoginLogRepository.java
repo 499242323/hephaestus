@@ -45,42 +45,45 @@ public interface LoginLogRepository extends BaseAbstractRepository<LoginLogEntit
 
     @Select("""
             <script>
-            SELECT id,
-                   operation_type AS operationType,
-                   username,
-                   person_id AS personId,
-                   person_name AS personName,
-                   session_id AS sessionId,
-                   success_flag AS successFlag,
-                   message,
-                   client_ip AS clientIp,
-                   user_agent AS userAgent,
-                   request_uri AS requestUri,
-                   created_at AS createdAt
-            FROM sys_login_log
+            SELECT l.id,
+                   l.operation_type AS operationType,
+                   l.username,
+                   l.person_id AS personId,
+                   l.person_name AS personName,
+                   u.unit_name AS unitName,
+                   l.session_id AS sessionId,
+                   l.success_flag AS successFlag,
+                   l.message,
+                   l.client_ip AS clientIp,
+                   l.user_agent AS userAgent,
+                   l.request_uri AS requestUri,
+                   l.created_at AS createdAt
+            FROM sys_login_log l
+            LEFT JOIN heph_person p ON p.id = l.person_id
+            LEFT JOIN heph_unit u ON u.id = p.unit_id
             <where>
                 <if test="keyword != null and keyword != ''">
                     AND (
-                        username LIKE CONCAT('%', #{keyword}, '%')
-                        OR person_name LIKE CONCAT('%', #{keyword}, '%')
-                        OR client_ip LIKE CONCAT('%', #{keyword}, '%')
-                        OR message LIKE CONCAT('%', #{keyword}, '%')
+                        l.person_name LIKE CONCAT('%', #{keyword}, '%')
+                        OR u.unit_name LIKE CONCAT('%', #{keyword}, '%')
+                        OR l.client_ip LIKE CONCAT('%', #{keyword}, '%')
+                        OR l.message LIKE CONCAT('%', #{keyword}, '%')
                     )
                 </if>
                 <if test="operationType != null and operationType != ''">
-                    AND operation_type = #{operationType}
+                    AND l.operation_type = #{operationType}
                 </if>
                 <if test="success != null">
-                    AND success_flag = #{success}
+                    AND l.success_flag = #{success}
                 </if>
                 <if test="startTime != null">
-                    AND created_at &gt;= #{startTime}
+                    AND l.created_at &gt;= #{startTime}
                 </if>
                 <if test="endTime != null">
-                    AND created_at &lt;= #{endTime}
+                    AND l.created_at &lt;= #{endTime}
                 </if>
             </where>
-            ORDER BY created_at DESC, id DESC
+            ORDER BY l.created_at DESC, l.id DESC
             LIMIT #{limit} OFFSET #{offset}
             </script>
             """)

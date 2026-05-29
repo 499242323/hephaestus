@@ -3,6 +3,9 @@ package com.example.springaidemo.mybatis.repository;
 import com.baomidou.mybatisplus.annotation.TableName;
 import org.apache.ibatis.builder.annotation.ProviderContext;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+
 public final class BaseTemplateSupport {
 
     private BaseTemplateSupport() {
@@ -10,13 +13,15 @@ public final class BaseTemplateSupport {
 
     static Class<?> resolveEntityType(ProviderContext context) {
         Class<?> mapperType = context.getMapperType();
-        for (java.lang.reflect.Type type : mapperType.getGenericInterfaces()) {
-            if (type instanceof java.lang.reflect.ParameterizedType parameterizedType
-                    && parameterizedType.getRawType() instanceof Class<?> rawType
-                    && BaseAbstractRepository.class.isAssignableFrom(rawType)) {
-                java.lang.reflect.Type entityType = parameterizedType.getActualTypeArguments()[0];
-                if (entityType instanceof Class<?> entityClass) {
-                    return entityClass;
+        for (Type type : mapperType.getGenericInterfaces()) {
+            if (type instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) type;
+                Type rawType = parameterizedType.getRawType();
+                if (rawType instanceof Class<?> && BaseAbstractRepository.class.isAssignableFrom((Class<?>) rawType)) {
+                    Type entityType = parameterizedType.getActualTypeArguments()[0];
+                    if (entityType instanceof Class<?>) {
+                        return (Class<?>) entityType;
+                    }
                 }
             }
         }
@@ -31,6 +36,22 @@ public final class BaseTemplateSupport {
         throw new IllegalStateException("Missing @TableName on entity: " + entityType.getName());
     }
 
-    record ColumnField(String fieldName, String columnName) {
+    static final class ColumnField {
+
+        private final String fieldName;
+        private final String columnName;
+
+        ColumnField(String fieldName, String columnName) {
+            this.fieldName = fieldName;
+            this.columnName = columnName;
+        }
+
+        String fieldName() {
+            return fieldName;
+        }
+
+        String columnName() {
+            return columnName;
+        }
     }
 }

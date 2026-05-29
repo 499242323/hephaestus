@@ -571,17 +571,23 @@ public class MultimodalChatService {
 
     private MediaResource saveMediaFile(String conversationId, StoredMediaFile storedFile, String sourceType) {
         String url = buildAccessUrl(storedFile.storagePath());
-        MediaFile saved = mediaFileService.save(conversationId, storedFile, sourceType, url);
-        log.info("附件元数据写入成功，conversationId={}, mediaId={}, sourceType={}, accessUrl={}",
-                conversationId, saved.id(), sourceType, url);
-        return new MediaResource(
-                saved.id(),
-                saved.originalFilename(),
-                saved.contentType(),
-                saved.fileSize(),
-                url,
-                url
-        );
+        try {
+            MediaFile saved = mediaFileService.save(conversationId, storedFile, sourceType, url);
+            log.info("附件元数据写入成功，conversationId={}, mediaId={}, sourceType={}, accessUrl={}",
+                    conversationId, saved.id(), sourceType, url);
+            return new MediaResource(
+                    saved.id(),
+                    saved.originalFilename(),
+                    saved.contentType(),
+                    saved.fileSize(),
+                    url,
+                    url
+            );
+        } catch (RuntimeException exception) {
+            log.error("多媒体文件已上传但数据库保存失败，需补偿处理，conversationId={}, sourceType={}, storagePath={}, accessUrl={}",
+                    conversationId, sourceType, storedFile.storagePath(), url, exception);
+            throw exception;
+        }
     }
 
     private String buildAccessUrl(String storagePath) {

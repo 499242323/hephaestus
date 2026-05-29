@@ -4,12 +4,15 @@ import com.example.springaidemo.login.auth.domain.LoginSessionUser;
 import com.example.springaidemo.login.log.constant.LoginLogOperationType;
 import com.example.springaidemo.login.log.domain.LoginLogEntity;
 import com.example.springaidemo.login.log.dto.LoginLogClientInfo;
-import com.example.springaidemo.login.log.dto.LoginLogPageResponse;
 import com.example.springaidemo.login.log.dto.LoginLogResponse;
 import com.example.springaidemo.login.log.repository.LoginLogRepository;
 import com.example.springaidemo.login.log.service.LoginLogService;
+import com.example.springaidemo.mybatis.page.PageQuery;
+import com.example.springaidemo.mybatis.page.PageSupport;
+import com.example.springaidemo.mybatis.page.Pagination;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -57,32 +60,31 @@ public class LoginLogServiceImpl implements LoginLogService {
     }
 
     @Override
-    public LoginLogPageResponse query(String keyword,
-                                      String operationType,
-                                      Boolean success,
-                                      LocalDateTime startTime,
-                                      LocalDateTime endTime,
-                                      Integer page,
-                                      Integer pageSize) {
-        int normalizedPage = page == null || page < 1 ? 1 : page;
-        int normalizedPageSize = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 100);
-        int offset = (normalizedPage - 1) * normalizedPageSize;
+    public Pagination<LoginLogResponse> query(String keyword,
+                                              String operationType,
+                                              Boolean success,
+                                              LocalDateTime startTime,
+                                              LocalDateTime endTime,
+                                              Integer page,
+                                              Integer pageSize) {
+        PageQuery pageQuery = PageSupport.normalize(page, pageSize);
         List<LoginLogResponse> items = repository.query(
                         normalize(keyword),
                         normalize(operationType),
                         success,
                         startTime,
                         endTime,
-                        normalizedPageSize,
-                        offset
+                        pageQuery.limit(),
+                        pageQuery.offset()
                 ).stream()
                 .map(LoginLogResponse::from)
                 .toList();
         long total = repository.count(normalize(keyword), normalize(operationType), success, startTime, endTime);
-        return new LoginLogPageResponse(items, normalizedPage, normalizedPageSize, total);
+        return repository.toPagination(items, total, pageQuery.page(), pageQuery.pageSize());
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int cleanupBefore(LocalDateTime cutoffTime) {
         if (cutoffTime == null) {
             return 0;

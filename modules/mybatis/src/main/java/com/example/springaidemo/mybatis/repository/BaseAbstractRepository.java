@@ -1,6 +1,11 @@
 package com.example.springaidemo.mybatis.repository;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.example.springaidemo.mybatis.page.PageInfo;
+import com.example.springaidemo.mybatis.page.PageQuery;
+import com.example.springaidemo.mybatis.page.PageSupport;
+import com.example.springaidemo.mybatis.page.Pagination;
+import com.example.springaidemo.mybatis.page.Paging;
 import org.apache.ibatis.annotations.UpdateProvider;
 
 import java.io.Serializable;
@@ -57,5 +62,23 @@ public interface BaseAbstractRepository<T, ID extends Serializable> extends Base
             int end = Math.min(start + batchSize, entities.size());
             insertList(new ArrayList<>(entities.subList(start, end)));
         }
+    }
+
+    default <R> PageInfo<R> toPageInfo(List<R> items, long total, Integer page, Integer pageSize) {
+        PageQuery pageQuery = PageSupport.normalize(page, pageSize);
+        return PageSupport.pageInfo(items, total, pageQuery);
+    }
+
+    default <R> PageInfo<R> toPageInfo(List<R> items, long total, Paging paging) {
+        return PageSupport.pageInfo(items, total, PageSupport.fromPaging(paging));
+    }
+
+    default <R> Pagination<R> toPagination(List<R> items, long total, Integer page, Integer pageSize) {
+        PageQuery pageQuery = PageSupport.normalize(page, pageSize);
+        return PageSupport.pagination(items, total, pageQuery);
+    }
+
+    default <R> Pagination<R> toPagination(List<R> items, long total, Paging paging) {
+        return PageSupport.pagination(items, total, paging);
     }
 }

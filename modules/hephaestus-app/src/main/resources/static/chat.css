@@ -586,6 +586,11 @@ textarea {
     background: var(--surface-muted);
 }
 
+.user .bubble:has(.media-list) {
+    width: min(100%, 720px);
+    padding: 18px 22px;
+}
+
 .assistant .bubble {
     background: transparent;
     padding-left: 0;
@@ -655,6 +660,10 @@ textarea {
     justify-items: start;
 }
 
+.user .media-list {
+    justify-items: stretch;
+}
+
 .media-card {
     width: fit-content;
     max-width: min(100%, 540px);
@@ -662,6 +671,11 @@ textarea {
     border: 1px solid var(--line);
     border-radius: 16px;
     background: var(--surface);
+}
+
+.user .media-card {
+    width: 100%;
+    max-width: 100%;
 }
 
 .media-card img {
@@ -672,6 +686,12 @@ textarea {
     max-height: 380px;
     object-fit: cover;
     background: #fafafa;
+}
+
+.user .media-card img {
+    width: 100%;
+    max-height: 380px;
+    object-fit: contain;
 }
 
 .file-card {

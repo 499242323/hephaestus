@@ -1177,8 +1177,37 @@
             status,
             content,
             mediaContainer: content.nextElementSibling || null,
-            text: content.textContent || ""
+            text: content.textContent || "",
+            renderedText: content.textContent || "",
+            renderFrame: 0
         };
+    }
+
+    function renderAssistantContentNow(messageView) {
+        if (!messageView || !messageView.content) {
+            return;
+        }
+        const nextText = messageView.text || "";
+        if (messageView.renderedText === nextText) {
+            return;
+        }
+        messageView.content.innerHTML = renderRichText(nextText);
+        messageView.renderedText = nextText;
+    }
+
+    function scheduleAssistantContentRender(messageView) {
+        if (!messageView || messageView.renderFrame) {
+            return;
+        }
+        messageView.renderFrame = requestAnimationFrame(() => {
+            messageView.renderFrame = 0;
+            renderAssistantContentNow(messageView);
+            const activeSession = getActiveSession();
+            if (!activeSession || activeSession.autoScroll) {
+                scrollMessagesToBottom();
+            }
+            saveActiveSessionSnapshot();
+        });
     }
 
     function rebindStreamAssistantView(sessionId) {
@@ -1199,7 +1228,7 @@
 
         assistantView.text = state.text || "";
         assistantView.status.textContent = state.status || "";
-        assistantView.content.innerHTML = renderRichText(assistantView.text);
+        renderAssistantContentNow(assistantView);
 
         if (state.attachments && state.attachments.length) {
             const container = ensureMediaContainer(assistantView);
@@ -1500,7 +1529,9 @@
             status,
             content,
             mediaContainer: null,
-            text: ""
+            text: "",
+            renderedText: "",
+            renderFrame: 0
         };
     }
 
@@ -1905,6 +1936,9 @@
                 state.status = payload.message || "";
             } else if (eventName === "delta") {
                 state.text += payload.content || "";
+                if (state.phase !== "image_generating") {
+                    state.status = "";
+                }
             } else if (eventName === "image" && payload.generatedImage) {
                 state.attachments.push(payload.generatedImage);
             } else if (eventName === "done" || eventName === "error") {
@@ -1913,10 +1947,10 @@
             }
 
             updateStreamStateSnapshot(requestSessionId);
-            if (requestSessionId === activeSessionId) {
+            if (requestSessionId === activeSessionId && eventName !== "delta") {
                 syncComposerState();
             }
-            if (currentAssistant) {
+            if (currentAssistant && eventName !== "delta") {
                 currentAssistant.status.textContent = state.status || "";
             }
         }
@@ -1937,8 +1971,7 @@
                 clearLiveStatus();
             }
             currentAssistant.text += payload.content || "";
-            currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
-            stickMessageToBottom(currentAssistant);
+            scheduleAssistantContentRender(currentAssistant);
         } else if (eventName === "attachments" && Array.isArray(payload.attachments)) {
             replaceUserAttachmentMedia(pendingUserMessage, payload.attachments);
             pendingUserMessage = null;
@@ -1951,6 +1984,7 @@
             ensureMediaContainer(currentAssistant).appendChild(renderMediaList([payload.generatedImage]));
             stickMessageToBottom(currentAssistant);
         } else if (eventName === "done") {
+            renderAssistantContentNow(currentAssistant);
             currentAssistant.status.textContent = "";
             clearLiveStatus();
             pendingUserMessage = null;
@@ -1958,16 +1992,18 @@
         } else if (eventName === "error") {
             currentAssistant.status.textContent = "";
             currentAssistant.text += `${currentAssistant.text ? "\n" : ""}${payload.message || "处理请求时发生错误。"}`;
-            currentAssistant.content.innerHTML = renderRichText(currentAssistant.text);
+            renderAssistantContentNow(currentAssistant);
             clearLiveStatus();
             pendingUserMessage = null;
         }
 
         const activeSession = getActiveSession();
-        if (!activeSession || activeSession.autoScroll) {
+        if (eventName !== "delta" && (!activeSession || activeSession.autoScroll)) {
             scrollMessagesToBottom();
         }
-        saveActiveSessionSnapshot();
+        if (eventName !== "delta") {
+            saveActiveSessionSnapshot();
+        }
     }
 
     form.addEventListener("submit", (event) => {

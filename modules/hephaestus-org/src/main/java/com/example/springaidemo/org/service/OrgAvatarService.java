@@ -2,6 +2,7 @@ package com.example.springaidemo.org.service;
 
 import com.example.springaidemo.media.config.MediaStorageProperties;
 import com.example.springaidemo.media.domain.StoredMediaFile;
+import com.example.springaidemo.media.exception.MediaStorageException;
 import com.example.springaidemo.media.service.MediaStorageService;
 import com.example.springaidemo.org.domain.OrgPersonSummary;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
@@ -9,9 +10,11 @@ import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 public class OrgAvatarService {
 
@@ -47,14 +50,20 @@ public class OrgAvatarService {
         String conversationId = "org-person-" + personId;
         StoredMediaFile storedFile = mediaStorageService.upload(conversationId, file);
         String accessUrl = buildAccessUrl(storedFile.storagePath());
-        OrgAvatarPersistenceService.AvatarBindingResult result = orgAvatarPersistenceService.bindAvatar(
-                personId,
-                conversationId,
-                storedFile,
-                SOURCE_TYPE,
-                accessUrl
-        );
-        return toSummary(result.person(), unit, result.accessUrl());
+        try {
+            OrgAvatarPersistenceService.AvatarBindingResult result = orgAvatarPersistenceService.bindAvatar(
+                    personId,
+                    conversationId,
+                    storedFile,
+                    SOURCE_TYPE,
+                    accessUrl
+            );
+            return toSummary(result.person(), unit, result.accessUrl());
+        } catch (RuntimeException exception) {
+            log.error("头像文件已上传但数据库绑定失败，需补偿处理，personId={}, conversationId={}, storagePath={}, sourceType={}",
+                    personId, conversationId, storedFile.storagePath(), SOURCE_TYPE, exception);
+            throw new MediaStorageException("头像保存失败，请稍后重试", exception);
+        }
     }
 
     public OrgPersonSummary clearAvatar(Long currentPersonId, Long personId) {

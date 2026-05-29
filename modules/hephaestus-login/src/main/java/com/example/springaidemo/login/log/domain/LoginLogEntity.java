@@ -25,6 +25,9 @@ public class LoginLogEntity {
     @TableField("person_name")
     private String personName;
 
+    @TableField(exist = false)
+    private String unitName;
+
     @TableField("session_id")
     private String sessionId;
 
@@ -84,6 +87,14 @@ public class LoginLogEntity {
 
     public void setPersonName(String personName) {
         this.personName = personName;
+    }
+
+    public String getUnitName() {
+        return unitName;
+    }
+
+    public void setUnitName(String unitName) {
+        this.unitName = unitName;
     }
 
     public String getSessionId() {

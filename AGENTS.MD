@@ -204,7 +204,18 @@
 - 优先先实现真实业务场景，再抽象公共能力
 - 只有在至少两个场景可复用时，才考虑继续下沉到 `modules/mybatis`
 - MyBatis 扫描范围必须保持收敛，避免把普通接口误注册成 `Mapper Bean`
+- MyBatis 扫描默认使用 `@MapperScan(basePackages = "com.example.springaidemo", annotationClass = Mapper.class)` 这一类“全包扫描 + `@Mapper` 过滤”方式，不使用仅靠包路径硬编码逐个维护的方式
+- 新增 MyBatis 仓储接口时，统一放在业务模块的 `repository` 包下，命名保持 `*Repository`，并显式标注 `@Mapper`
+- 只有真正的 MyBatis Mapper 接口才允许标注 `@Mapper`；普通服务类、适配器类即使名字里带 `Repository` 也不要标注 `@Mapper`
 - 对于只有单一业务含义的更新语句，优先保留显式 SQL，不强行套通用模板
+- 默认分页查询采用 `modules/mybatis` 中的 `Paging`、`PageInfo`、`Pagination`、`PageSupport`
+- 业务侧分页返回优先使用 `Pagination<T>` 或兼容其字段结构，不再为每个模块重复定义一套新的分页结果模型
+- 分页查询优先保持“显式 list SQL + 显式 count SQL + `toPagination(...)` 组装”的方式；没有明确收益时，不引入更重的条件 DSL 或分页插件抽象
+- 业务仓储做分页组装时，优先复用 `BaseAbstractRepository` 中的 `toPageInfo(...)`、`toPagination(...)` 默认方法，避免重复手写页码归一化和结果封装
+- 纯数据库写操作默认在 `service` / `service.impl` 层声明事务边界，统一使用 `@Transactional(rollbackFor = Exception.class)`
+- 对创建、更新、删除、批量保存、批量删除、跨多个仓储的数据库写操作，默认要有事务；除非能明确说明该链路故意不需要事务
+- 登录日志这类旁路型记录允许不阻断主流程，可保留“写入失败只记录日志、不回滚主业务”的策略，不强制提升为主事务失败条件
+- 涉及“外部文件服务 / HTTP 服务 / Redis / Session + 数据库”的混合写链路时，不要把数据库事务误当成完整一致性方案；如需增强一致性，优先设计补偿、幂等或清理策略
 - 默认遵循“编码前先思考、简洁优先、精准修改、以结果为导向”四个原则
 - 前端静态资源修改后要同步更新 `chat.html` 中相关 `?v=` 版本号，避免浏览器缓存导致视觉验证不一致
 - 组织设置相关前端资源保持拆分：设置抽屉用 `org-settings-*`，个人信息弹窗用 `org-profile-*`

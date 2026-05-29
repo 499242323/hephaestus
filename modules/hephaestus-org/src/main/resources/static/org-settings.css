@@ -341,6 +341,29 @@
 .settings-config-field {
     align-content: start;
     grid-template-rows: 16px minmax(34px, auto) auto;
+    min-height: 96px;
+    padding: 12px 14px;
+    border: 1px solid rgba(191, 219, 254, 0.72);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.68), rgba(255, 255, 255, 0.42));
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.settings-config-row:nth-child(even) .settings-config-field {
+    border-color: rgba(187, 247, 208, 0.72);
+    background: linear-gradient(135deg, rgba(240, 253, 244, 0.62), rgba(255, 255, 255, 0.4));
+}
+
+.settings-config-row .settings-config-field:nth-child(even) {
+    border-color: rgba(254, 215, 170, 0.72);
+    background: linear-gradient(135deg, rgba(255, 247, 237, 0.62), rgba(255, 255, 255, 0.4));
+}
+
+.settings-config-field:hover {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.74), rgba(255, 255, 255, 0.5));
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.1);
 }
 
 .settings-config-field--switch {
@@ -585,7 +608,7 @@
 }
 
 .settings-form__actions {
-    justify-content: flex-start;
+    justify-content: center;
     padding-top: 10px;
 }
 
@@ -1004,27 +1027,21 @@
 
 .settings-time-range-picker__time {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
     max-height: 252px;
     padding: 0;
     overflow: hidden;
 }
 
 .settings-time-range-picker__time-title {
+    grid-column: span 2;
     min-height: 32px;
     display: grid;
     place-items: center;
     color: #64748b;
     font-size: 12px;
     border-bottom: 1px solid #edf2f7;
-}
-
-.settings-time-range-picker__time-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    max-height: 220px;
-    overflow: hidden;
 }
 
 .settings-time-range-picker__time-column {
@@ -1135,10 +1152,6 @@
 .settings-log-page-size {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    color: #475569;
-    font-size: 10px;
-    font-weight: 700;
     white-space: nowrap;
 }
 
@@ -1222,11 +1235,12 @@
 }
 
 .settings-log-page-card--nav {
-    min-width: 50px;
+    min-width: 30px;
 }
 
 .settings-log-page-card--total {
-    min-width: 56px;
+    min-width: 64px;
+    padding: 0 12px;
     display: grid;
     place-items: center;
     line-height: 1.15;

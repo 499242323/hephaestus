@@ -13,6 +13,7 @@ import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,7 @@ public class OrgPersonService {
         );
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public OrgPersonSummary createPerson(Long currentPersonId, CreateOrgPersonRequest request) {
         validateCreateRequest(request);
         orgScopeService.assertUnitInScope(currentPersonId, request.unitId());
@@ -93,6 +95,7 @@ public class OrgPersonService {
         return toSummary(orgPersonRepository.getById(entity.getId()), unit);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public OrgPersonSummary updatePerson(Long currentPersonId, Long personId, UpdateOrgPersonRequest request) {
         validateUpdateRequest(request);
         OrgPersonEntity current = orgScopeService.requirePersonInScope(currentPersonId, personId);
@@ -121,6 +124,7 @@ public class OrgPersonService {
         return toSummary(orgPersonRepository.getById(personId), requireUnit(request.unitId()));
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void deletePerson(Long currentPersonId, Long personId) {
         orgScopeService.requirePersonInScope(currentPersonId, personId);
         orgPersonRepository.removeById(personId);
