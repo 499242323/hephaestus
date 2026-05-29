@@ -119,6 +119,36 @@ app:
   mail:
     from-address: ${APP_MAIL_FROM_ADDRESS:ws499242323@gmail.com}
 
+hephaestus:
+  auth:
+    whitelist:
+      paths:
+        - /login.html
+        - /login.css
+        - /login.js
+        - /auth/login
+        - /api/system-config/public/**
+        - /api/media/files/*
+        - /favicon.ico
+        - /error
+        - /**/*.css
+        - /**/*.js
+        - /**/*.png
+        - /**/*.jpg
+        - /**/*.jpeg
+        - /**/*.gif
+        - /**/*.svg
+        - /**/*.ico
+        - /**/*.woff
+        - /**/*.woff2
+  login-log:
+    cleanup:
+      enabled: true
+      current-node: ${HEPHAESTUS_NODE_ID:default}
+      enabled-node: default
+      retention-days: 30
+      cron: "0 0 3 * * ?"
+
 logging:
   level:
     liquibase: info

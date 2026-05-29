@@ -96,8 +96,11 @@ body.settings-effects-muted .chat-curved-grid-canvas {
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(15, 23, 42, 0.22);
-    backdrop-filter: blur(10px);
+    background:
+        radial-gradient(circle at 18% 18%, rgba(14, 165, 233, 0.16), transparent 34%),
+        radial-gradient(circle at 82% 78%, rgba(20, 184, 166, 0.14), transparent 32%),
+        rgba(248, 250, 252, 0.88);
+    backdrop-filter: blur(14px);
 }
 
 .session-expired-dialog[hidden] {
@@ -105,37 +108,58 @@ body.settings-effects-muted .chat-curved-grid-canvas {
 }
 
 .session-expired-dialog__card {
-    width: min(360px, 100%);
-    padding: 24px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid rgba(229, 231, 235, 0.92);
-    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+    width: min(430px, 100%);
+    padding: 34px 32px 30px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(203, 213, 225, 0.82);
+    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.16);
     text-align: center;
+}
+
+.session-expired-dialog__icon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 16px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 100%);
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 900;
+    box-shadow: 0 14px 30px rgba(14, 165, 233, 0.24);
 }
 
 .session-expired-dialog__card strong {
     display: block;
-    color: #111827;
-    font-size: 18px;
+    color: #0f172a;
+    font-size: 22px;
     line-height: 1.4;
 }
 
 .session-expired-dialog__card p {
-    margin: 10px 0 18px;
-    color: #6b7280;
+    margin: 12px 0 24px;
+    color: #475569;
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.75;
 }
 
 .session-expired-dialog__card button {
-    min-width: 112px;
-    padding: 10px 18px;
+    min-width: 138px;
+    padding: 12px 22px;
+    border: 0;
     border-radius: 999px;
-    background: #111827;
+    background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
     color: #fff;
     font-size: 14px;
     font-weight: 700;
+    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.24);
+}
+
+.session-expired-dialog__card button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px rgba(37, 99, 235, 0.28);
 }
 
 button,

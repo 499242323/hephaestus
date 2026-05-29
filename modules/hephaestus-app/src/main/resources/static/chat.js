@@ -326,7 +326,6 @@
         chooseFileButton.disabled = true;
         removeFileButton.disabled = true;
         attachmentInput.disabled = true;
-        window.setTimeout(redirectToLogin, 2800);
     }
 
     async function checkSessionStillActive() {

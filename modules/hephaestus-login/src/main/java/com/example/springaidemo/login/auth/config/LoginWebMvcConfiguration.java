@@ -1,5 +1,6 @@
-package com.example.springaidemo.login.auth;
+package com.example.springaidemo.login.auth.config;
 
+import com.example.springaidemo.login.auth.support.LoginRequiredInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
@@ -17,19 +18,7 @@ public class LoginWebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginRequiredInterceptor)
-                .addPathPatterns("/", "/chat.html", "/api/**")
-                .excludePathPatterns(
-                        "/login.html",
-                        "/login.css",
-                        "/login.js",
-                        "/auth/login",
-                        "/auth/logout",
-                        "/api/media/files/*",
-                        "/api/system-config/public/**",
-                        "/chat.css",
-                        "/favicon.ico",
-                        "/error"
-                );
+                .addPathPatterns("/**");
     }
 
     @Override

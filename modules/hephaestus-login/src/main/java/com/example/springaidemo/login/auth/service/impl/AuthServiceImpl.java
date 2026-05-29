@@ -1,7 +1,15 @@
-package com.example.springaidemo.login.auth;
+package com.example.springaidemo.login.auth.service.impl;
 
-import com.example.springaidemo.login.config.service.SystemConfigService;
+import com.example.springaidemo.login.auth.domain.LoginSessionUser;
+import com.example.springaidemo.login.auth.dto.LoginRequest;
+import com.example.springaidemo.login.auth.dto.LoginResponse;
+import com.example.springaidemo.login.auth.exception.LoginException;
+import com.example.springaidemo.login.auth.service.AuthService;
+import com.example.springaidemo.login.auth.support.RsaPasswordCryptoService;
 import com.example.springaidemo.login.config.LoginConfigConst;
+import com.example.springaidemo.login.config.service.SystemConfigService;
+import com.example.springaidemo.login.log.dto.LoginLogClientInfo;
+import com.example.springaidemo.login.log.service.LoginLogService;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import jakarta.servlet.http.HttpSession;
@@ -16,26 +24,57 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class AuthService {
-
-    public static final String SESSION_USER_KEY = "HEPHAESTUS_LOGIN_USER";
+public class AuthServiceImpl implements AuthService {
 
     private final OrgPersonRepository orgPersonRepository;
     private final SystemConfigService systemConfigService;
     private final RsaPasswordCryptoService passwordCryptoService;
     private final FindByIndexNameSessionRepository<? extends Session> sessionRepository;
+    private final LoginLogService loginLogService;
 
-    public AuthService(OrgPersonRepository orgPersonRepository,
-                       SystemConfigService systemConfigService,
-                       RsaPasswordCryptoService passwordCryptoService,
-                       FindByIndexNameSessionRepository<? extends Session> sessionRepository) {
+    public AuthServiceImpl(OrgPersonRepository orgPersonRepository,
+                           SystemConfigService systemConfigService,
+                           RsaPasswordCryptoService passwordCryptoService,
+                           FindByIndexNameSessionRepository<? extends Session> sessionRepository,
+                           LoginLogService loginLogService) {
         this.orgPersonRepository = orgPersonRepository;
         this.systemConfigService = systemConfigService;
         this.passwordCryptoService = passwordCryptoService;
         this.sessionRepository = sessionRepository;
+        this.loginLogService = loginLogService;
     }
 
+    @Override
+    public LoginResponse login(LoginRequest request, HttpSession session, LoginLogClientInfo clientInfo) {
+        String username = request == null ? null : request.username();
+        try {
+            LoginResponse response = doLogin(request, session);
+            loginLogService.recordSuccess(response.user(), session.getId(), clientInfo);
+            return response;
+        } catch (LoginException exception) {
+            loginLogService.recordFailure(username, exception.getMessage(), clientInfo);
+            throw exception;
+        } catch (RuntimeException exception) {
+            loginLogService.recordFailure(username, "登录失败", clientInfo);
+            throw exception;
+        }
+    }
+
+    @Override
     public LoginResponse login(LoginRequest request, HttpSession session) {
+        return login(request, session, null);
+    }
+
+    @Override
+    public LoginSessionUser currentUser(HttpSession session) {
+        Object user = session.getAttribute(SESSION_USER_KEY);
+        if (user instanceof LoginSessionUser loginSessionUser) {
+            return loginSessionUser;
+        }
+        throw new LoginException("未登录");
+    }
+
+    private LoginResponse doLogin(LoginRequest request, HttpSession session) {
         if (request == null || !StringUtils.hasText(request.username()) || !StringUtils.hasText(request.password())) {
             throw new LoginException("用户名和密码不能为空");
         }
@@ -59,14 +98,6 @@ public class AuthService {
         session.setMaxInactiveInterval(resolveSessionTimeoutSeconds());
         invalidateOtherSessionsIfNecessary(username, session.getId());
         return new LoginResponse(true, user, "登录成功");
-    }
-
-    public LoginSessionUser currentUser(HttpSession session) {
-        Object user = session.getAttribute(SESSION_USER_KEY);
-        if (user instanceof LoginSessionUser loginSessionUser) {
-            return loginSessionUser;
-        }
-        throw new LoginException("未登录");
     }
 
     private String resolvePassword(LoginRequest request) {

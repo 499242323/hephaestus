@@ -1,4 +1,4 @@
-package com.example.springaidemo.login.auth;
+package com.example.springaidemo.login.auth.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

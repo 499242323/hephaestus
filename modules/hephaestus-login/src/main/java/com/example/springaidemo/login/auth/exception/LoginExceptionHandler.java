@@ -1,5 +1,6 @@
-package com.example.springaidemo.login.auth;
+package com.example.springaidemo.login.auth.exception;
 
+import com.example.springaidemo.login.auth.controller.AuthController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;

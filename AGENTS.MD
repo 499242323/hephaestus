@@ -30,6 +30,44 @@
 - 持久化实现优先保持简单、明确、可验证
 - 登录、系统配置、组织管理、媒体、聊天记忆各自收敛在独立模块，避免把业务逻辑继续堆到启动模块
 
+## 后端模块分层模式
+
+后续后端功能新增或包结构整理时，默认参考 `modules/hephaestus-login` 中 `config`、`auth`、`log` 的分层方式组织代码。除非当前功能非常小且没有持久化或对外接口，否则不要继续把 Controller、Service、DTO、Entity、Repository 平铺在同一个业务包下。
+
+推荐包结构如下：
+
+- `controller`
+  放 REST Controller，只负责请求参数接收、响应返回和极薄的流程编排，不承载业务规则。
+- `service`
+  放业务服务接口，Controller 和其他模块优先依赖接口。
+- `service.impl`
+  放业务服务实现类，命名为 `XxxServiceImpl`，承载主要业务流程、事务边界和跨仓储编排。
+- `dto`
+  放请求、响应、分页结果、前端表单模型等接口传输对象。
+- `domain`
+  放业务实体、数据库映射实体和领域对象。
+- `repository`
+  放 MyBatis Mapper、仓储接口和与数据库访问直接相关的 SQL。
+- `config`
+  放 `@ConfigurationProperties`、WebMvc 配置、模块内部 Spring 配置和启动配置。
+- `support`
+  放辅助组件、解析器、拦截器、调度器、加解密工具、客户端信息解析等非主业务服务。
+- `exception`
+  放模块内业务异常和异常处理器。
+- `constant`
+  放枚举、常量类和稳定业务类型定义。
+
+实施约束：
+
+- 新增业务服务时优先定义 `XxxService` 接口，再提供 `XxxServiceImpl` 实现。
+- Controller 注入 `service` 接口，不直接依赖 `service.impl`。
+- `support` 组件可以被 `service.impl` 编排，但不要反向依赖 Controller。
+- DTO 不放业务逻辑；Entity 不直接承担请求响应职责。
+- Repository 只处理持久化，不写登录、权限、日志等业务编排逻辑。
+- 模块间引用优先引用对外稳定接口、DTO 或领域对象，避免跨模块引用 `impl` 包。
+- 重构包结构时保持接口路径、数据库表、配置 key、业务行为不变，先移动结构再用编译验证收口。
+- 涉及认证、日志、配置、组织等核心链路时，至少执行 Java 编译验证，确认 Spring Bean 注入、Mapper 扫描和配置属性绑定没有断裂。
+
 ## 当前主要功能边界
 
 ### 1. 登录与系统配置

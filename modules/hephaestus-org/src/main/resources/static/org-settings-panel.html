@@ -17,6 +17,10 @@
                     <span class="settings-menu__icon">•</span>
                     <span>人员</span>
                 </button>
+                <button id="logsTabButton" class="settings-menu__item" type="button">
+                    <span class="settings-menu__icon">•</span>
+                    <span>日志</span>
+                </button>
             </nav>
         </div>
 
@@ -147,6 +151,40 @@
                                     </div>
                                 </form>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="logsPanel" class="settings-panel" hidden>
+                    <div class="settings-section settings-log-panel">
+                        <div class="settings-form-tabs">
+                            <button class="settings-form-tabs__item active" type="button" data-log-tab="login">登录日志</button>
+                            <button class="settings-form-tabs__item" type="button" data-log-tab="operation">操作日志</button>
+                            <span class="settings-config-header-actions">
+                                <button id="refreshLoginLogsButton" class="settings-action settings-action--compact" type="button">刷新</button>
+                            </span>
+                        </div>
+                        <div id="loginLogPane">
+                            <div class="settings-log-filters">
+                                <label class="settings-field settings-field--compact"><span>关键词</span><input id="loginLogKeywordInput" type="text" placeholder="账号 / 姓名 / IP"></label>
+                                <label class="settings-field settings-field--compact"><span>操作类型</span><select id="loginLogOperationTypeSelect">
+                                    <option value="">全部</option>
+                                    <option value="LOGIN_SUCCESS">登录成功</option>
+                                    <option value="LOGIN_FAILURE">登录失败</option>
+                                    <option value="LOGOUT">退出登录</option>
+                                </select></label>
+                                <label class="settings-field settings-field--compact settings-field--time-range"><span>时间范围</span><input id="loginLogTimeRangeInput" type="text" placeholder="请选择时间范围" autocomplete="off" title=""></label>
+                            </div>
+                            <div id="loginLogTimeRangePicker" class="settings-time-range-picker" hidden></div>
+                            <div id="loginLogTable" class="settings-log-table">
+                                <div class="settings-empty">正在加载登录日志。</div>
+                            </div>
+                            <div class="settings-log-pager">
+                                <div id="loginLogPageCards" class="settings-log-page-cards" aria-label="登录日志分页"></div>
+                            </div>
+                        </div>
+                        <div id="operationLogPane" class="settings-log-placeholder" hidden>
+                            操作日志暂未启用自动采集。当前仅记录登录成功、登录失败和退出登录。
                         </div>
                     </div>
                 </section>

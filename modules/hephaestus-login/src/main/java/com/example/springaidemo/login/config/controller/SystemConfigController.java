@@ -5,7 +5,7 @@ import com.example.springaidemo.login.config.dto.SystemConfigPublicResponse;
 import com.example.springaidemo.login.config.dto.SystemConfigSaveRequest;
 import com.example.springaidemo.login.config.LoginConfigConst;
 import com.example.springaidemo.login.config.service.SystemConfigService;
-import com.example.springaidemo.login.auth.RsaPasswordCryptoService;
+import com.example.springaidemo.login.auth.support.RsaPasswordCryptoService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;

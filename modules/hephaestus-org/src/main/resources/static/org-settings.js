@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260527-profile11");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260528-log-time-range1");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -33,9 +33,11 @@
         const generalTabButton = document.getElementById("generalTabButton");
         const unitsTabButton = document.getElementById("unitsTabButton");
         const peopleTabButton = document.getElementById("peopleTabButton");
+        const logsTabButton = document.getElementById("logsTabButton");
         const generalPanel = document.getElementById("generalPanel");
         const unitsPanel = document.getElementById("unitsPanel");
         const peoplePanel = document.getElementById("peoplePanel");
+        const logsPanel = document.getElementById("logsPanel");
         const systemConfigForm = document.getElementById("systemConfigForm");
         const systemConfigFields = document.getElementById("systemConfigFields");
         const refreshSystemConfigButton = document.getElementById("refreshSystemConfigButton");
@@ -74,6 +76,16 @@
         const personAvatarPreview = document.getElementById("personAvatarPreview");
         const showPersonCreateButton = document.getElementById("showPersonCreateButton");
         const resetPersonFormButton = document.getElementById("resetPersonFormButton");
+        const refreshLoginLogsButton = document.getElementById("refreshLoginLogsButton");
+        const loginLogKeywordInput = document.getElementById("loginLogKeywordInput");
+        const loginLogTimeRangeInput = document.getElementById("loginLogTimeRangeInput");
+        const loginLogTimeRangePicker = document.getElementById("loginLogTimeRangePicker");
+        const loginLogOperationTypeSelect = document.getElementById("loginLogOperationTypeSelect");
+        const loginLogPageSizeInput = document.getElementById("loginLogPageSizeInput");
+        const loginLogTable = document.getElementById("loginLogTable");
+        const loginLogPageCards = document.getElementById("loginLogPageCards");
+        const loginLogPane = document.getElementById("loginLogPane");
+        const operationLogPane = document.getElementById("operationLogPane");
         let settingsOpen = false;
         let currentSettingsTab = "general";
         let settingsScope = null;
@@ -92,6 +104,20 @@
         let systemConfigFormData = null;
         let activeSystemConfigTab = "system-login";
         let currentLoginUserPromise = null;
+        let loginLogState = {
+            page: 1,
+            pageSize: 10,
+            total: 0,
+            keyword: "",
+            startTime: "",
+            endTime: "",
+            operationType: "",
+            rangePickerLeftMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            rangePickerRightMonth: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+            showRangeTime: false,
+            rangePickerMode: "date",
+            rangePickerPanelIndex: 0
+        };
 
         const expandedUnitIds = new Set();
         const expandedPeopleGroupIds = new Set();
@@ -99,7 +125,8 @@
         const panelTitleMap = {
             general: "常规",
             units: "部门",
-            people: "人员"
+            people: "人员",
+            logs: "日志"
         };
 
         const basePath = window.location.pathname.replace(/\/[^/]*$/, "");
@@ -254,15 +281,24 @@
             generalTabButton.classList.toggle("active", tab === "general");
             unitsTabButton.classList.toggle("active", tab === "units");
             peopleTabButton.classList.toggle("active", tab === "people");
+            if (logsTabButton) {
+                logsTabButton.classList.toggle("active", tab === "logs");
+            }
             generalPanel.hidden = tab !== "general";
             unitsPanel.hidden = tab !== "units";
             peoplePanel.hidden = tab !== "people";
+            if (logsPanel) {
+                logsPanel.hidden = tab !== "logs";
+            }
             settingsPanelTitle.textContent = panelTitleMap[tab] || "设置";
             showSettingsError("");
             hideUnitTreeContextMenu();
             hidePeopleTreeContextMenu();
             if (settingsDrawerBody) {
                 settingsDrawerBody.scrollTop = 0;
+            }
+            if (tab === "logs") {
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
             }
         }
 
@@ -312,6 +348,412 @@
                 return null;
             }
             return JSON.parse(text);
+        }
+
+        function formatLoginLogTime(value) {
+            if (!value) {
+                return "-";
+            }
+            const normalized = String(value).replace("T", " ");
+            return normalized.length > 19 ? normalized.slice(0, 19) : normalized;
+        }
+
+        function padTimePart(value) {
+            return String(value).padStart(2, "0");
+        }
+
+        function formatDateValue(date) {
+            return `${date.getFullYear()}-${padTimePart(date.getMonth() + 1)}-${padTimePart(date.getDate())}`;
+        }
+
+        function formatDateTimeValue(date, endOfDay) {
+            return `${formatDateValue(date)}T${endOfDay ? "23:59:59" : "00:00:00"}`;
+        }
+
+        function formatDateTimeText(value) {
+            return value ? value.replace("T", " ") : "";
+        }
+
+        function parseDateTimeValue(value) {
+            if (!value) {
+                return null;
+            }
+            const parts = value.slice(0, 10).split("-").map(Number);
+            if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+                return null;
+            }
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        function normalizeDateTimeText(value) {
+            const normalized = String(value || "").trim().replace("T", " ");
+            const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+            if (!match) {
+                return "";
+            }
+            return `${match[1]}-${match[2]}-${match[3]}T${match[4] || "00"}:${match[5] || "00"}:${match[6] || "00"}`;
+        }
+
+        function syncLoginLogRangeFromInput() {
+            if (!loginLogTimeRangeInput || !loginLogTimeRangeInput.value.trim()) {
+                loginLogState.startTime = "";
+                loginLogState.endTime = "";
+                return true;
+            }
+            const parts = loginLogTimeRangeInput.value.split(/\s+-\s+/);
+            if (parts.length !== 2) {
+                return false;
+            }
+            const start = normalizeDateTimeText(parts[0]);
+            const end = normalizeDateTimeText(parts[1]);
+            if (!start || !end) {
+                return false;
+            }
+            loginLogState.startTime = start;
+            loginLogState.endTime = end;
+            updateLoginLogTimeRangeText();
+            const startDate = parseDateTimeValue(start);
+            if (startDate) {
+                loginLogState.rangePickerLeftMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                loginLogState.rangePickerRightMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+                loginLogState.rangePickerMode = "date";
+            }
+            return true;
+        }
+
+        function updateLoginLogTimeRangeText() {
+            if (!loginLogTimeRangeInput) {
+                return;
+            }
+            const start = formatDateTimeText(loginLogState.startTime);
+            const end = formatDateTimeText(loginLogState.endTime);
+            loginLogTimeRangeInput.value = start && end ? `${start} - ${end}` : "";
+            loginLogTimeRangeInput.title = "";
+        }
+
+        function sameDate(left, right) {
+            return left && right
+                && left.getFullYear() === right.getFullYear()
+                && left.getMonth() === right.getMonth()
+                && left.getDate() === right.getDate();
+        }
+
+        function buildLoginLogMonthCells(monthDate) {
+            const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+            const start = new Date(firstDay);
+            start.setDate(firstDay.getDate() - firstDay.getDay());
+            return Array.from({ length: 42 }, (_, index) => {
+                const date = new Date(start);
+                date.setDate(start.getDate() + index);
+                return date;
+            });
+        }
+
+        function renderLoginLogTimeRangePicker() {
+            if (!loginLogTimeRangePicker) {
+                return;
+            }
+            const startTimeParts = ((loginLogState.startTime || "T00:00:00").slice(11, 16) || "00:00").split(":");
+            const endTimeParts = ((loginLogState.endTime || "T23:59:59").slice(11, 16) || "23:59").split(":");
+            const timeColumn = (type, part, selected) => `
+                <div class="settings-time-range-picker__time-column">
+                    ${Array.from({ length: part === "hour" ? 24 : 60 }, (_, index) => {
+                        const value = padTimePart(index);
+                        const active = value === selected ? " is-selected" : "";
+                        return `<button class="settings-time-range-picker__time-option${active}" type="button" data-range-time-type="${type}" data-range-time-part="${part}" data-range-time-value="${value}">${value}</button>`;
+                    }).join("")}
+                </div>
+            `;
+            const months = [loginLogState.rangePickerLeftMonth, loginLogState.rangePickerRightMonth];
+            const startDate = parseDateTimeValue(loginLogState.startTime);
+            const endDate = parseDateTimeValue(loginLogState.endTime);
+            const monthPanels = months.map((monthDate) => {
+                const panelIndex = monthDate.getTime() === months[0].getTime() ? 0 : 1;
+                const isActivePanel = loginLogState.rangePickerPanelIndex === panelIndex;
+                let selector = "";
+                if (isActivePanel && loginLogState.rangePickerMode === "year") {
+                    const startYear = Math.floor(monthDate.getFullYear() / 12) * 12;
+                    selector = `<div class="settings-time-range-picker__selector">${Array.from({ length: 12 }, (_, index) => {
+                        const year = startYear + index;
+                        const active = year === monthDate.getFullYear() ? " is-selected" : "";
+                        return `<button class="settings-time-range-picker__selector-item${active}" type="button" data-range-year="${year}" data-panel-index="${panelIndex}">${year}</button>`;
+                    }).join("")}</div>`;
+                } else if (isActivePanel && loginLogState.rangePickerMode === "month") {
+                    selector = `<div class="settings-time-range-picker__selector">${Array.from({ length: 12 }, (_, index) => {
+                        const monthNumber = index + 1;
+                        const active = index === monthDate.getMonth() ? " is-selected" : "";
+                        return `<button class="settings-time-range-picker__selector-item${active}" type="button" data-range-month="${index}" data-panel-index="${panelIndex}">${monthNumber}月</button>`;
+                    }).join("")}</div>`;
+                }
+                const cells = buildLoginLogMonthCells(monthDate).map((date) => {
+                    const classes = ["settings-time-range-picker__day"];
+                    if (date.getMonth() !== monthDate.getMonth()) {
+                        classes.push("is-outside");
+                    }
+                    if (startDate && endDate && date >= startDate && date <= endDate) {
+                        classes.push("is-in-range");
+                    }
+                    if (sameDate(date, startDate) || sameDate(date, endDate)) {
+                        classes.push("is-selected");
+                    }
+                    return `<button class="${classes.join(" ")}" type="button" data-date="${formatDateValue(date)}">${date.getDate()}</button>`;
+                }).join("");
+                return `
+                    <div class="settings-time-range-picker__month">
+                        ${selector || `<div class="settings-time-range-picker__week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div class="settings-time-range-picker__days">${cells}</div>`}
+                    </div>
+                `;
+            }).join("");
+            const datePanel = `
+                <div class="settings-time-range-picker__nav">
+                    <button type="button" data-range-nav="-12">«</button>
+                    <button type="button" data-range-nav="-1">‹</button>
+                    <span class="settings-time-range-picker__titles">
+                        ${months.map((monthDate, panelIndex) => `<span><button type="button" data-range-mode="year" data-panel-index="${panelIndex}">${monthDate.getFullYear()}年</button><button type="button" data-range-mode="month" data-panel-index="${panelIndex}">${monthDate.getMonth() + 1}月</button></span>`).join("")}
+                    </span>
+                    <button type="button" data-range-nav="1">›</button>
+                    <button type="button" data-range-nav="12">»</button>
+                </div>
+                <div class="settings-time-range-picker__months">${monthPanels}</div>
+            `;
+            const timePanel = `
+                <div class="settings-time-range-picker__time">
+                    <div class="settings-time-range-picker__time-title">开始时间</div>
+                    <div class="settings-time-range-picker__time-title">结束时间</div>
+                    <div class="settings-time-range-picker__time-group">${timeColumn("start", "hour", startTimeParts[0])}${timeColumn("start", "minute", startTimeParts[1])}</div>
+                    <div class="settings-time-range-picker__time-group">${timeColumn("end", "hour", endTimeParts[0])}${timeColumn("end", "minute", endTimeParts[1])}</div>
+                </div>
+            `;
+            loginLogTimeRangePicker.innerHTML = `
+                ${loginLogState.showRangeTime ? timePanel : datePanel}
+                <div class="settings-time-range-picker__footer">
+                    <button type="button" data-range-action="time">${loginLogState.showRangeTime ? "选择日期" : "选择时间"}</button>
+                    <button type="button" data-range-action="clear">清空</button>
+                    <button type="button" data-range-action="confirm">确定</button>
+                </div>
+            `;
+        }
+
+        function setLoginLogTimeRangePickerOpen(open) {
+            if (!loginLogTimeRangePicker) {
+                return;
+            }
+            if (open) {
+                loginLogState.showRangeTime = false;
+                loginLogState.rangePickerMode = "date";
+                renderLoginLogTimeRangePicker();
+                if (loginLogTimeRangeInput && loginLogPane) {
+                    const inputRect = loginLogTimeRangeInput.getBoundingClientRect();
+                    const paneRect = loginLogPane.getBoundingClientRect();
+                    const pickerWidth = Math.min(405, paneRect.width);
+                    const left = Math.min(
+                        Math.max(inputRect.left - paneRect.left, 0),
+                        Math.max(paneRect.width - pickerWidth, 0)
+                    );
+                    loginLogTimeRangePicker.style.left = `${left}px`;
+                    loginLogTimeRangePicker.style.top = `${inputRect.bottom - paneRect.top + 6}px`;
+                }
+                loginLogTimeRangePicker.hidden = false;
+                return;
+            }
+            loginLogTimeRangePicker.hidden = true;
+        }
+
+        function chooseLoginLogRangeDate(value) {
+            const date = parseDateTimeValue(value);
+            if (!date) {
+                return;
+            }
+            const currentStart = parseDateTimeValue(loginLogState.startTime);
+            const currentEnd = parseDateTimeValue(loginLogState.endTime);
+            if (!currentStart || currentEnd) {
+                loginLogState.startTime = formatDateTimeValue(date, false);
+                loginLogState.endTime = "";
+            } else if (date < currentStart) {
+                loginLogState.endTime = loginLogState.startTime;
+                loginLogState.startTime = formatDateTimeValue(date, false);
+            } else {
+                loginLogState.endTime = formatDateTimeValue(date, true);
+            }
+            updateLoginLogTimeRangeText();
+            renderLoginLogTimeRangePicker();
+        }
+
+        function applyLoginLogRangeTime() {
+            if (!loginLogTimeRangePicker) {
+                return;
+            }
+            const getPart = (type, part, fallback) => {
+                const selected = loginLogTimeRangePicker.querySelector(`[data-range-time-type='${type}'][data-range-time-part='${part}'].is-selected`);
+                return selected ? selected.dataset.rangeTimeValue : fallback;
+            };
+            if (loginLogState.startTime) {
+                const hour = getPart("start", "hour", "00");
+                const minute = getPart("start", "minute", "00");
+                loginLogState.startTime = `${loginLogState.startTime.slice(0, 11)}${hour}:${minute}:00`;
+            }
+            if (loginLogState.endTime) {
+                const hour = getPart("end", "hour", "23");
+                const minute = getPart("end", "minute", "59");
+                loginLogState.endTime = `${loginLogState.endTime.slice(0, 11)}${hour}:${minute}:59`;
+            }
+            updateLoginLogTimeRangeText();
+        }
+
+        function loginLogOperationLabel(value) {
+            const labels = {
+                LOGIN_SUCCESS: "登录成功",
+                LOGIN_FAILURE: "登录失败",
+                LOGOUT: "退出登录"
+            };
+            return labels[value] || value || "-";
+        }
+
+        function collectLoginLogFilters() {
+            const params = new URLSearchParams();
+            if (loginLogPageSizeInput && loginLogPageSizeInput.value) {
+                loginLogState.pageSize = Number(loginLogPageSizeInput.value) || 10;
+            }
+            params.set("page", String(loginLogState.page));
+            params.set("pageSize", String(loginLogState.pageSize));
+            if (loginLogKeywordInput && loginLogKeywordInput.value.trim()) {
+                params.set("keyword", loginLogKeywordInput.value.trim());
+            }
+            if (loginLogState.startTime) {
+                params.set("startTime", loginLogState.startTime);
+            }
+            if (loginLogState.endTime) {
+                params.set("endTime", loginLogState.endTime);
+            }
+            if (loginLogOperationTypeSelect && loginLogOperationTypeSelect.value) {
+                params.set("operationType", loginLogOperationTypeSelect.value);
+            }
+            return params;
+        }
+
+        function getLoginLogPageNumbers(totalPages) {
+            const visibleCount = Math.min(10, totalPages);
+            let start = Math.max(1, loginLogState.page - Math.floor(visibleCount / 2));
+            let end = start + visibleCount - 1;
+            if (end > totalPages) {
+                end = totalPages;
+                start = Math.max(1, end - visibleCount + 1);
+            }
+            return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+        }
+
+        function renderLoginLogPageCards(totalPages) {
+            if (!loginLogPageCards) {
+                return;
+            }
+            const pages = getLoginLogPageNumbers(totalPages);
+            const prevDisabled = loginLogState.page <= 1;
+            const nextDisabled = loginLogState.page >= totalPages;
+            const prevButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="prev" ${prevDisabled ? "disabled" : ""}>上一页</button>`;
+            const nextButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="next" ${nextDisabled ? "disabled" : ""}>下一页</button>`;
+            const pageButtons = pages.map((page) => {
+                const active = page === loginLogState.page;
+                const directionClass = page < loginLogState.page ? " is-prev" : page > loginLogState.page ? " is-next" : "";
+                const activeClass = active ? " is-active" : "";
+                return `<button class="settings-log-page-card${directionClass}${activeClass}" type="button" data-page="${page}" ${active ? 'aria-current="page"' : ""}>${page}</button>`;
+            }).join("");
+            const totalCard = `<span class="settings-log-page-card settings-log-page-card--total">共${loginLogState.total}条</span>`;
+            const pageSizeInput = `<label class="settings-log-page-size"><span>每页行数</span><input id="loginLogPageSizeInput" type="number" min="1" max="100" step="1" value="${loginLogState.pageSize}"></label>`;
+            loginLogPageCards.innerHTML = `<div class="settings-log-page-stage">${prevButton}${pageButtons}${nextButton}${totalCard}${pageSizeInput}</div>`;
+            bindLoginLogPageSizeInput();
+        }
+
+        function bindLoginLogPageSizeInput() {
+            const pageSizeInput = document.getElementById("loginLogPageSizeInput");
+            if (!pageSizeInput) {
+                return;
+            }
+            pageSizeInput.addEventListener("change", () => {
+                loginLogState.pageSize = Number(pageSizeInput.value) || 10;
+                loginLogState.page = 1;
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
+        }
+
+        function renderLoginLogs(pageData) {
+            if (!loginLogTable) {
+                return;
+            }
+            const items = (pageData && pageData.items) || [];
+            loginLogState.page = (pageData && pageData.page) || loginLogState.page;
+            loginLogState.pageSize = (pageData && pageData.pageSize) || loginLogState.pageSize;
+            loginLogState.total = (pageData && pageData.total) || 0;
+
+            if (!items.length) {
+                loginLogTable.innerHTML = '<div class="settings-empty">暂无登录日志。</div>';
+            } else {
+                const rows = items.map((item) => {
+                    const success = Boolean(item.success);
+                    const statusClass = success ? "is-success" : "is-failed";
+                    const statusText = success ? "成功" : "失败";
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.id || "-")}</td>
+                            <td>${formatLoginLogTime(item.createdAt)}</td>
+                            <td>${escapeHtml(loginLogOperationLabel(item.operationType))}</td>
+                            <td>${escapeHtml(item.username || "-")}</td>
+                            <td>${escapeHtml(item.personName || "-")}</td>
+                            <td><span class="settings-log-status ${statusClass}">${statusText}</span></td>
+                            <td>${escapeHtml(item.clientIp || "-")}</td>
+                            <td>${escapeHtml(item.message || "-")}</td>
+                        </tr>
+                    `;
+                }).join("");
+                loginLogTable.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>时间</th>
+                                <th>操作</th>
+                                <th>账号</th>
+                                <th>人员</th>
+                                <th>结果</th>
+                                <th>客户端 IP</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            }
+
+            const totalPages = Math.max(1, Math.ceil(loginLogState.total / loginLogState.pageSize));
+            renderLoginLogPageCards(totalPages);
+        }
+
+        async function loadLoginLogs() {
+            if (!loginLogTable) {
+                return;
+            }
+            loginLogTable.innerHTML = '<div class="settings-empty">正在加载登录日志。</div>';
+            const params = collectLoginLogFilters();
+            const pageData = await requestJson(`/api/logs/login?${params.toString()}`);
+            renderLoginLogs(pageData);
+        }
+
+        function setLogTab(tab) {
+            const activeTab = tab === "operation" ? "operation" : "login";
+            if (loginLogPane) {
+                loginLogPane.hidden = activeTab !== "login";
+            }
+            if (operationLogPane) {
+                operationLogPane.hidden = activeTab !== "operation";
+            }
+            if (refreshLoginLogsButton) {
+                refreshLoginLogsButton.hidden = activeTab !== "login";
+            }
+            document.querySelectorAll("[data-log-tab]").forEach((button) => {
+                button.classList.toggle("active", button.dataset.logTab === activeTab);
+            });
+            if (activeTab === "login") {
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            }
         }
 
         function flattenSystemConfigFields(formData) {
@@ -815,11 +1257,146 @@
         generalTabButton.addEventListener("click", () => setSettingsTab("general"));
         unitsTabButton.addEventListener("click", () => setSettingsTab("units"));
         peopleTabButton.addEventListener("click", () => setSettingsTab("people"));
+        if (logsTabButton) {
+            logsTabButton.addEventListener("click", () => setSettingsTab("logs"));
+        }
         refreshSettingsButton.addEventListener("click", () => loadSettingsData());
         refreshPeopleButton.addEventListener("click", () => loadPeople().catch((error) => showSettingsError(error.message)));
 
         if (refreshSystemConfigButton) {
             refreshSystemConfigButton.addEventListener("click", () => loadSystemConfigForm().catch((error) => showSettingsError(error.message)));
+        }
+        if (refreshLoginLogsButton) {
+            refreshLoginLogsButton.addEventListener("click", () => loadLoginLogs().catch((error) => showSettingsError(error.message)));
+        }
+        if (logsPanel) {
+            logsPanel.addEventListener("click", (event) => {
+                const tabButton = event.target.closest("[data-log-tab]");
+                if (!tabButton) {
+                    return;
+                }
+                setLogTab(tabButton.dataset.logTab);
+            });
+        }
+        [loginLogKeywordInput, loginLogOperationTypeSelect].forEach((control) => {
+            if (!control) {
+                return;
+            }
+            control.addEventListener("input", () => {
+                loginLogState.page = 1;
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
+            control.addEventListener("change", () => {
+                loginLogState.page = 1;
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
+        });
+        if (loginLogTimeRangeInput) {
+            loginLogTimeRangeInput.addEventListener("click", () => setLoginLogTimeRangePickerOpen(true));
+            loginLogTimeRangeInput.addEventListener("mouseenter", () => {
+                loginLogTimeRangeInput.title = "";
+            });
+            loginLogTimeRangeInput.addEventListener("change", () => {
+                if (syncLoginLogRangeFromInput()) {
+                    loginLogState.page = 1;
+                    loadLoginLogs().catch((error) => showSettingsError(error.message));
+                } else {
+                    showSettingsError("时间范围格式应为：YYYY-MM-DD HH:mm:ss - YYYY-MM-DD HH:mm:ss");
+                }
+            });
+        }
+        if (loginLogTimeRangePicker) {
+            loginLogTimeRangePicker.addEventListener("click", (event) => {
+                const dayButton = event.target.closest("[data-date]");
+                if (dayButton) {
+                    chooseLoginLogRangeDate(dayButton.dataset.date);
+                    return;
+                }
+                const navButton = event.target.closest("[data-range-nav]");
+                if (navButton) {
+                    const offset = Number(navButton.dataset.rangeNav) || 0;
+                    loginLogState.rangePickerLeftMonth = new Date(loginLogState.rangePickerLeftMonth.getFullYear(), loginLogState.rangePickerLeftMonth.getMonth() + offset, 1);
+                    loginLogState.rangePickerRightMonth = new Date(loginLogState.rangePickerRightMonth.getFullYear(), loginLogState.rangePickerRightMonth.getMonth() + offset, 1);
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                const timeOptionButton = event.target.closest("[data-range-time-value]");
+                if (timeOptionButton) {
+                    const selector = `[data-range-time-type='${timeOptionButton.dataset.rangeTimeType}'][data-range-time-part='${timeOptionButton.dataset.rangeTimePart}']`;
+                    loginLogTimeRangePicker.querySelectorAll(selector).forEach((button) => button.classList.remove("is-selected"));
+                    timeOptionButton.classList.add("is-selected");
+                    return;
+                }
+                const modeButton = event.target.closest("[data-range-mode]");
+                if (modeButton) {
+                    loginLogState.rangePickerMode = modeButton.dataset.rangeMode || "date";
+                    loginLogState.rangePickerPanelIndex = Number(modeButton.dataset.panelIndex) || 0;
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                const yearButton = event.target.closest("[data-range-year]");
+                if (yearButton) {
+                    const year = Number(yearButton.dataset.rangeYear);
+                    const panelIndex = Number(yearButton.dataset.panelIndex) || 0;
+                    const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
+                    const current = loginLogState[key];
+                    loginLogState[key] = new Date(year, current.getMonth(), 1);
+                    loginLogState.rangePickerMode = "date";
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                const monthButton = event.target.closest("[data-range-month]");
+                if (monthButton) {
+                    const month = Number(monthButton.dataset.rangeMonth);
+                    const panelIndex = Number(monthButton.dataset.panelIndex) || 0;
+                    const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
+                    const current = loginLogState[key];
+                    loginLogState[key] = new Date(current.getFullYear(), month, 1);
+                    loginLogState.rangePickerMode = "date";
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                const actionButton = event.target.closest("[data-range-action]");
+                if (!actionButton) {
+                    return;
+                }
+                if (actionButton.dataset.rangeAction === "clear") {
+                    loginLogState.startTime = "";
+                    loginLogState.endTime = "";
+                    updateLoginLogTimeRangeText();
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                if (actionButton.dataset.rangeAction === "time") {
+                    loginLogState.showRangeTime = !loginLogState.showRangeTime;
+                    renderLoginLogTimeRangePicker();
+                    return;
+                }
+                applyLoginLogRangeTime();
+                setLoginLogTimeRangePickerOpen(false);
+                loginLogState.page = 1;
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
+        }
+        if (loginLogPageCards) {
+            loginLogPageCards.addEventListener("click", (event) => {
+                const pageButton = event.target.closest("[data-page], [data-page-action]");
+                if (!pageButton || pageButton.disabled) {
+                    return;
+                }
+                const totalPages = Math.max(1, Math.ceil(loginLogState.total / loginLogState.pageSize));
+                let page = Number(pageButton.dataset.page);
+                if (pageButton.dataset.pageAction === "prev") {
+                    page = Math.max(1, loginLogState.page - 1);
+                } else if (pageButton.dataset.pageAction === "next") {
+                    page = Math.min(totalPages, loginLogState.page + 1);
+                }
+                if (!page || page === loginLogState.page) {
+                    return;
+                }
+                loginLogState.page = page;
+                loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
         }
         if (systemConfigFields) {
             systemConfigFields.addEventListener("click", (event) => {

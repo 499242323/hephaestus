@@ -31,7 +31,7 @@ public class MediaAccessController {
     @GetMapping("/**")
     public void view(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String storagePath = extractStoragePath(request);
-        log.info("访问媒体展示接口: storagePath={}", storagePath);
+//        log.info("访问媒体展示接口: storagePath={}", storagePath);
         byte[] bytes = mediaStorageService.read(storagePath);
 
         response.setStatus(HttpStatus.OK.value());

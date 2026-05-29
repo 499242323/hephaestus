@@ -1,4 +1,4 @@
-package com.example.springaidemo.login.auth;
+package com.example.springaidemo.login.auth.domain;
 
 import java.io.Serializable;
 

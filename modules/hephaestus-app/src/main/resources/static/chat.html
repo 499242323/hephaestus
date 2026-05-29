@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hephaestus</title>
-    <link rel="stylesheet" href="./chat.css?v=20260528-session-expired1">
-    <link rel="stylesheet" href="./org-settings.css?v=20260528-settings-switch2">
+    <link rel="stylesheet" href="./chat.css?v=20260528-session-expired-page1">
+    <link rel="stylesheet" href="./org-settings.css?v=20260528-log-time-range12">
     <link rel="stylesheet" href="./org-profile.css?v=20260527-profile11">
 </head>
 <body>
@@ -128,14 +128,15 @@
 <div id="orgProfileMount"></div>
 <div id="sessionExpiredDialog" class="session-expired-dialog" role="dialog" aria-modal="true" aria-labelledby="sessionExpiredTitle" hidden>
     <div class="session-expired-dialog__card">
-        <strong id="sessionExpiredTitle">账号已在其他地方登录</strong>
-        <p>当前登录已失效，请重新登录后继续使用。</p>
-        <button id="sessionExpiredLoginButton" type="button">重新登录</button>
+        <div class="session-expired-dialog__icon" aria-hidden="true">!</div>
+        <strong id="sessionExpiredTitle">未登录或登录已过期</strong>
+        <p>当前页面需要登录后继续使用。请点击下方按钮跳转到登录页面，重新登录后再继续操作。</p>
+        <button id="sessionExpiredLoginButton" type="button">跳转登录</button>
     </div>
 </div>
 
-<script src="./org-settings.js?v=20260528-config-live1"></script>
+<script src="./org-settings.js?v=20260528-log-time-range12"></script>
 <script src="./org-profile.js?v=20260527-profile11"></script>
-<script src="./chat.js?v=20260528-session-expired1"></script>
+<script src="./chat.js?v=20260528-session-expired-page1"></script>
 </body>
 </html>

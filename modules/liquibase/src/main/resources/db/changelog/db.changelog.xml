@@ -574,4 +574,43 @@
             <column name="sort_order" valueNumeric="15"/>
         </insert>
     </changeSet>
+
+    <changeSet id="sys-login-log-create-table" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="sys_login_log"/>
+            </not>
+        </preConditions>
+        <createTable tableName="sys_login_log">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_sys_login_log"/>
+            </column>
+            <column name="operation_type" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="username" type="varchar(128)"/>
+            <column name="person_id" type="bigint"/>
+            <column name="person_name" type="varchar(128)"/>
+            <column name="session_id" type="varchar(128)"/>
+            <column name="success_flag" type="tinyint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="varchar(512)"/>
+            <column name="client_ip" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_agent" type="varchar(512)"/>
+            <column name="request_uri" type="varchar(255)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="sys_login_log" indexName="idx_sys_login_log_created_at">
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="sys_login_log" indexName="idx_sys_login_log_operation">
+            <column name="operation_type"/>
+            <column name="success_flag"/>
+        </createIndex>
+    </changeSet>
 </databaseChangeLog>
