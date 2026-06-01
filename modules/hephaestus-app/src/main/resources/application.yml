@@ -1,5 +1,9 @@
 server:
   port: ${SERVER_PORT:11018}
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain,text/css,text/javascript,application/javascript
+    min-response-size: 1KB
   servlet:
     context-path: /${CONTEXT_PATH:hephaestus}
   tomcat:

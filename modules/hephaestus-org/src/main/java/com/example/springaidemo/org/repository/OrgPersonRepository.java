@@ -1,6 +1,7 @@
 package com.example.springaidemo.org.repository;
 
 import com.example.springaidemo.mybatis.repository.BaseAbstractRepository;
+import com.example.springaidemo.org.domain.OrgPersonListRow;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -48,6 +49,44 @@ public interface OrgPersonRepository extends BaseAbstractRepository<OrgPersonEnt
                                       @Param("personName") String personName,
                                       @Param("unitId") Long unitId,
                                       @Param("enabled") Boolean enabled);
+
+    @Select("""
+            <script>
+            SELECT p.id,
+                   p.person_code AS personCode,
+                   p.person_name AS personName,
+                   p.username,
+                   p.password,
+                   p.unit_id AS unitId,
+                   u.unit_name AS unitName,
+                   p.avatar_media_id AS avatarMediaId,
+                   m.access_url AS avatarAccessUrl,
+                   p.mobile,
+                   p.email,
+                   p.remark,
+                   p.enabled
+            FROM heph_person cp
+            JOIN heph_unit cu ON cu.id = cp.unit_id
+            JOIN heph_unit u ON (u.ancestor_path = cu.ancestor_path OR u.ancestor_path LIKE CONCAT(cu.ancestor_path, '/%'))
+            JOIN heph_person p ON p.unit_id = u.id
+            LEFT JOIN spring_ai_media_file m ON m.id = p.avatar_media_id
+            WHERE cp.id = #{currentPersonId}
+            <if test="personName != null and personName != ''">
+                AND p.person_name LIKE CONCAT('%', #{personName}, '%')
+            </if>
+            <if test="unitId != null">
+                AND p.unit_id = #{unitId}
+            </if>
+            <if test="enabled != null">
+                AND p.enabled = #{enabled}
+            </if>
+            ORDER BY p.unit_id, p.id
+            </script>
+            """)
+    List<OrgPersonListRow> findListRowsByCurrentScope(@Param("currentPersonId") Long currentPersonId,
+                                                      @Param("personName") String personName,
+                                                      @Param("unitId") Long unitId,
+                                                      @Param("enabled") Boolean enabled);
 
     @Select("""
             SELECT id,

@@ -112,10 +112,7 @@
         }
 
         function buildHeaders(extraHeaders) {
-            const headers = new Headers(extraHeaders || {});
-            const personId = window.hephaestusCurrentLoginUser && window.hephaestusCurrentLoginUser.personId;
-            headers.set("X-Person-Id", personId ? String(personId) : "100");
-            return headers;
+            return new Headers(extraHeaders || {});
         }
 
         async function requestJson(path, options) {

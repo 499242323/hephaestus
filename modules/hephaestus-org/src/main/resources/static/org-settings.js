@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260601-permission-layout1");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260601-blue-form-actions1");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -91,6 +91,12 @@
         const loginLogPageCards = document.getElementById("loginLogPageCards");
         const loginLogPane = document.getElementById("loginLogPane");
         const operationLogPane = document.getElementById("operationLogPane");
+        const operationLogKeywordInput = document.getElementById("operationLogKeywordInput");
+        const operationLogModuleSelect = document.getElementById("operationLogModuleSelect");
+        const operationLogTimeRangeInput = document.getElementById("operationLogTimeRangeInput");
+        const operationLogTimeRangePicker = document.getElementById("operationLogTimeRangePicker");
+        const operationLogTable = document.getElementById("operationLogTable");
+        const operationLogPageCards = document.getElementById("operationLogPageCards");
         let settingsOpen = false;
         let currentSettingsTab = "general";
         let settingsScope = null;
@@ -131,6 +137,21 @@
             rangePickerMode: "date",
             rangePickerPanelIndex: 0
         };
+        let operationLogState = {
+            page: 1,
+            pageSize: 10,
+            total: 0,
+            keyword: "",
+            startTime: "",
+            endTime: "",
+            moduleCode: "",
+            rangePickerLeftMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            rangePickerRightMonth: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+            showRangeTime: false,
+            rangePickerMode: "date",
+            rangePickerPanelIndex: 0
+        };
+        let operationLogRangeQueryTimer = null;
 
         const expandedUnitIds = new Set();
         const expandedPeopleGroupIds = new Set();
@@ -208,7 +229,10 @@
             if (loginLogPageCards) {
                 loginLogPageCards.setAttribute("aria-label", "登录日志分页");
             }
-            setText(operationLogPane, "操作日志暂未启用自动采集。当前仅记录登录成功、登录失败和退出登录。");
+            setText(operationLogTable ? operationLogTable.querySelector(".settings-empty") : null, "正在加载操作日志。");
+            if (operationLogPageCards) {
+                operationLogPageCards.setAttribute("aria-label", "操作日志分页");
+            }
         }
 
         function canViewPeople() {
@@ -224,7 +248,7 @@
         }
 
         function canViewLogs() {
-            return hasOrgPermission("general.log");
+            return canViewLoginLog() || canViewOperationLog();
         }
 
         function canViewSystemLogin() {
@@ -244,11 +268,41 @@
         }
 
         function canViewLoginLog() {
-            return hasOrgPermission("general.log.login");
+            return hasOrgPermission("general.log.login") && hasOrgPermission("general.log.login.view");
         }
 
         function canViewOperationLog() {
-            return hasOrgPermission("general.log.operation");
+            return hasOrgPermission("general.log.operation") && hasOrgPermission("general.log.operation.view");
+        }
+
+        function firstAllowedLogTab() {
+            if (canViewLoginLog()) {
+                return "login";
+            }
+            if (canViewOperationLog()) {
+                return "operation";
+            }
+            return "";
+        }
+
+        function loginLogRangeContext() {
+            return {
+                state: loginLogState,
+                input: loginLogTimeRangeInput,
+                picker: loginLogTimeRangePicker,
+                pane: loginLogPane,
+                load: loadLoginLogs
+            };
+        }
+
+        function operationLogRangeContext() {
+            return {
+                state: operationLogState,
+                input: operationLogTimeRangeInput,
+                picker: operationLogTimeRangePicker,
+                pane: operationLogPane,
+                load: loadOperationLogs
+            };
         }
 
         function canUpdateCurrentSystemConfig() {
@@ -470,6 +524,7 @@
 
         function setSettingsDrawerOpen(open) {
             settingsOpen = open;
+            const openingTab = currentSettingsTab;
             settingsDrawer.classList.toggle("is-open", open);
             settingsDrawer.setAttribute("aria-hidden", String(!open));
             settingsBackdrop.hidden = !open;
@@ -482,7 +537,13 @@
             closeDeleteConfirmDialog();
             if (open) {
                 normalizeSettingsPanelText();
-                loadCurrentLoginUser().finally(() => loadSettingsData().then(() => setSettingsTab(firstAllowedSettingsTab())));
+                loadCurrentLoginUser().finally(() => loadSettingsData().then(() => {
+                    if (!currentSettingsTab || currentSettingsTab === openingTab) {
+                        setSettingsTab(firstAllowedSettingsTab());
+                    } else {
+                        setSettingsTab(currentSettingsTab);
+                    }
+                }));
             }
         }
 
@@ -564,7 +625,7 @@
                 applyPeoplePermissionState();
             }
             if (tab === "logs") {
-                setLogTab(canViewLoginLog() ? "login" : "operation");
+                setLogTab(firstAllowedLogTab());
             }
             if (tab === "roles") {
                 loadRoleSettingsPanel().catch((error) => showSettingsError(error.message));
@@ -585,6 +646,9 @@
             }
             if (logsPanel) {
                 logsPanel.hidden = !canViewLogs() || currentSettingsTab !== "logs";
+            }
+            if (currentSettingsTab === "logs") {
+                setLogTab(firstAllowedLogTab());
             }
             if (refreshSystemConfigButton) {
                 refreshSystemConfigButton.hidden = !canViewGeneral();
@@ -664,19 +728,22 @@
             if (!roleSettingsMount || roleSettingsInitialized) {
                 return;
             }
-            const response = await fetch("./org-role-settings.html?v=20260601-permission-layout1");
-            roleSettingsMount.innerHTML = await response.text();
-            if (window.initOrgRoleSettings) {
-                roleSettingsController = await window.initOrgRoleSettings({
-                    root: roleSettingsMount,
-                    apiBasePath: basePath,
-                    buildHeaders: buildSettingsHeaders,
-                    notify: showSettingsToast,
-                    showError: showSettingsError,
-                    permissions: Array.from(currentOrgPermissions.permissions),
-                    admin: currentOrgPermissions.admin
-                });
+            if (!roleSettingsMount.querySelector(".role-settings")) {
+                const response = await fetch("./org-role-settings.html?v=20260601-role-form-actions1");
+                roleSettingsMount.innerHTML = await response.text();
             }
+            if (typeof window.initOrgRoleSettings !== "function") {
+                throw new Error("岗位组件脚本未加载完成，请稍后重试");
+            }
+            roleSettingsController = await window.initOrgRoleSettings({
+                root: roleSettingsMount,
+                apiBasePath: basePath,
+                buildHeaders: buildSettingsHeaders,
+                notify: showSettingsToast,
+                showError: showSettingsError,
+                permissions: Array.from(currentOrgPermissions.permissions),
+                admin: currentOrgPermissions.admin
+            });
             roleSettingsInitialized = true;
         }
 
@@ -687,15 +754,16 @@
         }
 
         function buildSettingsHeaders(extraHeaders) {
-            const headers = new Headers(extraHeaders || {});
-            const personId = window.hephaestusCurrentLoginUser && window.hephaestusCurrentLoginUser.personId;
-            headers.set("X-Person-Id", personId ? String(personId) : "100");
-            return headers;
+            return new Headers(extraHeaders || {});
         }
 
         async function loadCurrentLoginUser() {
             if (window.hephaestusCurrentLoginUser) {
                 return window.hephaestusCurrentLoginUser;
+            }
+            if (window.hephaestusCurrentLoginUserPromise) {
+                currentLoginUserPromise = window.hephaestusCurrentLoginUserPromise;
+                return currentLoginUserPromise;
             }
             if (!currentLoginUserPromise) {
                 currentLoginUserPromise = fetch(apiUrl("/auth/me"))
@@ -769,6 +837,10 @@
             return value ? value.replace("T", " ") : "";
         }
 
+        function formatDateTimeParam(value) {
+            return value ? String(value).replace(" ", "T") : "";
+        }
+
         function parseDateTimeValue(value) {
             if (!value) {
                 return null;
@@ -789,13 +861,15 @@
             return `${match[1]}-${match[2]}-${match[3]}T${match[4] || "00"}:${match[5] || "00"}:${match[6] || "00"}`;
         }
 
-        function syncLoginLogRangeFromInput() {
-            if (!loginLogTimeRangeInput || !loginLogTimeRangeInput.value.trim()) {
-                loginLogState.startTime = "";
-                loginLogState.endTime = "";
+        function syncLogRangeFromInput(context) {
+            const input = context.input;
+            const state = context.state;
+            if (!input || !input.value.trim()) {
+                state.startTime = "";
+                state.endTime = "";
                 return true;
             }
-            const parts = loginLogTimeRangeInput.value.split(/\s+-\s+/);
+            const parts = input.value.split(/\s+-\s+/);
             if (parts.length !== 2) {
                 return false;
             }
@@ -804,34 +878,48 @@
             if (!start || !end) {
                 return false;
             }
-            loginLogState.startTime = start;
-            loginLogState.endTime = end;
-            updateLoginLogTimeRangeText();
+            state.startTime = start;
+            state.endTime = end;
+            updateLogTimeRangeText(context);
             const startDate = parseDateTimeValue(start);
             if (startDate) {
-                loginLogState.rangePickerLeftMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-                loginLogState.rangePickerRightMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
-                loginLogState.rangePickerMode = "date";
+                state.rangePickerLeftMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+                state.rangePickerRightMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+                state.rangePickerMode = "date";
             }
             return true;
         }
 
-        function syncLoginLogRangeBeforeQuery() {
-            if (syncLoginLogRangeFromInput()) {
+        function syncLogRangeBeforeQuery(context) {
+            if (syncLogRangeFromInput(context)) {
                 return true;
             }
             showSettingsError("时间范围格式应为：YYYY-MM-DD HH:mm:ss - YYYY-MM-DD HH:mm:ss");
             return false;
         }
 
-        function updateLoginLogTimeRangeText() {
-            if (!loginLogTimeRangeInput) {
+        function syncLoginLogRangeFromInput() {
+            return syncLogRangeFromInput(loginLogRangeContext());
+        }
+
+        function syncLoginLogRangeBeforeQuery() {
+            return syncLogRangeBeforeQuery(loginLogRangeContext());
+        }
+
+        function updateLogTimeRangeText(context) {
+            const input = context.input;
+            const state = context.state;
+            if (!input) {
                 return;
             }
-            const start = formatDateTimeText(loginLogState.startTime);
-            const end = formatDateTimeText(loginLogState.endTime);
-            loginLogTimeRangeInput.value = start && end ? `${start} - ${end}` : "";
-            loginLogTimeRangeInput.title = "";
+            const start = formatDateTimeText(state.startTime);
+            const end = formatDateTimeText(state.endTime);
+            input.value = start && end ? `${start} - ${end}` : "";
+            input.title = "";
+        }
+
+        function updateLoginLogTimeRangeText() {
+            updateLogTimeRangeText(loginLogRangeContext());
         }
 
         function sameDate(left, right) {
@@ -852,12 +940,14 @@
             });
         }
 
-        function renderLoginLogTimeRangePicker() {
-            if (!loginLogTimeRangePicker) {
+        function renderLogTimeRangePicker(context) {
+            const state = context.state;
+            const picker = context.picker;
+            if (!picker) {
                 return;
             }
-            const startTimeParts = ((loginLogState.startTime || "T00:00:00").slice(11, 16) || "00:00").split(":");
-            const endTimeParts = ((loginLogState.endTime || "T23:59:59").slice(11, 16) || "23:59").split(":");
+            const startTimeParts = ((state.startTime || "T00:00:00").slice(11, 16) || "00:00").split(":");
+            const endTimeParts = ((state.endTime || "T23:59:59").slice(11, 16) || "23:59").split(":");
             const timeColumn = (type, part, selected) => `
                 <div class="settings-time-range-picker__time-column">
                     ${Array.from({ length: part === "hour" ? 24 : 60 }, (_, index) => {
@@ -867,21 +957,21 @@
                     }).join("")}
                 </div>
             `;
-            const months = [loginLogState.rangePickerLeftMonth, loginLogState.rangePickerRightMonth];
-            const startDate = parseDateTimeValue(loginLogState.startTime);
-            const endDate = parseDateTimeValue(loginLogState.endTime);
+            const months = [state.rangePickerLeftMonth, state.rangePickerRightMonth];
+            const startDate = parseDateTimeValue(state.startTime);
+            const endDate = parseDateTimeValue(state.endTime);
             const monthPanels = months.map((monthDate) => {
                 const panelIndex = monthDate.getTime() === months[0].getTime() ? 0 : 1;
-                const isActivePanel = loginLogState.rangePickerPanelIndex === panelIndex;
+                const isActivePanel = state.rangePickerPanelIndex === panelIndex;
                 let selector = "";
-                if (isActivePanel && loginLogState.rangePickerMode === "year") {
+                if (isActivePanel && state.rangePickerMode === "year") {
                     const startYear = Math.floor(monthDate.getFullYear() / 12) * 12;
                     selector = `<div class="settings-time-range-picker__selector">${Array.from({ length: 12 }, (_, index) => {
                         const year = startYear + index;
                         const active = year === monthDate.getFullYear() ? " is-selected" : "";
                         return `<button class="settings-time-range-picker__selector-item${active}" type="button" data-range-year="${year}" data-panel-index="${panelIndex}">${year}</button>`;
                     }).join("")}</div>`;
-                } else if (isActivePanel && loginLogState.rangePickerMode === "month") {
+                } else if (isActivePanel && state.rangePickerMode === "month") {
                     selector = `<div class="settings-time-range-picker__selector">${Array.from({ length: 12 }, (_, index) => {
                         const monthNumber = index + 1;
                         const active = index === monthDate.getMonth() ? " is-selected" : "";
@@ -929,24 +1019,29 @@
                     ${timeColumn("end", "minute", endTimeParts[1])}
                 </div>
             `;
-            loginLogTimeRangePicker.innerHTML = `
-                ${loginLogState.showRangeTime ? timePanel : datePanel}
+            picker.innerHTML = `
+                ${state.showRangeTime ? timePanel : datePanel}
                 <div class="settings-time-range-picker__footer">
-                    <button type="button" data-range-action="time">${loginLogState.showRangeTime ? "选择日期" : "选择时间"}</button>
+                    <button type="button" data-range-action="time">${state.showRangeTime ? "选择日期" : "选择时间"}</button>
                     <button type="button" data-range-action="clear">清空</button>
                     <button type="button" data-range-action="confirm">确定</button>
                 </div>
             `;
-            if (loginLogState.showRangeTime) {
-                requestAnimationFrame(() => scrollSelectedLoginLogTimeColumns());
+            if (state.showRangeTime) {
+                requestAnimationFrame(() => scrollSelectedLogTimeColumns(context));
             }
         }
 
-        function scrollSelectedLoginLogTimeColumns() {
-            if (!loginLogTimeRangePicker) {
+        function renderLoginLogTimeRangePicker() {
+            renderLogTimeRangePicker(loginLogRangeContext());
+        }
+
+        function scrollSelectedLogTimeColumns(context) {
+            const picker = context.picker;
+            if (!picker) {
                 return;
             }
-            loginLogTimeRangePicker.querySelectorAll(".settings-time-range-picker__time-column").forEach((column) => {
+            picker.querySelectorAll(".settings-time-range-picker__time-column").forEach((column) => {
                 const selected = column.querySelector(".settings-time-range-picker__time-option.is-selected");
                 if (selected) {
                     column.scrollTop = selected.offsetTop;
@@ -954,73 +1049,105 @@
             });
         }
 
-        function setLoginLogTimeRangePickerOpen(open) {
-            if (!loginLogTimeRangePicker) {
+        function scrollSelectedLoginLogTimeColumns() {
+            scrollSelectedLogTimeColumns(loginLogRangeContext());
+        }
+
+        function setLogTimeRangePickerOpen(context, open) {
+            const state = context.state;
+            const input = context.input;
+            const picker = context.picker;
+            const pane = context.pane;
+            if (!picker) {
                 return;
             }
             if (open) {
-                loginLogState.showRangeTime = false;
-                loginLogState.rangePickerMode = "date";
-                renderLoginLogTimeRangePicker();
-                if (loginLogTimeRangeInput && loginLogPane) {
-                    const inputRect = loginLogTimeRangeInput.getBoundingClientRect();
-                    const paneRect = loginLogPane.getBoundingClientRect();
+                state.showRangeTime = false;
+                state.rangePickerMode = "date";
+                renderLogTimeRangePicker(context);
+                if (input && pane) {
+                    const inputRect = input.getBoundingClientRect();
+                    const paneRect = pane.getBoundingClientRect();
                     const pickerWidth = Math.min(405, paneRect.width);
                     const left = Math.min(
                         Math.max(inputRect.left - paneRect.left, 0),
                         Math.max(paneRect.width - pickerWidth, 0)
                     );
-                    loginLogTimeRangePicker.style.left = `${left}px`;
-                    loginLogTimeRangePicker.style.top = `${inputRect.bottom - paneRect.top + 6}px`;
+                    picker.style.left = `${left}px`;
+                    picker.style.top = `${inputRect.bottom - paneRect.top + 6}px`;
                 }
-                loginLogTimeRangePicker.hidden = false;
+                picker.hidden = false;
                 return;
             }
-            loginLogTimeRangePicker.hidden = true;
+            picker.hidden = true;
         }
 
-        function chooseLoginLogRangeDate(value) {
+        function setLoginLogTimeRangePickerOpen(open) {
+            setLogTimeRangePickerOpen(loginLogRangeContext(), open);
+        }
+
+        function chooseLogRangeDate(context, value) {
             const date = parseDateTimeValue(value);
             if (!date) {
                 return;
             }
-            const currentStart = parseDateTimeValue(loginLogState.startTime);
-            const currentEnd = parseDateTimeValue(loginLogState.endTime);
+            const state = context.state;
+            const currentStart = parseDateTimeValue(state.startTime);
+            const currentEnd = parseDateTimeValue(state.endTime);
             if (!currentStart || currentEnd) {
-                loginLogState.startTime = formatDateTimeValue(date, false);
-                loginLogState.endTime = "";
+                state.startTime = formatDateTimeValue(date, false);
+                state.endTime = "";
             } else if (date < currentStart) {
-                loginLogState.endTime = loginLogState.startTime;
-                loginLogState.startTime = formatDateTimeValue(date, false);
+                state.endTime = state.startTime;
+                state.startTime = formatDateTimeValue(date, false);
             } else {
-                loginLogState.endTime = formatDateTimeValue(date, true);
+                state.endTime = formatDateTimeValue(date, true);
             }
-            updateLoginLogTimeRangeText();
-            renderLoginLogTimeRangePicker();
+            updateLogTimeRangeText(context);
+            renderLogTimeRangePicker(context);
         }
 
-        function applyLoginLogRangeTime() {
-            if (!loginLogTimeRangePicker) {
+        function chooseLoginLogRangeDate(value) {
+            chooseLogRangeDate(loginLogRangeContext(), value);
+        }
+
+        function applyLogRangeTime(context) {
+            const state = context.state;
+            const picker = context.picker;
+            if (!picker) {
                 return;
             }
             const getPart = (type, part, fallback) => {
-                const selected = loginLogTimeRangePicker.querySelector(`[data-range-time-type='${type}'][data-range-time-part='${part}'].is-selected`);
+                const selected = picker.querySelector(`[data-range-time-type='${type}'][data-range-time-part='${part}'].is-selected`);
                 return selected ? selected.dataset.rangeTimeValue : fallback;
             };
-            if (loginLogState.startTime) {
+            if (state.startTime) {
                 const hour = getPart("start", "hour", "00");
                 const minute = getPart("start", "minute", "00");
-                loginLogState.startTime = `${loginLogState.startTime.slice(0, 11)}${hour}:${minute}:00`;
+                state.startTime = `${state.startTime.slice(0, 11)}${hour}:${minute}:00`;
             }
-            if (loginLogState.endTime) {
+            if (state.endTime) {
                 const hour = getPart("end", "hour", "23");
                 const minute = getPart("end", "minute", "59");
-                loginLogState.endTime = `${loginLogState.endTime.slice(0, 11)}${hour}:${minute}:59`;
+                state.endTime = `${state.endTime.slice(0, 11)}${hour}:${minute}:59`;
             }
-            updateLoginLogTimeRangeText();
+            updateLogTimeRangeText(context);
+        }
+
+        function completeLogRangeBeforeQuery(context) {
+            const state = context.state;
+            if (state.startTime && !state.endTime) {
+                state.endTime = `${state.startTime.slice(0, 11)}23:59:59`;
+                updateLogTimeRangeText(context);
+            }
+        }
+
+        function applyLoginLogRangeTime() {
+            applyLogRangeTime(loginLogRangeContext());
         }
 
         function queryLoginLogsFromFilters() {
+            completeLogRangeBeforeQuery(loginLogRangeContext());
             if (loginLogState.showRangeTime) {
                 applyLoginLogRangeTime();
             }
@@ -1030,6 +1157,79 @@
             setLoginLogTimeRangePickerOpen(false);
             loginLogState.page = 1;
             loadLoginLogs().catch((error) => showSettingsError(error.message));
+        }
+
+        function handleLogRangePickerClick(event, context, queryCallback) {
+            event.stopPropagation();
+            const state = context.state;
+            const picker = context.picker;
+            const dayButton = event.target.closest("[data-date]");
+            if (dayButton) {
+                chooseLogRangeDate(context, dayButton.dataset.date);
+                return;
+            }
+            const navButton = event.target.closest("[data-range-nav]");
+            if (navButton) {
+                const offset = Number(navButton.dataset.rangeNav) || 0;
+                state.rangePickerLeftMonth = new Date(state.rangePickerLeftMonth.getFullYear(), state.rangePickerLeftMonth.getMonth() + offset, 1);
+                state.rangePickerRightMonth = new Date(state.rangePickerRightMonth.getFullYear(), state.rangePickerRightMonth.getMonth() + offset, 1);
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            const timeOptionButton = event.target.closest("[data-range-time-value]");
+            if (timeOptionButton) {
+                const selector = `[data-range-time-type='${timeOptionButton.dataset.rangeTimeType}'][data-range-time-part='${timeOptionButton.dataset.rangeTimePart}']`;
+                picker.querySelectorAll(selector).forEach((button) => button.classList.remove("is-selected"));
+                timeOptionButton.classList.add("is-selected");
+                return;
+            }
+            const modeButton = event.target.closest("[data-range-mode]");
+            if (modeButton) {
+                state.rangePickerMode = modeButton.dataset.rangeMode || "date";
+                state.rangePickerPanelIndex = Number(modeButton.dataset.panelIndex) || 0;
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            const yearButton = event.target.closest("[data-range-year]");
+            if (yearButton) {
+                const year = Number(yearButton.dataset.rangeYear);
+                const panelIndex = Number(yearButton.dataset.panelIndex) || 0;
+                const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
+                const current = state[key];
+                state[key] = new Date(year, current.getMonth(), 1);
+                state.rangePickerMode = "date";
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            const monthButton = event.target.closest("[data-range-month]");
+            if (monthButton) {
+                const month = Number(monthButton.dataset.rangeMonth);
+                const panelIndex = Number(monthButton.dataset.panelIndex) || 0;
+                const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
+                const current = state[key];
+                state[key] = new Date(current.getFullYear(), month, 1);
+                state.rangePickerMode = "date";
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            const actionButton = event.target.closest("[data-range-action]");
+            if (!actionButton) {
+                return;
+            }
+            if (actionButton.dataset.rangeAction === "clear") {
+                state.startTime = "";
+                state.endTime = "";
+                updateLogTimeRangeText(context);
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            if (actionButton.dataset.rangeAction === "time") {
+                state.showRangeTime = !state.showRangeTime;
+                renderLogTimeRangePicker(context);
+                return;
+            }
+            completeLogRangeBeforeQuery(context);
+            queryCallback();
         }
 
         function loginLogOperationLabel(value) {
@@ -1052,10 +1252,10 @@
                 params.set("keyword", loginLogKeywordInput.value.trim());
             }
             if (loginLogState.startTime) {
-                params.set("startTime", loginLogState.startTime);
+                params.set("startTime", formatDateTimeParam(loginLogState.startTime));
             }
             if (loginLogState.endTime) {
-                params.set("endTime", loginLogState.endTime);
+                params.set("endTime", formatDateTimeParam(loginLogState.endTime));
             }
             if (loginLogOperationTypeSelect && loginLogOperationTypeSelect.value) {
                 params.set("operationType", loginLogOperationTypeSelect.value);
@@ -1195,13 +1395,196 @@
             renderLoginLogs(pageData);
         }
 
+        function collectOperationLogFilters() {
+            if (operationLogKeywordInput && operationLogKeywordInput.value.trim()) {
+                operationLogState.keyword = operationLogKeywordInput.value.trim();
+            } else {
+                operationLogState.keyword = "";
+            }
+            operationLogState.moduleCode = operationLogModuleSelect ? operationLogModuleSelect.value : "";
+            const params = new URLSearchParams();
+            params.set("page", String(operationLogState.page));
+            params.set("pageSize", String(operationLogState.pageSize));
+            if (operationLogState.keyword) {
+                params.set("keyword", operationLogState.keyword);
+            }
+            if (operationLogState.moduleCode) {
+                params.set("moduleCode", operationLogState.moduleCode);
+            }
+            if (operationLogState.startTime) {
+                params.set("startTime", formatDateTimeParam(operationLogState.startTime));
+            }
+            if (operationLogState.endTime) {
+                params.set("endTime", formatDateTimeParam(operationLogState.endTime));
+            }
+            return params;
+        }
+
+        function updateOperationLogTimeRangeText() {
+            updateLogTimeRangeText(operationLogRangeContext());
+        }
+
+        function syncOperationLogRangeFromInput() {
+            return syncLogRangeFromInput(operationLogRangeContext());
+        }
+
+        function syncOperationLogRangeBeforeQuery() {
+            return syncLogRangeBeforeQuery(operationLogRangeContext());
+        }
+
+        function setOperationLogTimeRangePickerOpen(open) {
+            setLogTimeRangePickerOpen(operationLogRangeContext(), open);
+        }
+
+        function queryOperationLogsFromFilters() {
+            if (operationLogState.showRangeTime) {
+                applyLogRangeTime(operationLogRangeContext());
+            }
+            completeLogRangeBeforeQuery(operationLogRangeContext());
+            if (!syncOperationLogRangeBeforeQuery()) {
+                return;
+            }
+            setOperationLogTimeRangePickerOpen(false);
+            operationLogState.page = 1;
+            loadOperationLogs().catch((error) => showSettingsError(error.message));
+        }
+
+        function scheduleOperationLogRangeQuery() {
+            if (!operationLogTimeRangeInput) {
+                return;
+            }
+            window.clearTimeout(operationLogRangeQueryTimer);
+            operationLogRangeQueryTimer = window.setTimeout(() => {
+                const value = operationLogTimeRangeInput.value.trim();
+                if (!value || /^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?\s+-\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/.test(value)) {
+                    queryOperationLogsFromFilters();
+                }
+            }, 500);
+        }
+
+        function renderOperationLogPageCards(totalPages) {
+            if (!operationLogPageCards) {
+                return;
+            }
+            const pages = getLoginLogPageNumbers(totalPages).map((item) => {
+                if (item.ellipsis) {
+                    return '<span class="settings-log-page-card settings-log-page-card--ellipsis">...</span>';
+                }
+                const active = item.page === operationLogState.page;
+                const directionClass = item.page < operationLogState.page ? " is-prev" : item.page > operationLogState.page ? " is-next" : "";
+                return `<button type="button" class="settings-log-page-card${active ? " is-active" : ""}${directionClass}" data-operation-page="${item.page}">${item.page}</button>`;
+            }).join("");
+            const prevDisabled = operationLogState.page <= 1;
+            const nextDisabled = operationLogState.page >= totalPages;
+            const prevButton = `<button type="button" class="settings-log-page-card settings-log-page-card--nav" data-operation-page-action="prev" ${prevDisabled ? "disabled" : ""}>‹</button>`;
+            const nextButton = `<button type="button" class="settings-log-page-card settings-log-page-card--nav" data-operation-page-action="next" ${nextDisabled ? "disabled" : ""}>›</button>`;
+            const totalCard = `<span class="settings-log-page-card settings-log-page-card--total">共 ${operationLogState.total} 条</span>`;
+            const pageSizeInput = `<label class="settings-log-page-size"><span>每页</span><input id="operationLogPageSizeInput" type="number" min="1" max="100" step="1" value="${operationLogState.pageSize}" aria-label="每页行数"></label>`;
+            operationLogPageCards.innerHTML = `<div class="settings-log-page-stage">${prevButton}${pages}${nextButton}${totalCard}${pageSizeInput}</div>`;
+            const input = document.getElementById("operationLogPageSizeInput");
+            if (input) {
+                input.addEventListener("change", () => {
+                    operationLogState.pageSize = Number(input.value) || 10;
+                    operationLogState.page = 1;
+                    loadOperationLogs().catch((error) => showSettingsError(error.message));
+                });
+            }
+        }
+
+        function renderOperationLogs(pageData) {
+            if (!operationLogTable || !canViewOperationLog()) {
+                return;
+            }
+            operationLogState.page = (pageData && pageData.page) || operationLogState.page;
+            operationLogState.pageSize = (pageData && pageData.pageSize) || operationLogState.pageSize;
+            operationLogState.total = (pageData && pageData.total) || 0;
+            const items = (pageData && (pageData.items || pageData.list)) || [];
+            if (!items.length) {
+                operationLogTable.innerHTML = '<div class="settings-empty">暂无操作日志。</div>';
+                renderOperationLogPageCards(1);
+                return;
+            }
+            const rows = items.map((item, index) => {
+                const statusClass = item.success ? "is-success" : "is-failed";
+                const statusText = item.success ? "成功" : "失败";
+                const operator = item.operatorName || item.operatorUsername || "-";
+                const target = [item.targetType, item.targetName || item.targetId].filter(Boolean).join(" / ") || "-";
+                return `
+                    <tr>
+                        <td>${formatLoginLogTime(item.createdAt)}</td>
+                        <td>${escapeHtml(operator)}</td>
+                        <td>${escapeHtml(item.moduleName || "-")}</td>
+                        <td>${escapeHtml(item.actionName || "-")}</td>
+                        <td>${escapeHtml(target)}</td>
+                        <td><span class="settings-log-status ${statusClass}">${statusText}</span></td>
+                        <td><button type="button" class="settings-log-detail-toggle" data-operation-log-detail="${index}">${escapeHtml(item.summary || "-")}</button></td>
+                    </tr>
+                    <tr class="settings-log-detail-row" data-operation-log-detail-row="${index}" hidden>
+                        <td colspan="7">
+                            <div class="settings-log-detail">
+                                <div><strong>明细</strong>${escapeHtml(item.detail || "-")}</div>
+                                <div><strong>IP</strong>${escapeHtml(item.clientIp || "-")}</div>
+                                <div><strong>路径</strong>${escapeHtml([item.requestMethod, item.requestUri].filter(Boolean).join(" ") || "-")}</div>
+                                <div><strong>UA</strong>${escapeHtml(item.userAgent || "-")}</div>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join("");
+            operationLogTable.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>操作人</th>
+                            <th>模块</th>
+                            <th>动作</th>
+                            <th>对象</th>
+                            <th>结果</th>
+                            <th>摘要</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+            renderOperationLogPageCards(Math.max(1, Math.ceil(operationLogState.total / operationLogState.pageSize)));
+        }
+
+        async function loadOperationLogs() {
+            if (!operationLogTable || !canViewOperationLog()) {
+                return;
+            }
+            if (!syncOperationLogRangeBeforeQuery()) {
+                return;
+            }
+            operationLogTable.innerHTML = '<div class="settings-empty">正在加载操作日志。</div>';
+            const pageData = await requestJson(`/api/logs/operations?${collectOperationLogFilters().toString()}`);
+            renderOperationLogs(pageData);
+        }
+
         function setLogTab(tab) {
+            if (!tab) {
+                if (logsPanel) {
+                    logsPanel.querySelectorAll("[data-log-tab]").forEach((button) => {
+                        button.hidden = true;
+                        button.classList.toggle("active", false);
+                    });
+                }
+                if (loginLogPane) {
+                    loginLogPane.hidden = true;
+                }
+                if (operationLogPane) {
+                    operationLogPane.hidden = true;
+                }
+                if (refreshLoginLogsButton) {
+                    refreshLoginLogsButton.hidden = true;
+                }
+                return;
+            }
             const activeTab = tab === "operation" ? "operation" : "login";
             if (activeTab === "login" && !canViewLoginLog()) {
-                return setLogTab("operation");
+                return setLogTab(firstAllowedLogTab());
             }
             if (activeTab === "operation" && !canViewOperationLog()) {
-                return setLogTab("login");
+                return setLogTab(firstAllowedLogTab());
             }
             if (logsPanel) {
                 logsPanel.querySelectorAll("[data-log-tab]").forEach((button) => {
@@ -1220,6 +1603,8 @@
             }
             if (activeTab === "login") {
                 loadLoginLogs().catch((error) => showSettingsError(error.message));
+            } else if (activeTab === "operation") {
+                loadOperationLogs().catch((error) => showSettingsError(error.message));
             }
         }
 
@@ -1595,13 +1980,23 @@
             if (!personRolePickerList) {
                 return;
             }
-            const selected = new Set((selectedRoles || []).map((role) => String(role.id)));
-            const roleInputDisabled = canAssignPersonRoles() ? "" : "disabled";
-            personRolePickerList.classList.toggle("is-readonly", !canAssignPersonRoles());
-            personRolePickerList.innerHTML = settingsRoles.length
-                ? settingsRoles.map((role) => `
+            const canAssignRoles = canAssignPersonRoles();
+            const selectedRoleList = (selectedRoles || [])
+                .filter((role) => role && role.id)
+                .map((role) => {
+                    const matchedRole = settingsRoles.find((item) => String(item.id) === String(role.id));
+                    return Object.assign({}, matchedRole || {}, role);
+                })
+                .filter((role) => role && role.id && role.roleName);
+            const selected = new Set(selectedRoleList.map((role) => String(role.id)));
+            const availableRoles = canAssignRoles
+                ? settingsRoles.filter((role) => role && role.id && role.roleName && selected.has(String(role.id)))
+                : selectedRoleList;
+            personRolePickerList.classList.toggle("is-readonly", !canAssignRoles);
+            personRolePickerList.innerHTML = availableRoles.length
+                ? availableRoles.map((role) => `
                     <label class="person-role-picker__item">
-                        <input type="checkbox" value="${role.id}" ${selected.has(String(role.id)) ? "checked" : ""} ${roleInputDisabled}>
+                        <input type="checkbox" value="${role.id}" checked ${canAssignRoles ? "" : "disabled"}>
                         <span>${escapeHtml(role.roleName || "")} (${escapeHtml(role.unitName || "未分配部门")})</span>
                     </label>
                 `).join("")
@@ -1666,7 +2061,7 @@
                 canViewRoles() ? requestJson("/api/org/roles?enabled=true") : Promise.resolve([])
             ]);
             settingsPeople = people || [];
-            settingsRoles = roles || [];
+            settingsRoles = (roles || []).filter((role) => role && role.id && role.roleName);
             settingsPeople.forEach((person) => {
                 if (person.unitId) {
                     expandedPeopleGroupIds.add(String(person.unitId));
@@ -1688,18 +2083,26 @@
             showSettingsError("");
             try {
                 await loadCurrentOrgPermissions();
-                if (canViewUnits() || canViewPeople()) {
-                    settingsScope = await requestJson("/api/org/persons/current-scope");
-                } else {
-                    settingsScope = { units: [] };
-                }
+                const scopePromise = (canViewUnits() || canViewPeople())
+                    ? requestJson("/api/org/persons/current-scope")
+                    : Promise.resolve({ units: [] });
+                const peoplePromise = canViewPeople() ? loadPeople() : Promise.resolve(null);
+                const configPromise = canViewGeneral() ? requestJson("/api/system-config/forms/main-system") : Promise.resolve(null);
+                const [scope, configForm] = await Promise.all([scopePromise, configPromise]);
+                settingsScope = scope || { units: [] };
                 const units = settingsScope.units || [];
                 initializeExpandedSets(units);
                 renderUnitsTree(canViewUnits() ? units : []);
                 populateUnitSelect(personUnitIdInput, canViewPeople() ? units : [], false);
                 populateUnitSelect(unitParentSelect, canViewUnits() ? units : [], false);
+                await peoplePromise;
                 if (canViewPeople()) {
-                    await loadPeople();
+                    renderPeopleList(settingsPeople);
+                    const currentPerson = selectedPersonId
+                        ? settingsPeople.find((person) => String(person.id) === String(selectedPersonId))
+                        : null;
+                    renderPersonRolePicker(currentPerson ? currentPerson.roles || [] : []);
+                    syncPersonRolePickerPermissionState();
                 } else {
                     settingsPeople = [];
                     settingsRoles = [];
@@ -1714,8 +2117,8 @@
                     unitParentSelect.value = String(firstUnit.id);
                     unitParentIdInput.value = String(firstUnit.id);
                 }
-                if (canViewGeneral()) {
-                    await loadSystemConfigForm();
+                if (configForm) {
+                    renderSystemConfigForm(configForm);
                 }
             } catch (error) {
                 showSettingsError(error && error.message ? error.message : "加载设置数据失败");
@@ -1893,73 +2296,7 @@
         }
         if (loginLogTimeRangePicker) {
             loginLogTimeRangePicker.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const dayButton = event.target.closest("[data-date]");
-                if (dayButton) {
-                    chooseLoginLogRangeDate(dayButton.dataset.date);
-                    return;
-                }
-                const navButton = event.target.closest("[data-range-nav]");
-                if (navButton) {
-                    const offset = Number(navButton.dataset.rangeNav) || 0;
-                    loginLogState.rangePickerLeftMonth = new Date(loginLogState.rangePickerLeftMonth.getFullYear(), loginLogState.rangePickerLeftMonth.getMonth() + offset, 1);
-                    loginLogState.rangePickerRightMonth = new Date(loginLogState.rangePickerRightMonth.getFullYear(), loginLogState.rangePickerRightMonth.getMonth() + offset, 1);
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                const timeOptionButton = event.target.closest("[data-range-time-value]");
-                if (timeOptionButton) {
-                    const selector = `[data-range-time-type='${timeOptionButton.dataset.rangeTimeType}'][data-range-time-part='${timeOptionButton.dataset.rangeTimePart}']`;
-                    loginLogTimeRangePicker.querySelectorAll(selector).forEach((button) => button.classList.remove("is-selected"));
-                    timeOptionButton.classList.add("is-selected");
-                    return;
-                }
-                const modeButton = event.target.closest("[data-range-mode]");
-                if (modeButton) {
-                    loginLogState.rangePickerMode = modeButton.dataset.rangeMode || "date";
-                    loginLogState.rangePickerPanelIndex = Number(modeButton.dataset.panelIndex) || 0;
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                const yearButton = event.target.closest("[data-range-year]");
-                if (yearButton) {
-                    const year = Number(yearButton.dataset.rangeYear);
-                    const panelIndex = Number(yearButton.dataset.panelIndex) || 0;
-                    const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
-                    const current = loginLogState[key];
-                    loginLogState[key] = new Date(year, current.getMonth(), 1);
-                    loginLogState.rangePickerMode = "date";
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                const monthButton = event.target.closest("[data-range-month]");
-                if (monthButton) {
-                    const month = Number(monthButton.dataset.rangeMonth);
-                    const panelIndex = Number(monthButton.dataset.panelIndex) || 0;
-                    const key = panelIndex === 1 ? "rangePickerRightMonth" : "rangePickerLeftMonth";
-                    const current = loginLogState[key];
-                    loginLogState[key] = new Date(current.getFullYear(), month, 1);
-                    loginLogState.rangePickerMode = "date";
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                const actionButton = event.target.closest("[data-range-action]");
-                if (!actionButton) {
-                    return;
-                }
-                if (actionButton.dataset.rangeAction === "clear") {
-                    loginLogState.startTime = "";
-                    loginLogState.endTime = "";
-                    updateLoginLogTimeRangeText();
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                if (actionButton.dataset.rangeAction === "time") {
-                    loginLogState.showRangeTime = !loginLogState.showRangeTime;
-                    renderLoginLogTimeRangePicker();
-                    return;
-                }
-                queryLoginLogsFromFilters();
+                handleLogRangePickerClick(event, loginLogRangeContext(), queryLoginLogsFromFilters);
             });
         }
         if (loginLogPageCards) {
@@ -1980,6 +2317,79 @@
                 }
                 loginLogState.page = page;
                 loadLoginLogs().catch((error) => showSettingsError(error.message));
+            });
+        }
+        if (operationLogKeywordInput) {
+            operationLogKeywordInput.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter") {
+                    return;
+                }
+                event.preventDefault();
+                operationLogState.page = 1;
+                loadOperationLogs().catch((error) => showSettingsError(error.message));
+            });
+        }
+        [operationLogModuleSelect].forEach((element) => {
+            if (!element) {
+                return;
+            }
+            element.addEventListener("change", () => {
+                operationLogState.page = 1;
+                loadOperationLogs().catch((error) => showSettingsError(error.message));
+            });
+        });
+        if (operationLogTimeRangeInput) {
+            operationLogTimeRangeInput.addEventListener("click", () => setOperationLogTimeRangePickerOpen(true));
+            operationLogTimeRangeInput.addEventListener("mouseenter", () => {
+                operationLogTimeRangeInput.title = "";
+            });
+            operationLogTimeRangeInput.addEventListener("change", () => {
+                queryOperationLogsFromFilters();
+            });
+            operationLogTimeRangeInput.addEventListener("input", () => scheduleOperationLogRangeQuery());
+            operationLogTimeRangeInput.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter") {
+                    return;
+                }
+                event.preventDefault();
+                queryOperationLogsFromFilters();
+            });
+        }
+        if (operationLogTimeRangePicker) {
+            operationLogTimeRangePicker.addEventListener("click", (event) => {
+                handleLogRangePickerClick(event, operationLogRangeContext(), queryOperationLogsFromFilters);
+            });
+        }
+        if (operationLogTable) {
+            operationLogTable.addEventListener("click", (event) => {
+                const toggle = event.target.closest("[data-operation-log-detail]");
+                if (!toggle) {
+                    return;
+                }
+                const row = operationLogTable.querySelector(`[data-operation-log-detail-row='${toggle.dataset.operationLogDetail}']`);
+                if (row) {
+                    row.hidden = !row.hidden;
+                }
+            });
+        }
+        if (operationLogPageCards) {
+            operationLogPageCards.addEventListener("click", (event) => {
+                const pageButton = event.target.closest("[data-operation-page], [data-operation-page-action]");
+                if (!pageButton || pageButton.disabled) {
+                    return;
+                }
+                const totalPages = Math.max(1, Math.ceil(operationLogState.total / operationLogState.pageSize));
+                let page = Number(pageButton.dataset.operationPage);
+                if (pageButton.dataset.operationPageAction === "prev") {
+                    page = Math.max(1, operationLogState.page - 1);
+                } else if (pageButton.dataset.operationPageAction === "next") {
+                    page = Math.min(totalPages, operationLogState.page + 1);
+                }
+                if (!page || page === operationLogState.page) {
+                    return;
+                }
+                operationLogState.page = page;
+                loadOperationLogs().catch((error) => showSettingsError(error.message));
             });
         }
         if (systemConfigForm) {
@@ -2070,6 +2480,13 @@
                 && loginLogTimeRangeInput
                 && !loginLogTimeRangeInput.contains(event.target)) {
                 setLoginLogTimeRangePickerOpen(false);
+            }
+            if (operationLogTimeRangePicker
+                && !operationLogTimeRangePicker.hidden
+                && !operationLogTimeRangePicker.contains(event.target)
+                && operationLogTimeRangeInput
+                && !operationLogTimeRangeInput.contains(event.target)) {
+                setOperationLogTimeRangePickerOpen(false);
             }
         });
 

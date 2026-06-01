@@ -1,33 +1,24 @@
 package com.example.springaidemo.org.role.service.impl;
 
 import com.example.springaidemo.org.exception.OrgAccessDeniedException;
-import com.example.springaidemo.org.role.domain.OrgPersonPermissionEntity;
-import com.example.springaidemo.org.role.repository.OrgPersonPermissionRepository;
-import com.example.springaidemo.org.role.repository.OrgRoleRepository;
 import com.example.springaidemo.org.role.service.OrgPermissionGuard;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 @Service
 public class OrgPermissionGuardImpl implements OrgPermissionGuard {
 
-    private static final String ADMIN_ROLE_TYPE = "admin";
+    private final OrgPermissionCache permissionCache;
 
-    private final OrgRoleRepository roleRepository;
-    private final OrgPersonPermissionRepository personPermissionRepository;
-
-    public OrgPermissionGuardImpl(OrgRoleRepository roleRepository,
-                                  OrgPersonPermissionRepository personPermissionRepository) {
-        this.roleRepository = roleRepository;
-        this.personPermissionRepository = personPermissionRepository;
+    public OrgPermissionGuardImpl(OrgPermissionCache permissionCache) {
+        this.permissionCache = permissionCache;
     }
 
     @Override
     public boolean isAdmin(Long personId) {
-        return personId != null && roleRepository.existsEnabledRoleTypeByPersonId(personId, ADMIN_ROLE_TYPE);
+        return permissionCache.getSnapshot(personId).admin();
     }
 
     @Override
@@ -35,23 +26,16 @@ public class OrgPermissionGuardImpl implements OrgPermissionGuard {
         if (personId == null || permissionCode == null || permissionCode.isBlank()) {
             return false;
         }
-        // 管理员岗位不受岗位权限勾选约束，拥有组织设置全部权限。
-        if (isAdmin(personId)) {
+        OrgPermissionCache.PermissionSnapshot snapshot = permissionCache.getSnapshot(personId);
+        if (snapshot.admin()) {
             return true;
         }
         for (String parentCode : parentPermissionCodes(permissionCode)) {
-            if (!hasPermissionCode(personId, parentCode)) {
+            if (!snapshot.permissionCodes().contains(parentCode)) {
                 return false;
             }
         }
-        return hasPermissionCode(personId, permissionCode);
-    }
-
-    private boolean hasPermissionCode(Long personId, String permissionCode) {
-        return personPermissionRepository.findByPersonId(personId).stream()
-                .map(OrgPersonPermissionEntity::getPermissionCode)
-                .filter(Objects::nonNull)
-                .anyMatch(permissionCode::equals);
+        return snapshot.permissionCodes().contains(permissionCode);
     }
 
     private List<String> parentPermissionCodes(String permissionCode) {
@@ -89,9 +73,7 @@ public class OrgPermissionGuardImpl implements OrgPermissionGuard {
 
     @Override
     public List<String> listPermissionCodes(Long personId) {
-        return personPermissionRepository.findByPersonId(personId).stream()
-                .map(OrgPersonPermissionEntity::getPermissionCode)
-                .filter(Objects::nonNull)
+        return permissionCache.getSnapshot(personId).permissionCodes().stream()
                 .distinct()
                 .sorted()
                 .toList();

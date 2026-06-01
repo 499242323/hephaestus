@@ -184,7 +184,7 @@ Liquibase 只能追加 changeSet，不修改已执行 changeSet。
 
 ## 6. 后端接口
 
-接口统一挂载在 `/api/org` 下，当前人员通过 `X-Person-Id` 获取。
+接口统一挂载在 `/api/org` 下，当前人员由后端从登录 Session 获取。
 
 岗位接口：
 

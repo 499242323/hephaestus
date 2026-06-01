@@ -2,7 +2,7 @@ package com.example.springaidemo.login.auth.support;
 
 import com.example.springaidemo.login.auth.config.LoginAuthProperties;
 import com.example.springaidemo.login.auth.domain.LoginSessionUser;
-import com.example.springaidemo.login.auth.service.AuthService;
+import com.example.springaidemo.org.support.SessionUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -56,7 +56,7 @@ public class LoginRequiredInterceptor implements HandlerInterceptor {
         }
 
         HttpSession session = request.getSession(false);
-        if (session != null && session.getAttribute(AuthService.SESSION_USER_KEY) instanceof LoginSessionUser) {
+        if (SessionUtils.hasLoginUser(session, LoginSessionUser.class)) {
             return true;
         }
 

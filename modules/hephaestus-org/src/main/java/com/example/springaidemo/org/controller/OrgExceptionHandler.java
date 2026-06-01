@@ -6,7 +6,6 @@ import com.example.springaidemo.org.role.controller.OrgPermissionController;
 import com.example.springaidemo.org.role.controller.OrgRoleController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -16,13 +15,6 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice(basePackageClasses = {OrgUnitController.class, OrgPersonController.class, OrgRoleController.class, OrgPermissionController.class})
 public class OrgExceptionHandler {
-
-    @ExceptionHandler(MissingRequestHeaderException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleMissingHeader(MissingRequestHeaderException exception) {
-        log.warn("组织设置请求缺少请求头: {}", exception.getHeaderName(), exception);
-        return Map.of("message", "缺少请求头: " + exception.getHeaderName());
-    }
 
     @ExceptionHandler(OrgValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)

@@ -93,8 +93,8 @@
                                     </div>
                                     <div class="settings-form__actions">
                                         <button class="settings-action settings-action--primary" type="submit">保存部门</button>
-                                        <button id="resetUnitFormButton" class="settings-action" type="button">重置</button>
-                                        <button id="refreshSettingsButton" class="settings-action" type="button">刷新</button>
+                                        <button id="resetUnitFormButton" class="settings-action settings-action--primary" type="button">重置</button>
+                                        <button id="refreshSettingsButton" class="settings-action settings-action--primary" type="button">刷新</button>
                                     </div>
                                 </form>
                             </div>
@@ -153,9 +153,9 @@
                                     </div>
                                     <div class="settings-form__actions">
                                         <button class="settings-action settings-action--primary" type="submit">保存人员</button>
-                                        <button id="resetPersonFormButton" class="settings-action" type="button">重置</button>
-                                        <button id="showPersonCreateButton" class="settings-action" type="button">新增人员</button>
-                                        <button id="refreshPeopleButton" class="settings-action" type="button">刷新</button>
+                                        <button id="resetPersonFormButton" class="settings-action settings-action--primary" type="button">重置</button>
+                                        <button id="showPersonCreateButton" class="settings-action settings-action--primary" type="button">新增人员</button>
+                                        <button id="refreshPeopleButton" class="settings-action settings-action--primary" type="button">刷新</button>
                                     </div>
                                 </form>
                             </div>
@@ -197,8 +197,25 @@
                                 <div id="loginLogPageCards" class="settings-log-page-cards" aria-label="登录日志分页"></div>
                             </div>
                         </div>
-                        <div id="operationLogPane" class="settings-log-placeholder" hidden>
-                            操作日志暂未启用自动采集。当前仅记录登录成功、登录失败和退出登录。
+                        <div id="operationLogPane" hidden>
+                            <div class="settings-log-filters settings-log-filters--operation">
+                                <label class="settings-field settings-field--compact"><span>关键词</span><input id="operationLogKeywordInput" type="text" placeholder="操作人 / 动作 / 对象 / IP"></label>
+                                <label class="settings-field settings-field--compact"><span>模块</span><select id="operationLogModuleSelect">
+                                    <option value="">全部</option>
+                                    <option value="system-config">系统配置</option>
+                                    <option value="org-unit">部门</option>
+                                    <option value="org-person">人员</option>
+                                    <option value="org-role">岗位</option>
+                                </select></label>
+                                <label class="settings-field settings-field--compact settings-field--time-range"><span>时间范围</span><input id="operationLogTimeRangeInput" type="text" placeholder="请选择时间范围" autocomplete="off" title=""></label>
+                            </div>
+                            <div id="operationLogTimeRangePicker" class="settings-time-range-picker" hidden></div>
+                            <div id="operationLogTable" class="settings-log-table">
+                                <div class="settings-empty">正在加载操作日志。</div>
+                            </div>
+                            <div class="settings-log-pager">
+                                <div id="operationLogPageCards" class="settings-log-page-cards" aria-label="操作日志分页"></div>
+                            </div>
                         </div>
                     </div>
                 </section>

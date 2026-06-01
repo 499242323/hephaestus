@@ -350,9 +350,7 @@
 
     async function loadCurrentUserProfile(personId) {
         try {
-            const response = await fetch(`${basePath}/api/org/persons/current-scope`, {
-                headers: { "X-Person-Id": String(personId) }
-            });
+            const response = await fetch(`${basePath}/api/org/persons/current-scope`);
             if (!response.ok) {
                 return null;
             }

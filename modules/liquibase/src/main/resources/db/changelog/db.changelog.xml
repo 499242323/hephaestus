@@ -1209,4 +1209,232 @@
             WHERE permission_code IN ('general.config', 'general.log')
         </sql>
     </changeSet>
+    <changeSet id="operation-log-table-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_operation_log"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_operation_log">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="operator_person_id" type="BIGINT"/>
+            <column name="operator_name" type="VARCHAR(100)"/>
+            <column name="operator_username" type="VARCHAR(100)"/>
+            <column name="operator_unit_id" type="BIGINT"/>
+            <column name="operator_unit_name" type="VARCHAR(200)"/>
+            <column name="module_code" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="module_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_code" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="target_type" type="VARCHAR(64)"/>
+            <column name="target_id" type="VARCHAR(64)"/>
+            <column name="target_name" type="VARCHAR(200)"/>
+            <column name="success_flag" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="summary" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="detail" type="VARCHAR(2000)"/>
+            <column name="client_ip" type="VARCHAR(64)"/>
+            <column name="user_agent" type="VARCHAR(1000)"/>
+            <column name="request_uri" type="VARCHAR(500)"/>
+            <column name="request_method" type="VARCHAR(16)"/>
+            <column name="created_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="heph_operation_log" indexName="idx_heph_operation_log_created_at">
+            <column name="created_at"/>
+            <column name="id"/>
+        </createIndex>
+        <createIndex tableName="heph_operation_log" indexName="idx_heph_operation_log_operator">
+            <column name="operator_person_id"/>
+        </createIndex>
+        <createIndex tableName="heph_operation_log" indexName="idx_heph_operation_log_module_action">
+            <column name="module_code"/>
+            <column name="action_code"/>
+        </createIndex>
+        <createIndex tableName="heph_operation_log" indexName="idx_heph_operation_log_target">
+            <column name="target_type"/>
+            <column name="target_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-unit-order-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_unit"/>
+            <not>
+                <indexExists tableName="heph_unit" indexName="idx_heph_unit_tree_order"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_unit" indexName="idx_heph_unit_tree_order">
+            <column name="ancestor_path"/>
+            <column name="sort_order"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-person-scope-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <not>
+                <indexExists tableName="heph_person" indexName="idx_heph_person_scope_order"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_scope_order">
+            <column name="unit_id"/>
+            <column name="enabled"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-person-username-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <not>
+                <indexExists tableName="heph_person" indexName="idx_heph_person_username"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_username">
+            <column name="username"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-role-scope-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role"/>
+            <not>
+                <indexExists tableName="heph_role" indexName="idx_heph_role_scope_order"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_role" indexName="idx_heph_role_scope_order">
+            <column name="unit_id"/>
+            <column name="enabled"/>
+            <column name="sort_order"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-permission-enabled-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+            <not>
+                <indexExists tableName="heph_permission" indexName="idx_heph_permission_enabled_order"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_permission" indexName="idx_heph_permission_enabled_order">
+            <column name="enabled"/>
+            <column name="permission_group"/>
+            <column name="permission_section"/>
+            <column name="sort_order"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-heph-role-type-enabled-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role_type"/>
+            <not>
+                <indexExists tableName="heph_role_type" indexName="idx_heph_role_type_enabled_order"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_role_type" indexName="idx_heph_role_type_enabled_order">
+            <column name="enabled"/>
+            <column name="sort_order"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-login-log-filter-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_login_log"/>
+            <not>
+                <indexExists tableName="sys_login_log" indexName="idx_sys_login_log_filter_time"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="sys_login_log" indexName="idx_sys_login_log_filter_time">
+            <column name="operation_type"/>
+            <column name="success_flag"/>
+            <column name="created_at"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-operation-log-filter-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_operation_log"/>
+            <not>
+                <indexExists tableName="heph_operation_log" indexName="idx_heph_operation_log_filter_time"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_operation_log" indexName="idx_heph_operation_log_filter_time">
+            <column name="module_code"/>
+            <column name="action_code"/>
+            <column name="success_flag"/>
+            <column name="created_at"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="system-robot-person-seed-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <tableExists tableName="heph_unit"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM heph_person WHERE id = 102 OR person_code = 'ROBOT'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="heph_person">
+            <column name="id" valueNumeric="102"/>
+            <column name="person_code" value="ROBOT"/>
+            <column name="person_name" value="系统机器人"/>
+            <column name="unit_id" valueNumeric="1"/>
+            <column name="mobile" value=""/>
+            <column name="email" value="robot@hephaestus.local"/>
+            <column name="remark" value="系统自动任务使用的机器人身份"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="username" value="robot"/>
+            <column name="password" value=""/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-robot-admin-role-seed-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <tableExists tableName="heph_role"/>
+            <tableExists tableName="heph_person_role"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1)
+                FROM heph_person_role pr
+                JOIN heph_person p ON p.id = pr.person_id
+                JOIN heph_role r ON r.id = pr.role_id
+                WHERE p.person_code = 'ROBOT'
+                  AND r.role_code = 'system_admin'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_person_role (person_id, role_id)
+            SELECT p.id, r.id
+            FROM heph_person p
+            JOIN heph_role r ON r.role_code = 'system_admin'
+            WHERE p.person_code = 'ROBOT'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM heph_person_role pr
+                  WHERE pr.person_id = p.id
+                    AND pr.role_id = r.id
+              )
+        </sql>
+    </changeSet>
 </databaseChangeLog>

@@ -3,6 +3,7 @@ package com.example.springaidemo.org.role.repository;
 import com.example.springaidemo.mybatis.repository.BaseAbstractRepository;
 import com.example.springaidemo.org.role.domain.OrgRoleEntity;
 import com.example.springaidemo.org.role.dto.OrgPersonRoleItem;
+import com.example.springaidemo.org.role.dto.OrgPersonRoleSummaryRow;
 import com.example.springaidemo.org.role.dto.OrgRolePersonItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -98,6 +99,26 @@ public interface OrgRoleRepository extends BaseAbstractRepository<OrgRoleEntity,
             ORDER BY r.unit_id, r.sort_order, r.id
             """)
     List<OrgPersonRoleItem> findRolesByPersonId(@Param("personId") Long personId);
+
+    @Select("""
+            <script>
+            SELECT pr.person_id AS personId,
+                   r.id,
+                   r.role_code AS roleCode,
+                   r.role_name AS roleName,
+                   r.unit_id AS unitId,
+                   u.unit_name AS unitName
+            FROM heph_person_role pr
+            JOIN heph_role r ON r.id = pr.role_id
+            LEFT JOIN heph_unit u ON u.id = r.unit_id
+            WHERE pr.person_id IN
+            <foreach collection="personIds" item="personId" open="(" separator="," close=")">
+                #{personId}
+            </foreach>
+            ORDER BY pr.person_id, r.unit_id, r.sort_order, r.id
+            </script>
+            """)
+    List<OrgPersonRoleSummaryRow> findRolesByPersonIds(@Param("personIds") List<Long> personIds);
 
     @Select("""
             SELECT CASE WHEN COUNT(1) > 0 THEN TRUE ELSE FALSE END

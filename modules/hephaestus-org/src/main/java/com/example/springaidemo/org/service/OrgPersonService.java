@@ -1,7 +1,8 @@
 package com.example.springaidemo.org.service;
 
-import com.example.springaidemo.media.domain.MediaFile;
 import com.example.springaidemo.media.service.MediaFileService;
+import com.example.springaidemo.media.domain.MediaFile;
+import com.example.springaidemo.org.domain.OrgPersonListRow;
 import com.example.springaidemo.org.domain.OrgPersonSummary;
 import com.example.springaidemo.org.dto.CreateOrgPersonRequest;
 import com.example.springaidemo.org.dto.OrgScopeResponse;
@@ -9,6 +10,8 @@ import com.example.springaidemo.org.dto.UpdateOrgPersonRequest;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
+import com.example.springaidemo.org.log.service.OperationLogRecorder;
+import com.example.springaidemo.org.log.support.OperationLogRecordFactory;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
 import com.example.springaidemo.org.role.constant.OrgPermissionCodes;
@@ -36,6 +39,8 @@ public class OrgPersonService {
     private final OrgPersistenceGuard orgPersistenceGuard;
     private final OrgPersonRoleService orgPersonRoleService;
     private final OrgPermissionGuard permissionGuard;
+    private final OperationLogRecorder operationLogRecorder;
+    private final OperationLogRecordFactory operationLogRecordFactory;
 
     public OrgPersonService(OrgPersonRepository orgPersonRepository,
                             OrgUnitRepository orgUnitRepository,
@@ -43,7 +48,9 @@ public class OrgPersonService {
                             MediaFileService mediaFileService,
                             OrgPersistenceGuard orgPersistenceGuard,
                             OrgPersonRoleService orgPersonRoleService,
-                            OrgPermissionGuard permissionGuard) {
+                            OrgPermissionGuard permissionGuard,
+                            OperationLogRecorder operationLogRecorder,
+                            OperationLogRecordFactory operationLogRecordFactory) {
         this.orgPersonRepository = orgPersonRepository;
         this.orgUnitRepository = orgUnitRepository;
         this.orgScopeService = orgScopeService;
@@ -51,6 +58,8 @@ public class OrgPersonService {
         this.orgPersistenceGuard = orgPersistenceGuard;
         this.orgPersonRoleService = orgPersonRoleService;
         this.permissionGuard = permissionGuard;
+        this.operationLogRecorder = operationLogRecorder;
+        this.operationLogRecordFactory = operationLogRecordFactory;
     }
 
     public List<OrgPersonSummary> listPersons(Long currentPersonId, String personName, Long unitId, Boolean enabled) {
@@ -61,8 +70,31 @@ public class OrgPersonService {
         }
         Map<Long, OrgUnitEntity> unitMap = scope.manageableUnits().stream()
                 .collect(Collectors.toMap(OrgUnitEntity::getId, Function.identity()));
-        return orgPersonRepository.findByScope(List.copyOf(scope.manageableUnitIds()), personName, unitId, enabled).stream()
-                .map(person -> toSummary(person, unitMap.get(person.getUnitId())))
+        List<OrgPersonEntity> persons = orgPersonRepository.findByScope(List.copyOf(scope.manageableUnitIds()), personName, unitId, enabled);
+        Map<Long, String> avatarUrlMap = mediaFileService.findByIds(persons.stream()
+                        .map(OrgPersonEntity::getAvatarMediaId)
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .toList()).stream()
+                .collect(Collectors.toMap(MediaFile::id, MediaFile::accessUrl));
+        Map<Long, List<OrgPersonRoleItem>> roleMap = orgPersonRoleService.listPersonRolesForSummary(persons.stream()
+                .map(OrgPersonEntity::getId)
+                .toList());
+        return persons.stream()
+                .map(person -> toSummary(person, unitMap.get(person.getUnitId()),
+                        avatarUrlMap.get(person.getAvatarMediaId()),
+                        roleMap.getOrDefault(person.getId(), List.of())))
+                .toList();
+    }
+
+    public List<OrgPersonSummary> listPersonsFast(Long currentPersonId, String personName, Long unitId, Boolean enabled) {
+        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_VIEW);
+        List<OrgPersonListRow> persons = orgPersonRepository.findListRowsByCurrentScope(currentPersonId, personName, unitId, enabled);
+        Map<Long, List<OrgPersonRoleItem>> roleMap = orgPersonRoleService.listPersonRolesForSummary(persons.stream()
+                .map(OrgPersonListRow::id)
+                .toList());
+        return persons.stream()
+                .map(person -> toSummary(person, roleMap.getOrDefault(person.id(), List.of())))
                 .toList();
     }
 
@@ -110,7 +142,10 @@ public class OrgPersonService {
         if (request.roleIds() != null) {
             orgPersonRoleService.replacePersonRolesForPersonSave(currentPersonId, entity.getId(), request.roleIds());
         }
-        return toSummary(orgPersonRepository.getById(entity.getId()), unit);
+        OrgPersonEntity created = orgPersonRepository.getById(entity.getId());
+        recordPersonLog(currentPersonId, "create", "新增", created, unit, "新增人员：" + created.getPersonName(),
+                "新增人员“" + created.getPersonName() + "”，所属部门为“" + unit.getUnitName() + "”，登录账号为“" + created.getUsername() + "”。");
+        return toSummary(created, unit);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -146,14 +181,42 @@ public class OrgPersonService {
         if (request.roleIds() != null) {
             orgPersonRoleService.replacePersonRolesForPersonSave(currentPersonId, personId, request.roleIds());
         }
-        return toSummary(orgPersonRepository.getById(personId), requireUnit(request.unitId()));
+        OrgPersonEntity updated = orgPersonRepository.getById(personId);
+        OrgUnitEntity unit = requireUnit(request.unitId());
+        recordPersonLog(currentPersonId, "update", "修改", updated, unit, "修改人员：" + updated.getPersonName(),
+                "修改人员“" + updated.getPersonName() + "”：所属部门为“" + unit.getUnitName() + "”，手机号为“" + blankText(updated.getMobile()) + "”，邮箱为“" + blankText(updated.getEmail()) + "”。");
+        return toSummary(updated, unit);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void deletePerson(Long currentPersonId, Long personId) {
         permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_DELETE);
-        orgScopeService.requirePersonInScope(currentPersonId, personId);
+        OrgPersonEntity person = orgScopeService.requirePersonInScope(currentPersonId, personId);
+        OrgUnitEntity unit = requireUnit(person.getUnitId());
         orgPersonRepository.removeById(personId);
+        recordPersonLog(currentPersonId, "delete", "删除", person, unit, "删除人员：" + person.getPersonName(),
+                "删除人员“" + person.getPersonName() + "”，原所属部门为“" + unit.getUnitName() + "”。");
+    }
+
+    private void recordPersonLog(Long operatorPersonId,
+                                 String actionCode,
+                                 String actionName,
+                                 OrgPersonEntity person,
+                                 OrgUnitEntity unit,
+                                 String summary,
+                                 String detail) {
+        operationLogRecorder.recordSuccess(operationLogRecordFactory.create(
+                operatorPersonId,
+                "org-person",
+                "人员",
+                actionCode,
+                actionName,
+                "人员",
+                person == null ? null : person.getId(),
+                person == null ? null : person.getPersonName(),
+                summary,
+                detail
+        ));
     }
 
     public OrgUnitEntity requireUnit(Long unitId) {
@@ -167,6 +230,10 @@ public class OrgPersonService {
     public OrgPersonSummary toSummary(OrgPersonEntity person, OrgUnitEntity unit) {
         String accessUrl = resolveAvatarAccessUrl(person.getAvatarMediaId());
         List<OrgPersonRoleItem> roles = person.getId() == null ? List.of() : orgPersonRoleService.listPersonRolesForSummary(person.getId());
+        return toSummary(person, unit, accessUrl, roles);
+    }
+
+    private OrgPersonSummary toSummary(OrgPersonEntity person, OrgUnitEntity unit, String accessUrl, List<OrgPersonRoleItem> roles) {
         return new OrgPersonSummary(
                 person.getId(),
                 person.getPersonCode(),
@@ -181,7 +248,26 @@ public class OrgPersonService {
                 person.getEmail(),
                 person.getRemark(),
                 person.getEnabled(),
-                roles
+                roles == null ? List.of() : roles
+        );
+    }
+
+    private OrgPersonSummary toSummary(OrgPersonListRow person, List<OrgPersonRoleItem> roles) {
+        return new OrgPersonSummary(
+                person.id(),
+                person.personCode(),
+                person.personName(),
+                person.username(),
+                person.password(),
+                person.unitId(),
+                person.unitName(),
+                person.avatarMediaId(),
+                person.avatarAccessUrl(),
+                person.mobile(),
+                person.email(),
+                person.remark(),
+                person.enabled(),
+                roles == null ? List.of() : roles
         );
     }
 
@@ -209,6 +295,10 @@ public class OrgPersonService {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String blankText(String value) {
+        return value == null || value.isBlank() ? "空" : value;
     }
 
     private String resolveAvatarAccessUrl(Long avatarMediaId) {

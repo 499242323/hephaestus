@@ -32,7 +32,7 @@
 
 - `modules/hephaestus-login` 已提供 `/auth/login`、`/auth/me`、`/auth/logout`、Redis Session、系统配置和登录拦截器。
 - `LoginWebMvcConfiguration` 当前只拦截 `/`、`/chat.html`、`/api/**`，并使用硬编码 `excludePathPatterns`。
-- `LoginRequiredInterceptor` 当前只校验 Session 中的 `AuthService.SESSION_USER_KEY`，未从 YML 读取白名单。
+- `LoginRequiredInterceptor` 当前只校验 Session 中的 `SessionUtils.SESSION_USER_KEY`，未从 YML 读取白名单。
 - `AuthService` 当前负责登录校验、Session 写入、同账号单处登录处理，但没有记录登录成功或失败日志。
 - `AuthController` 当前退出登录直接 `session.invalidate()`，没有记录登出日志。
 - 当前仓库尚无登录日志表、登录日志查询接口和日志查询前端。
@@ -60,7 +60,7 @@
 - 白名单判断放到 `LoginRequiredInterceptor` 内部执行。
 - 白名单来源为 YML 配置，不从系统配置表读取。
 - 命中白名单的请求直接放行。
-- 未命中白名单时，检查 Session 中是否存在 `AuthService.SESSION_USER_KEY`。
+- 未命中白名单时，检查 Session 中是否存在 `SessionUtils.SESSION_USER_KEY`。
 - 未登录 API 请求返回 401 JSON。
 - 未登录页面请求跳转 `/login.html`。
 

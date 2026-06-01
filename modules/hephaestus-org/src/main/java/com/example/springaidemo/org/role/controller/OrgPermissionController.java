@@ -7,9 +7,10 @@ import com.example.springaidemo.org.role.repository.OrgPersonPermissionRepositor
 import com.example.springaidemo.org.role.repository.OrgPermissionRepository;
 import com.example.springaidemo.org.role.service.OrgPermissionGuard;
 import com.example.springaidemo.org.service.OrgScopeService;
+import com.example.springaidemo.org.support.OrgCurrentPersonResolver;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,15 +24,18 @@ public class OrgPermissionController {
     private final OrgPersonPermissionRepository personPermissionRepository;
     private final OrgPermissionGuard permissionGuard;
     private final OrgScopeService orgScopeService;
+    private final OrgCurrentPersonResolver currentPersonResolver;
 
     public OrgPermissionController(OrgPermissionRepository permissionRepository,
                                    OrgPersonPermissionRepository personPermissionRepository,
                                    OrgPermissionGuard permissionGuard,
-                                   OrgScopeService orgScopeService) {
+                                   OrgScopeService orgScopeService,
+                                   OrgCurrentPersonResolver currentPersonResolver) {
         this.permissionRepository = permissionRepository;
         this.personPermissionRepository = personPermissionRepository;
         this.permissionGuard = permissionGuard;
         this.orgScopeService = orgScopeService;
+        this.currentPersonResolver = currentPersonResolver;
     }
 
     @GetMapping("/permissions")
@@ -49,17 +53,20 @@ public class OrgPermissionController {
     }
 
     @GetMapping("/persons/{id}/permissions")
-    public List<OrgPersonPermissionEntity> listPersonPermissions(@RequestHeader("X-Person-Id") Long personId,
+    public List<OrgPersonPermissionEntity> listPersonPermissions(HttpSession session,
                                                                  @PathVariable("id") Long id) {
+        Long personId = currentPersonResolver.currentPersonId(session);
         orgScopeService.requirePersonInScope(personId, id);
         return personPermissionRepository.findByPersonId(id);
     }
 
     @GetMapping("/permissions/current")
-    public OrgCurrentPermissionResponse getCurrentPermissions(@RequestHeader("X-Person-Id") Long personId) {
+    public OrgCurrentPermissionResponse getCurrentPermissions(HttpSession session) {
+        Long personId = currentPersonResolver.currentPersonId(session);
+        boolean admin = permissionGuard.isAdmin(personId);
         return new OrgCurrentPermissionResponse(
-                permissionGuard.isAdmin(personId),
-                permissionGuard.listPermissionCodes(personId)
+                admin,
+                admin ? List.of() : permissionGuard.listPermissionCodes(personId)
         );
     }
 }

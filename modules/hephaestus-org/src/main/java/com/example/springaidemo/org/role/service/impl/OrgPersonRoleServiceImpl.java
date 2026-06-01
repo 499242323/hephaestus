@@ -2,6 +2,8 @@ package com.example.springaidemo.org.role.service.impl;
 
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
+import com.example.springaidemo.org.log.service.OperationLogRecorder;
+import com.example.springaidemo.org.log.support.OperationLogRecordFactory;
 import com.example.springaidemo.org.role.constant.OrgPermissionCodes;
 import com.example.springaidemo.org.role.domain.OrgPersonRoleEntity;
 import com.example.springaidemo.org.role.domain.OrgRoleEntity;
@@ -17,9 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class OrgPersonRoleServiceImpl implements OrgPersonRoleService {
@@ -29,17 +35,23 @@ public class OrgPersonRoleServiceImpl implements OrgPersonRoleService {
     private final OrgScopeService orgScopeService;
     private final OrgPersonPermissionRefreshService permissionRefreshService;
     private final OrgPermissionGuard permissionGuard;
+    private final OperationLogRecorder operationLogRecorder;
+    private final OperationLogRecordFactory operationLogRecordFactory;
 
     public OrgPersonRoleServiceImpl(OrgPersonRoleRepository personRoleRepository,
                                     OrgRoleRepository roleRepository,
                                     OrgScopeService orgScopeService,
                                     OrgPersonPermissionRefreshService permissionRefreshService,
-                                    OrgPermissionGuard permissionGuard) {
+                                    OrgPermissionGuard permissionGuard,
+                                    OperationLogRecorder operationLogRecorder,
+                                    OperationLogRecordFactory operationLogRecordFactory) {
         this.personRoleRepository = personRoleRepository;
         this.roleRepository = roleRepository;
         this.orgScopeService = orgScopeService;
         this.permissionRefreshService = permissionRefreshService;
         this.permissionGuard = permissionGuard;
+        this.operationLogRecorder = operationLogRecorder;
+        this.operationLogRecordFactory = operationLogRecordFactory;
     }
 
     @Override
@@ -51,6 +63,26 @@ public class OrgPersonRoleServiceImpl implements OrgPersonRoleService {
     @Override
     public List<OrgPersonRoleItem> listPersonRolesForSummary(Long personId) {
         return roleRepository.findRolesByPersonId(personId);
+    }
+
+    @Override
+    public Map<Long, List<OrgPersonRoleItem>> listPersonRolesForSummary(Collection<Long> personIds) {
+        if (personIds == null || personIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> distinctPersonIds = personIds.stream()
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (distinctPersonIds.isEmpty()) {
+            return Map.of();
+        }
+        return roleRepository.findRolesByPersonIds(distinctPersonIds).stream()
+                .collect(Collectors.groupingBy(
+                        row -> row.personId(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(row -> row.toItem(), Collectors.toList())
+                ));
     }
 
     @Override
@@ -93,5 +125,24 @@ public class OrgPersonRoleServiceImpl implements OrgPersonRoleService {
             personRoleRepository.insertBatch(relations);
         }
         permissionRefreshService.refreshPersonPermissions(person.getId());
+        operationLogRecorder.recordSuccess(operationLogRecordFactory.create(
+                currentPersonId,
+                "org-person",
+                "人员",
+                "assign-role",
+                "分配岗位",
+                "人员",
+                person.getId(),
+                person.getPersonName(),
+                "保存人员岗位：" + person.getPersonName(),
+                "保存人员“" + person.getPersonName() + "”的岗位，岗位 ID 为“" + roleIdText(distinctRoleIds) + "”。"
+        ));
+    }
+
+    private String roleIdText(Set<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return "无";
+        }
+        return roleIds.stream().map(String::valueOf).reduce((left, right) -> left + "、" + right).orElse("无");
     }
 }

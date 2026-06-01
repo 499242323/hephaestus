@@ -294,6 +294,10 @@
     font-weight: 600;
 }
 
+.settings-config-tab[hidden] {
+    display: none !important;
+}
+
 .settings-config-tab span {
     min-width: 18px;
     height: 18px;
@@ -416,8 +420,26 @@
     position: absolute;
     width: 1px;
     height: 1px;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
     opacity: 0;
     pointer-events: none;
+    appearance: none;
+    background: transparent;
+}
+
+.settings-config-switch input:disabled {
+    width: 1px !important;
+    height: 1px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .settings-config-switch__track {
@@ -469,6 +491,11 @@
 .settings-config-switch input:checked + .settings-config-switch__track .settings-config-switch__thumb::after {
     opacity: 1;
     border-color: #2563eb;
+}
+
+.settings-config-switch input:disabled + .settings-config-switch__track {
+    cursor: not-allowed;
+    opacity: 0.68;
 }
 
 .settings-config-switch__text {
@@ -636,6 +663,14 @@
     color: #111827;
     font-size: 12px;
     line-height: 1;
+}
+
+.settings-form__actions .settings-action {
+    min-height: 28px;
+    min-width: 72px;
+    padding: 0 11px;
+    border-radius: 4px;
+    font-size: 12px;
 }
 
 .settings-action--compact {
@@ -818,6 +853,60 @@
     max-width: 720px;
 }
 
+.person-role-picker {
+    display: grid;
+    gap: 8px;
+    max-width: 720px;
+    margin-top: 10px;
+}
+
+.person-role-picker > strong {
+    color: #111827;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.person-role-picker__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.person-role-picker__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 30px;
+    max-width: 100%;
+    padding: 5px 10px;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.person-role-picker__item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.person-role-picker__item input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #16a34a;
+}
+
+.person-role-picker__list.is-disabled .person-role-picker__item,
+.person-role-picker__list.is-readonly .person-role-picker__item {
+    background: #f8fafc;
+    border-color: #dbe3ec;
+    color: #475569;
+}
+
 .settings-form-tabs {
     display: flex;
     align-items: center;
@@ -879,6 +968,27 @@
     position: relative;
     display: grid;
     gap: 14px;
+}
+
+#operationLogPane {
+    position: relative;
+    display: grid;
+    gap: 14px;
+}
+
+#operationLogPane[hidden] {
+    display: none !important;
+}
+
+.settings-log-filters--operation {
+    grid-template-columns: minmax(100px, 0.7fr) minmax(118px, 0.7fr) minmax(270px, 1.25fr);
+    max-width: 600px;
+    column-gap: 16px;
+    row-gap: 8px;
+}
+
+.settings-log-filters--operation .settings-field--time-range input {
+    min-width: 0;
 }
 
 .settings-time-range-picker {
@@ -1122,6 +1232,39 @@
     max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.settings-log-detail-toggle {
+    max-width: 220px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    cursor: pointer;
+    font: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-log-detail-row td {
+    background: rgba(248, 250, 252, 0.86);
+    white-space: normal;
+}
+
+.settings-log-detail {
+    display: grid;
+    gap: 6px;
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.settings-log-detail strong {
+    display: inline-flex;
+    min-width: 42px;
+    margin-right: 8px;
+    color: #0f172a;
 }
 
 .settings-log-table tr:last-child td {

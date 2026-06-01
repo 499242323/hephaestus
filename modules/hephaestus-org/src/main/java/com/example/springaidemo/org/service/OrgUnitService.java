@@ -5,6 +5,8 @@ import com.example.springaidemo.org.dto.CreateOrgUnitRequest;
 import com.example.springaidemo.org.dto.UpdateOrgUnitRequest;
 import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
+import com.example.springaidemo.org.log.service.OperationLogRecorder;
+import com.example.springaidemo.org.log.support.OperationLogRecordFactory;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +24,21 @@ public class OrgUnitService {
     private final OrgPersonRepository orgPersonRepository;
     private final OrgScopeService orgScopeService;
     private final OrgPersistenceGuard orgPersistenceGuard;
+    private final OperationLogRecorder operationLogRecorder;
+    private final OperationLogRecordFactory operationLogRecordFactory;
 
     public OrgUnitService(OrgUnitRepository orgUnitRepository,
                           OrgPersonRepository orgPersonRepository,
                           OrgScopeService orgScopeService,
-                          OrgPersistenceGuard orgPersistenceGuard) {
+                          OrgPersistenceGuard orgPersistenceGuard,
+                          OperationLogRecorder operationLogRecorder,
+                          OperationLogRecordFactory operationLogRecordFactory) {
         this.orgUnitRepository = orgUnitRepository;
         this.orgPersonRepository = orgPersonRepository;
         this.orgScopeService = orgScopeService;
         this.orgPersistenceGuard = orgPersistenceGuard;
+        this.operationLogRecorder = operationLogRecorder;
+        this.operationLogRecordFactory = operationLogRecordFactory;
     }
 
     public List<OrgUnitTreeNode> getUnitTree(Long currentPersonId) {
@@ -64,7 +72,10 @@ public class OrgUnitService {
                     currentPersonId, request.parentId(), request.unitCode(), exception);
             orgPersistenceGuard.rethrowUnitCodeConflict(exception);
         }
-        return orgUnitRepository.getById(entity.getId());
+        OrgUnitEntity created = orgUnitRepository.getById(entity.getId());
+        recordUnitLog(currentPersonId, "create", "新增", created, "新增部门：" + created.getUnitName(),
+                "新增部门“" + created.getUnitName() + "”，上级部门为“" + parent.getUnitName() + "”，排序为“" + created.getSortOrder() + "”。");
+        return created;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -100,7 +111,10 @@ public class OrgUnitService {
                     currentPersonId, unitId, request.parentId(), request.unitCode(), exception);
             orgPersistenceGuard.rethrowUnitCodeConflict(exception);
         }
-        return orgUnitRepository.getById(unitId);
+        OrgUnitEntity updated = orgUnitRepository.getById(unitId);
+        recordUnitLog(currentPersonId, "update", "修改", updated, "修改部门：" + updated.getUnitName(),
+                "修改部门“" + updated.getUnitName() + "”：部门编码为“" + updated.getUnitCode() + "”，上级部门为“" + parent.getUnitName() + "”，排序为“" + updated.getSortOrder() + "”。");
+        return updated;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -119,6 +133,28 @@ public class OrgUnitService {
             throw new OrgValidationException("当前单位下存在人员，不能删除");
         }
         orgUnitRepository.removeById(unitId);
+        recordUnitLog(currentPersonId, "delete", "删除", entity, "删除部门：" + entity.getUnitName(),
+                "删除部门“" + entity.getUnitName() + "”。");
+    }
+
+    private void recordUnitLog(Long operatorPersonId,
+                               String actionCode,
+                               String actionName,
+                               OrgUnitEntity unit,
+                               String summary,
+                               String detail) {
+        operationLogRecorder.recordSuccess(operationLogRecordFactory.create(
+                operatorPersonId,
+                "org-unit",
+                "部门",
+                actionCode,
+                actionName,
+                "部门",
+                unit == null ? null : unit.getId(),
+                unit == null ? null : unit.getUnitName(),
+                summary,
+                detail
+        ));
     }
 
     private OrgUnitEntity requireUnit(Long unitId) {

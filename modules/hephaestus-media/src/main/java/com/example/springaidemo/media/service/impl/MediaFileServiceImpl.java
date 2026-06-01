@@ -7,7 +7,9 @@ import com.example.springaidemo.media.service.MediaFileService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -52,5 +54,13 @@ public class MediaFileServiceImpl implements MediaFileService {
     @Override
     public Optional<MediaFile> findById(long id) {
         return mediaFileRepository.findById(id);
+    }
+
+    @Override
+    public List<MediaFile> findByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return mediaFileRepository.findByIds(ids.stream().distinct().toList());
     }
 }

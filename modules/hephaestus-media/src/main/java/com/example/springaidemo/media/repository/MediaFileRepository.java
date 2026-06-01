@@ -33,6 +33,27 @@ public interface MediaFileRepository extends BaseAbstractRepository<MediaFileEnt
             """)
     MediaFileEntity getById(@Param("id") Long id);
 
+    @Select("""
+            <script>
+            SELECT id,
+                   conversation_id AS conversationId,
+                   original_filename AS originalFilename,
+                   stored_filename AS storedFilename,
+                   content_type AS contentType,
+                   file_size AS fileSize,
+                   storage_path AS storagePath,
+                   access_url AS accessUrl,
+                   source_type AS sourceType,
+                   created_at AS createdAt
+            FROM spring_ai_media_file
+            WHERE id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    List<MediaFileEntity> findEntitiesByIds(@Param("ids") List<Long> ids);
+
     @Update("UPDATE spring_ai_media_file SET access_url = #{accessUrl} WHERE id = #{id}")
     void updateAccessUrl(@Param("id") long id, @Param("accessUrl") String accessUrl);
 
@@ -55,6 +76,13 @@ public interface MediaFileRepository extends BaseAbstractRepository<MediaFileEnt
     default Optional<MediaFile> findById(long id) {
         MediaFileEntity entity = getById(id);
         return entity == null ? Optional.empty() : Optional.of(entity.toDomain());
+    }
+
+    default List<MediaFile> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return findEntitiesByIds(ids).stream().map(MediaFileEntity::toDomain).toList();
     }
 
     default void deleteMediaFile(long id) {

@@ -259,7 +259,7 @@ Hephaestus 是一个基于 Spring Boot 3、Spring AI、MySQL 和 Redis 的多模
 
 主要流程：
 
-- 前端通过 `/auth/me` 获取当前登录人，组织接口优先使用当前登录人的 `personId` 作为 `X-Person-Id`
+- 前端通过 `/auth/me` 获取当前登录人展示信息，组织接口统一由后端从 Redis Session 读取当前登录人的 `personId`
 - 设置抽屉打开时加载当前权限范围、部门树、人员列表和主系统配置
 - 部门树右键提供新增下级部门和删除部门
 - 人员树按部门展开，搜索时自动过滤并展开匹配节点
@@ -338,7 +338,7 @@ rtk proxy powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\mvn-java21
 - Chat Memory 的 `TOOL` 消息目前是兼容性文本回放，不是完整语义恢复
 - MyBatis 扫描范围必须保持收敛，避免把普通接口误注册成 Mapper Bean
 - 私钥属于敏感配置，不能通过公开配置接口返回
-- 组织设置依赖当前登录人的 `personId` 计算权限范围，前端兜底 `100` 只适合本地联调
+- 组织设置依赖 Redis Session 中当前登录人的 `personId` 计算权限范围；前端不再传递人员 ID，系统自动任务统一使用系统机器人身份
 - 设置抽屉、个人信息弹窗和主界面共用网格/跑线/拖影效果，调整层级时要避免遮挡弹窗或主聊天操作
 
 ## 建议的协作方向

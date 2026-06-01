@@ -117,10 +117,7 @@
         }
 
         function defaultHeaders(extraHeaders) {
-            const headers = new Headers(extraHeaders || {});
-            const personId = window.hephaestusCurrentLoginUser && window.hephaestusCurrentLoginUser.personId;
-            headers.set("X-Person-Id", personId ? String(personId) : "100");
-            return headers;
+            return new Headers(extraHeaders || {});
         }
 
         function apiUrl(path) {
@@ -750,30 +747,32 @@
             if (!canAssignRolePeople() && panels.people && !panels.people.hidden) {
                 setTab("basic");
             }
-            const [treePayload, permissionPayload, peoplePayload, roleTypePayload] = await Promise.all([
-                requestJson("/api/org/roles/tree"),
+            const treePayload = await requestJson("/api/org/roles/tree");
+            roleTreeData = treePayload || [];
+            initializeExpandedSets();
+            populateUnitSelect();
+            renderTree(roleTreeData);
+            const defaultUnitId = getDefaultRoleUnitId();
+            if (!selectedRole && defaultUnitId && canCreateRole()) {
+                beginCreateRole(defaultUnitId);
+            } else if (!selectedRole) {
+                fillRole(null);
+            }
+
+            const [permissionPayload, peoplePayload, roleTypePayload] = await Promise.all([
                 requestJson("/api/org/permissions"),
                 canAssignRolePeople() ? requestJson("/api/org/persons") : Promise.resolve([]),
                 requestJson("/api/org/role-types")
             ]);
-            roleTreeData = treePayload || [];
             permissions = permissionPayload || [];
             people = peoplePayload || [];
             roleTypes = roleTypePayload || [];
             renderRoleTypes(selectedRole ? selectedRole.roleType : roleTypeInput.value || "normal");
-            initializeExpandedSets();
-            populateUnitSelect();
-            renderTree(roleTreeData);
             renderPermissions(selectedRole && selectedRole.permissions ? selectedRole.permissions.map((item) => item.id) : []);
-            if (!selectedRole) {
-                const defaultUnitId = getDefaultRoleUnitId();
-                if (defaultUnitId && canCreateRole()) {
-                    beginCreateRole(defaultUnitId);
-                } else {
-                    fillRole(null);
-                }
-            } else if (editorMode === "edit") {
+            if (editorMode === "edit") {
                 renderPeople(null);
+            } else if (selectedRole) {
+                renderPeople(selectedRole.people || []);
             }
         }
 

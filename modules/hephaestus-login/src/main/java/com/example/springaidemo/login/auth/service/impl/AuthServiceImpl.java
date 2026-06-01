@@ -12,6 +12,7 @@ import com.example.springaidemo.login.log.dto.LoginLogClientInfo;
 import com.example.springaidemo.login.log.service.LoginLogService;
 import com.example.springaidemo.org.entity.OrgPersonEntity;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
+import com.example.springaidemo.org.support.SessionUtils;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.session.FindByIndexNameSessionRepository;
@@ -67,8 +68,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginSessionUser currentUser(HttpSession session) {
-        Object user = session.getAttribute(SESSION_USER_KEY);
-        if (user instanceof LoginSessionUser loginSessionUser) {
+        LoginSessionUser loginSessionUser = SessionUtils.getLoginUser(session, LoginSessionUser.class);
+        if (loginSessionUser != null) {
             return loginSessionUser;
         }
         throw new LoginException("未登录");
@@ -93,7 +94,7 @@ public class AuthServiceImpl implements AuthService {
                 person.getUnitId(),
                 Instant.now().toString()
         );
-        session.setAttribute(SESSION_USER_KEY, user);
+        SessionUtils.setLoginUser(session, user);
         session.setAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME, username);
         session.setMaxInactiveInterval(resolveSessionTimeoutSeconds());
         invalidateOtherSessionsIfNecessary(username, session.getId());

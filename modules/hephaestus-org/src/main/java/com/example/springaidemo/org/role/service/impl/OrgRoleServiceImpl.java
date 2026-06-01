@@ -2,6 +2,8 @@ package com.example.springaidemo.org.role.service.impl;
 
 import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
+import com.example.springaidemo.org.log.service.OperationLogRecorder;
+import com.example.springaidemo.org.log.support.OperationLogRecordFactory;
 import com.example.springaidemo.org.role.constant.OrgPermissionCodes;
 import com.example.springaidemo.org.role.domain.OrgPermissionEntity;
 import com.example.springaidemo.org.role.domain.OrgRoleEntity;
@@ -44,6 +46,8 @@ public class OrgRoleServiceImpl implements OrgRoleService {
     private final OrgScopeService orgScopeService;
     private final OrgPersonPermissionRefreshService permissionRefreshService;
     private final OrgPermissionGuard permissionGuard;
+    private final OperationLogRecorder operationLogRecorder;
+    private final OperationLogRecordFactory operationLogRecordFactory;
 
     public OrgRoleServiceImpl(OrgRoleRepository roleRepository,
                               OrgPermissionRepository permissionRepository,
@@ -51,7 +55,9 @@ public class OrgRoleServiceImpl implements OrgRoleService {
                               OrgPersonRoleRepository personRoleRepository,
                               OrgScopeService orgScopeService,
                               OrgPersonPermissionRefreshService permissionRefreshService,
-                              OrgPermissionGuard permissionGuard) {
+                              OrgPermissionGuard permissionGuard,
+                              OperationLogRecorder operationLogRecorder,
+                              OperationLogRecordFactory operationLogRecordFactory) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
         this.rolePermissionRepository = rolePermissionRepository;
@@ -59,6 +65,8 @@ public class OrgRoleServiceImpl implements OrgRoleService {
         this.orgScopeService = orgScopeService;
         this.permissionRefreshService = permissionRefreshService;
         this.permissionGuard = permissionGuard;
+        this.operationLogRecorder = operationLogRecorder;
+        this.operationLogRecordFactory = operationLogRecordFactory;
     }
 
     @Override
@@ -119,6 +127,8 @@ public class OrgRoleServiceImpl implements OrgRoleService {
         fillRole(role, request);
         roleRepository.save(role);
         replaceRolePermissions(role.getId(), request.permissionIds());
+        recordRoleLog(currentPersonId, "create", "新增", role, "新增岗位：" + role.getRoleName(),
+                "新增岗位“" + role.getRoleName() + "”，所属部门 ID 为“" + role.getUnitId() + "”，岗位类型为“" + blankText(role.getRoleType()) + "”。");
         return getRole(currentPersonId, role.getId());
     }
 
@@ -138,6 +148,8 @@ public class OrgRoleServiceImpl implements OrgRoleService {
         roleRepository.update(role);
         replaceRolePermissions(roleId, request.permissionIds());
         permissionRefreshService.refreshByRoleId(roleId);
+        recordRoleLog(currentPersonId, "update", "修改", role, "修改岗位：" + role.getRoleName(),
+                "修改岗位“" + role.getRoleName() + "”：岗位编码为“" + role.getRoleCode() + "”，岗位类型为“" + blankText(role.getRoleType()) + "”，启用状态为“" + enabledText(role.getEnabled()) + "”。");
         return getRole(currentPersonId, roleId);
     }
 
@@ -145,12 +157,14 @@ public class OrgRoleServiceImpl implements OrgRoleService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteRole(Long currentPersonId, Long roleId) {
         permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_ROLE_DELETE);
-        requireRoleInScope(orgScopeService.resolveScope(currentPersonId), roleId);
+        OrgRoleEntity role = requireRoleInScope(orgScopeService.resolveScope(currentPersonId), roleId);
         if (!personRoleRepository.findPersonIdsByRoleId(roleId).isEmpty()) {
             throw new OrgValidationException("岗位已绑定人员，不能删除");
         }
         rolePermissionRepository.deleteByRoleId(roleId);
         roleRepository.removeById(roleId);
+        recordRoleLog(currentPersonId, "delete", "删除", role, "删除岗位：" + role.getRoleName(),
+                "删除岗位“" + role.getRoleName() + "”。");
     }
 
     @Override
@@ -158,7 +172,7 @@ public class OrgRoleServiceImpl implements OrgRoleService {
     public OrgRoleResponse updateRolePeople(Long currentPersonId, Long roleId, UpdateRolePeopleRequest request) {
         permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_ROLE_PERSON_ASSIGN);
         OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
-        requireRoleInScope(scope, roleId);
+        OrgRoleEntity role = requireRoleInScope(scope, roleId);
         Set<Long> oldPersonIds = new LinkedHashSet<>(personRoleRepository.findPersonIdsByRoleId(roleId));
         Set<Long> newPersonIds = new LinkedHashSet<>(request == null || request.personIds() == null ? List.of() : request.personIds());
         for (Long personId : newPersonIds) {
@@ -179,14 +193,18 @@ public class OrgRoleServiceImpl implements OrgRoleService {
         Set<Long> affected = new LinkedHashSet<>(oldPersonIds);
         affected.addAll(newPersonIds);
         permissionRefreshService.refreshPersonPermissions(affected);
+        recordRoleLog(currentPersonId, "assign-person", "分配人员", role, "保存岗位人员：" + role.getRoleName(),
+                "保存岗位“" + role.getRoleName() + "”的人员：新增人员 ID “" + diffText(newPersonIds, oldPersonIds) + "”，移除人员 ID “" + diffText(oldPersonIds, newPersonIds) + "”。");
         return getRole(currentPersonId, roleId);
     }
 
     @Override
     public void refreshRolePeoplePermissions(Long currentPersonId, Long roleId) {
         permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_ROLE_PERMISSION_REFRESH);
-        requireRoleInScope(orgScopeService.resolveScope(currentPersonId), roleId);
+        OrgRoleEntity role = requireRoleInScope(orgScopeService.resolveScope(currentPersonId), roleId);
         permissionRefreshService.refreshByRoleId(roleId);
+        recordRoleLog(currentPersonId, "refresh-permission", "刷新权限", role, "刷新岗位人员权限：" + role.getRoleName(),
+                "刷新岗位“" + role.getRoleName() + "”下所有人员的权限。");
     }
 
     private OrgRoleEntity requireRoleInScope(OrgScopeService.ScopeContext scope, Long roleId) {
@@ -198,6 +216,26 @@ public class OrgRoleServiceImpl implements OrgRoleService {
             throw new OrgValidationException("岗位超出当前管理范围");
         }
         return role;
+    }
+
+    private void recordRoleLog(Long operatorPersonId,
+                               String actionCode,
+                               String actionName,
+                               OrgRoleEntity role,
+                               String summary,
+                               String detail) {
+        operationLogRecorder.recordSuccess(operationLogRecordFactory.create(
+                operatorPersonId,
+                "org-role",
+                "岗位",
+                actionCode,
+                actionName,
+                "岗位",
+                role == null ? null : role.getId(),
+                role == null ? null : role.getRoleName(),
+                summary,
+                detail
+        ));
     }
 
     private void validateRequest(OrgRoleRequest request) {
@@ -318,5 +356,21 @@ public class OrgRoleServiceImpl implements OrgRoleService {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String blankText(String value) {
+        return value == null || value.isBlank() ? "空" : value;
+    }
+
+    private String enabledText(Boolean enabled) {
+        return Boolean.TRUE.equals(enabled) ? "启用" : "停用";
+    }
+
+    private String diffText(Set<Long> source, Set<Long> baseline) {
+        String value = source.stream()
+                .filter(item -> !baseline.contains(item))
+                .map(String::valueOf)
+                .collect(Collectors.joining("、"));
+        return value.isBlank() ? "无" : value;
     }
 }

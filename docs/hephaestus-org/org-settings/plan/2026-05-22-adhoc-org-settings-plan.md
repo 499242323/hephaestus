@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **当前实现说明：** 本历史计划早期联调曾让前端传递人员身份请求头；当前代码已统一由后端从登录 Session 解析当前人员，前端不再传递人员身份。
+
 **Goal:** Build a new `hephaestus-org` module with tree-shaped `unit` management, person CRUD, avatar media binding, scope-based data permissions, and a ChatGPT-style settings drawer inside the existing chat page.
 
-**Architecture:** Add a dedicated backend module for org domain logic and keep the existing `hephaestus-app` module as the boot app and static UI host. Reuse the existing media module for avatar storage, and enforce scope permissions on the backend using `X-Person-Id` plus `unit` ancestry.
+**Architecture:** Add a dedicated backend module for org domain logic and keep the existing `hephaestus-app` module as the boot app and static UI host. Reuse the existing media module for avatar storage, and enforce scope permissions on the backend using the current login Session plus `unit` ancestry.
 
 **Tech Stack:** Java 17, Spring Boot 3, MyBatis repository pattern, Liquibase, static HTML/CSS/JavaScript, JUnit 5, Spring Boot Test
 
@@ -574,7 +576,8 @@ Expected: FAIL with missing controllers or missing request mappings.
 public class OrgUnitController {
 
     @GetMapping("/tree")
-    public List<OrgUnitTreeNode> getTree(@RequestHeader("X-Person-Id") Long personId) {
+    public List<OrgUnitTreeNode> getTree(HttpSession session) {
+        Long personId = currentPersonResolver.currentPersonId(session);
         return orgUnitService.getUnitTree(personId);
     }
 }
@@ -586,7 +589,8 @@ public class OrgUnitController {
 public class OrgPersonController {
 
     @GetMapping("/current-scope")
-    public OrgScopeResponse getCurrentScope(@RequestHeader("X-Person-Id") Long personId) {
+    public OrgScopeResponse getCurrentScope(HttpSession session) {
+        Long personId = currentPersonResolver.currentPersonId(session);
         return orgPersonService.getCurrentScope(personId);
     }
 }
@@ -705,16 +709,12 @@ Expected: Drawer shell exists, but unit tree and person list are empty.
 
 ```js
 async function loadOrgScope() {
-    const response = await fetch("/api/org/persons/current-scope", {
-        headers: { "X-Person-Id": String(currentSettingsPersonId) }
-    });
+    const response = await fetch("/api/org/persons/current-scope");
     return response.json();
 }
 
 async function loadUnitTree() {
-    const response = await fetch("/api/org/units/tree", {
-        headers: { "X-Person-Id": String(currentSettingsPersonId) }
-    });
+    const response = await fetch("/api/org/units/tree");
     return response.json();
 }
 ```
@@ -769,10 +769,7 @@ Expected: UI renders the form, but no network write occurs.
 async function savePerson(payload) {
     const response = await fetch("/api/org/persons", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-Person-Id": String(currentSettingsPersonId)
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
     return response.json();
@@ -785,7 +782,6 @@ async function uploadPersonAvatar(personId, file) {
     formData.append("file", file);
     const response = await fetch(`/api/org/persons/${personId}/avatar`, {
         method: "POST",
-        headers: { "X-Person-Id": String(currentSettingsPersonId) },
         body: formData
     });
     return response.json();
@@ -857,4 +853,4 @@ git commit -m "feat: add org settings management"
 
 - Spec coverage: module split, schema, tree `unit`, person CRUD, avatar binding, scope permissions, settings drawer, and testing all map to tasks above.
 - Placeholder scan: no `TODO`, `TBD`, or “implement later” placeholders remain.
-- Type consistency: `unit`, `person`, `avatar_media_id`, `X-Person-Id`, and scope terminology are consistent across tasks.
+- Type consistency: `unit`, `person`, `avatar_media_id`, login Session, and scope terminology are consistent across tasks.

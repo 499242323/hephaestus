@@ -20,13 +20,16 @@ public class OrgPersonPermissionRefreshServiceImpl implements OrgPersonPermissio
     private final OrgPersonPermissionRepository personPermissionRepository;
     private final OrgPersonRoleRepository personRoleRepository;
     private final OrgRolePermissionRepository rolePermissionRepository;
+    private final OrgPermissionCache permissionCache;
 
     public OrgPersonPermissionRefreshServiceImpl(OrgPersonPermissionRepository personPermissionRepository,
                                                  OrgPersonRoleRepository personRoleRepository,
-                                                 OrgRolePermissionRepository rolePermissionRepository) {
+                                                 OrgRolePermissionRepository rolePermissionRepository,
+                                                 OrgPermissionCache permissionCache) {
         this.personPermissionRepository = personPermissionRepository;
         this.personRoleRepository = personRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.permissionCache = permissionCache;
     }
 
     @Override
@@ -38,6 +41,7 @@ public class OrgPersonPermissionRefreshServiceImpl implements OrgPersonPermissio
         personPermissionRepository.deleteByPersonId(personId);
         List<Long> roleIds = personRoleRepository.findRoleIdsByPersonId(personId);
         if (roleIds == null || roleIds.isEmpty()) {
+            permissionCache.evictAfterCommit(personId);
             return;
         }
         List<OrgRolePermissionEntity> rolePermissions = rolePermissionRepository.findByRoleIds(roleIds);
@@ -45,6 +49,7 @@ public class OrgPersonPermissionRefreshServiceImpl implements OrgPersonPermissio
         if (!permissions.isEmpty()) {
             personPermissionRepository.insertBatch(permissions);
         }
+        permissionCache.evictAfterCommit(personId);
     }
 
     @Override
