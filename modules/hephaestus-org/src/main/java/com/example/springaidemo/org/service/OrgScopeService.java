@@ -45,9 +45,7 @@ public class OrgScopeService {
 
         List<OrgUnitEntity> manageableUnits = allUnits.stream()
                 .filter(unit -> isSelfOrDescendant(currentUnit.getAncestorPath(), unit.getAncestorPath()))
-                .sorted(Comparator.comparing(OrgUnitEntity::getAncestorPath)
-                        .thenComparing(unit -> unit.getSortOrder() == null ? 0 : unit.getSortOrder())
-                        .thenComparing(OrgUnitEntity::getId))
+                .sorted(unitComparator())
                 .toList();
 
         return new ScopeContext(
@@ -86,12 +84,20 @@ public class OrgScopeService {
     public List<OrgUnitTreeNode> buildTree(List<OrgUnitEntity> units) {
         Map<Long, List<OrgUnitEntity>> childrenMap = units.stream()
                 .collect(Collectors.groupingBy(unit -> unit.getParentId() == null ? 0L : unit.getParentId(), LinkedHashMap::new, Collectors.toList()));
+        childrenMap.values().forEach(children -> children.sort(unitComparator()));
         Set<Long> ids = units.stream().map(OrgUnitEntity::getId).collect(Collectors.toSet());
 
         return units.stream()
                 .filter(unit -> !ids.contains(unit.getParentId()))
+                .sorted(unitComparator())
                 .map(unit -> toTreeNode(unit, childrenMap))
                 .toList();
+    }
+
+    private Comparator<OrgUnitEntity> unitComparator() {
+        return Comparator
+                .comparing((OrgUnitEntity unit) -> unit.getSortOrder() == null ? 0 : unit.getSortOrder())
+                .thenComparing(OrgUnitEntity::getId);
     }
 
     private OrgUnitTreeNode toTreeNode(OrgUnitEntity unit, Map<Long, List<OrgUnitEntity>> childrenMap) {

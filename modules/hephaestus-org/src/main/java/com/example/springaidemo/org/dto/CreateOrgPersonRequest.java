@@ -1,5 +1,7 @@
 package com.example.springaidemo.org.dto;
 
+import java.util.List;
+
 public record CreateOrgPersonRequest(
         String personCode,
         String personName,
@@ -9,6 +11,7 @@ public record CreateOrgPersonRequest(
         String mobile,
         String email,
         String remark,
-        Boolean enabled
+        Boolean enabled,
+        List<Long> roleIds
 ) {
 }

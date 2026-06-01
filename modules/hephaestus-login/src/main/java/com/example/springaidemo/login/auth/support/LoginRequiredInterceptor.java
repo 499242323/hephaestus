@@ -24,6 +24,7 @@ public class LoginRequiredInterceptor implements HandlerInterceptor {
             "/login.html",
             "/login.css",
             "/login.js",
+            "/webjars/**",
             "/auth/login",
             "/api/system-config/public/**",
             "/api/media/files/*",

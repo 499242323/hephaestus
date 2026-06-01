@@ -85,10 +85,10 @@ spring:
           min-idle: 4
         shutdown-timeout: 1s
   mail:
-    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    host: ${SPRING_MAIL_HOST:smtp.qq.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:ws499242323@gmail.com}
-    password: ${SPRING_MAIL_PASSWORD:kgat ddzx yyuo qhgf}
+    username: ${SPRING_MAIL_USERNAME:2917598945@qq.com}
+    password: ${SPRING_MAIL_PASSWORD:dxbhzupcqjkzdhab}
     properties:
       mail:
         smtp:
@@ -117,7 +117,7 @@ app:
     connect-timeout-millis: ${WEATHER_CONNECT_TIMEOUT_MILLIS:5000}
     read-timeout-millis: ${WEATHER_READ_TIMEOUT_MILLIS:5000}
   mail:
-    from-address: ${APP_MAIL_FROM_ADDRESS:ws499242323@gmail.com}
+    from-address: ${APP_MAIL_FROM_ADDRESS:2917598945@qq.com}
 
 hephaestus:
   auth:
@@ -126,6 +126,7 @@ hephaestus:
         - /login.html
         - /login.css
         - /login.js
+        - /webjars/**
         - /auth/login
         - /api/system-config/public/**
         - /api/media/files/*

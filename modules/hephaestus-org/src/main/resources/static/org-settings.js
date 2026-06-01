@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260529-config-cards1");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260601-permission-layout1");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -33,13 +33,17 @@
         const generalTabButton = document.getElementById("generalTabButton");
         const unitsTabButton = document.getElementById("unitsTabButton");
         const peopleTabButton = document.getElementById("peopleTabButton");
+        const rolesTabButton = document.getElementById("rolesTabButton");
         const logsTabButton = document.getElementById("logsTabButton");
         const generalPanel = document.getElementById("generalPanel");
         const unitsPanel = document.getElementById("unitsPanel");
         const peoplePanel = document.getElementById("peoplePanel");
+        const rolesPanel = document.getElementById("rolesPanel");
+        const roleSettingsMount = document.getElementById("roleSettingsMount");
         const logsPanel = document.getElementById("logsPanel");
         const systemConfigForm = document.getElementById("systemConfigForm");
         const systemConfigFields = document.getElementById("systemConfigFields");
+        const systemConfigSectionTitle = document.getElementById("systemConfigSectionTitle");
         const refreshSystemConfigButton = document.getElementById("refreshSystemConfigButton");
         const unitTreeSearchInput = document.getElementById("unitTreeSearchInput");
         const peopleTreeSearchInput = document.getElementById("peopleTreeSearchInput");
@@ -74,6 +78,7 @@
         const personAvatarInput = document.getElementById("personAvatarInput");
         const personAvatarButton = document.getElementById("personAvatarButton");
         const personAvatarPreview = document.getElementById("personAvatarPreview");
+        const personRolePickerList = document.getElementById("personRolePickerList");
         const showPersonCreateButton = document.getElementById("showPersonCreateButton");
         const resetPersonFormButton = document.getElementById("resetPersonFormButton");
         const refreshLoginLogsButton = document.getElementById("refreshLoginLogsButton");
@@ -90,6 +95,14 @@
         let currentSettingsTab = "general";
         let settingsScope = null;
         let settingsPeople = [];
+        let settingsRoles = [];
+        let currentOrgPermissions = {
+            admin: false,
+            permissions: new Set()
+        };
+        let orgPermissionsLoaded = false;
+        let roleSettingsInitialized = false;
+        let roleSettingsController = null;
         let selectedUnitId = null;
         let selectedPersonId = null;
         let currentAvatarMediaId = null;
@@ -125,6 +138,7 @@
         const panelTitleMap = {
             general: "常规",
             units: "部门",
+            roles: "岗位",
             people: "人员",
             logs: "日志"
         };
@@ -133,6 +147,201 @@
 
         function apiUrl(path) {
             return `${basePath}${path}`;
+        }
+
+        function hasOrgPermission(code) {
+            return Boolean(currentOrgPermissions.admin || currentOrgPermissions.permissions.has(code));
+        }
+
+        function normalizeSettingsPanelText() {
+            const setText = (element, text) => {
+                if (element) {
+                    element.textContent = text;
+                }
+            };
+            const setMenuText = (button, text) => {
+                if (!button) {
+                    return;
+                }
+                setText(button.querySelector(".settings-menu__icon"), "•");
+                setText(button.querySelector("span:last-child"), text);
+            };
+            setText(document.querySelector(".settings-shell__menu-title"), "设置");
+            if (closeSettingsButton) {
+                closeSettingsButton.textContent = "×";
+                closeSettingsButton.setAttribute("aria-label", "关闭设置");
+            }
+            setMenuText(generalTabButton, "常规");
+            setMenuText(unitsTabButton, "部门");
+            setMenuText(peopleTabButton, "人员");
+            setMenuText(rolesTabButton, "岗位");
+            setMenuText(logsTabButton, "日志");
+            setText(settingsPanelTitle, panelTitleMap[currentSettingsTab] || "设置");
+            setText(document.querySelector(".settings-drawer__title span"), "按当前岗位权限展示可管理的系统配置、组织数据和日志内容。");
+            setText(systemConfigSectionTitle, "主系统配置");
+            setText(refreshSystemConfigButton, "刷新");
+            setText(document.querySelector("[form='systemConfigForm']"), "保存配置");
+            setText(systemConfigFields ? systemConfigFields.querySelector(".settings-empty") : null, "正在加载配置。");
+            if (logsPanel) {
+                setText(logsPanel.querySelector("[data-log-tab='login']"), "登录日志");
+                setText(logsPanel.querySelector("[data-log-tab='operation']"), "操作日志");
+                const labels = Array.from(logsPanel.querySelectorAll(".settings-log-filters .settings-field span"));
+                setText(labels[0], "关键词");
+                setText(labels[1], "操作类型");
+                setText(labels[2], "时间范围");
+            }
+            setText(refreshLoginLogsButton, "刷新");
+            if (loginLogKeywordInput) {
+                loginLogKeywordInput.placeholder = "姓名 / 部门 / IP / 说明";
+            }
+            if (loginLogTimeRangeInput) {
+                loginLogTimeRangeInput.placeholder = "请选择时间范围";
+            }
+            if (loginLogOperationTypeSelect) {
+                ["全部", "登录成功", "登录失败", "退出登录"].forEach((label, index) => {
+                    if (loginLogOperationTypeSelect.options[index]) {
+                        loginLogOperationTypeSelect.options[index].textContent = label;
+                    }
+                });
+            }
+            setText(loginLogTable ? loginLogTable.querySelector(".settings-empty") : null, "正在加载登录日志。");
+            if (loginLogPageCards) {
+                loginLogPageCards.setAttribute("aria-label", "登录日志分页");
+            }
+            setText(operationLogPane, "操作日志暂未启用自动采集。当前仅记录登录成功、登录失败和退出登录。");
+        }
+
+        function canViewPeople() {
+            return hasOrgPermission("general.person.view");
+        }
+
+        function canViewGeneral() {
+            return hasOrgPermission("general.config");
+        }
+
+        function canUpdateGeneralConfig() {
+            return canUpdateSystemLoginConfig() || canUpdateLoginPageConfig();
+        }
+
+        function canViewLogs() {
+            return hasOrgPermission("general.log");
+        }
+
+        function canViewSystemLogin() {
+            return hasOrgPermission("general.config.login");
+        }
+
+        function canViewLoginPage() {
+            return hasOrgPermission("general.config.login-page");
+        }
+
+        function canUpdateSystemLoginConfig() {
+            return hasOrgPermission("general.config.login.update");
+        }
+
+        function canUpdateLoginPageConfig() {
+            return hasOrgPermission("general.config.login-page.update");
+        }
+
+        function canViewLoginLog() {
+            return hasOrgPermission("general.log.login");
+        }
+
+        function canViewOperationLog() {
+            return hasOrgPermission("general.log.operation");
+        }
+
+        function canUpdateCurrentSystemConfig() {
+            return activeSystemConfigTab === "login-page" ? canUpdateLoginPageConfig() : canUpdateSystemLoginConfig();
+        }
+
+        function canViewUnits() {
+            return hasOrgPermission("general.unit.view");
+        }
+
+        function canCreateUnits() {
+            return hasOrgPermission("general.unit.create");
+        }
+
+        function canUpdateUnits() {
+            return hasOrgPermission("general.unit.update");
+        }
+
+        function canDeleteUnits() {
+            return hasOrgPermission("general.unit.delete");
+        }
+
+        function canViewRoles() {
+            return hasOrgPermission("general.role.view");
+        }
+
+        function canCreatePeople() {
+            return hasOrgPermission("general.person.create");
+        }
+
+        function canUpdatePeople() {
+            return hasOrgPermission("general.person.update");
+        }
+
+        function canDeletePeople() {
+            return hasOrgPermission("general.person.delete");
+        }
+
+        function canAssignPersonRoles() {
+            return hasOrgPermission("general.person.role.assign");
+        }
+
+        function setFormInputsDisabled(form, disabled) {
+            if (!form) {
+                return;
+            }
+            form.querySelectorAll("input, select, textarea").forEach((control) => {
+                if (control.type !== "hidden") {
+                    control.disabled = disabled;
+                }
+            });
+        }
+
+        function showRequiredMessage(label) {
+            showSettingsError(`请填写${label}`);
+        }
+
+        function requireValue(control, label) {
+            if (!control || !String(control.value || "").trim()) {
+                showRequiredMessage(label);
+                if (control && !control.disabled && typeof control.focus === "function") {
+                    control.focus();
+                }
+                return false;
+            }
+            return true;
+        }
+
+        function canEditUnitForm() {
+            return unitEditIdInput && unitEditIdInput.value ? canUpdateUnits() : canCreateUnits();
+        }
+
+        function canEditPersonForm() {
+            return personEditIdInput && personEditIdInput.value ? canUpdatePeople() : canCreatePeople();
+        }
+
+        function firstAllowedSettingsTab() {
+            if (canViewGeneral()) {
+                return "general";
+            }
+            if (canViewUnits()) {
+                return "units";
+            }
+            if (canViewPeople()) {
+                return "people";
+            }
+            if (canViewRoles()) {
+                return "roles";
+            }
+            if (canViewLogs()) {
+                return "logs";
+            }
+            return "";
         }
 
         function escapeHtml(text) {
@@ -201,7 +410,7 @@
                 return;
             }
             pendingDeleteUnitId = String(unit.id);
-            settingsConfirmMessage.textContent = `确认删除部门“${unit.unitName}”吗？`;
+            settingsConfirmMessage.textContent = `确认删除部门"${unit.unitName}"吗？`;
             settingsConfirmDialog.hidden = false;
         }
 
@@ -272,23 +481,69 @@
             hidePeopleTreeContextMenu();
             closeDeleteConfirmDialog();
             if (open) {
-                loadCurrentLoginUser().finally(() => loadSettingsData());
+                normalizeSettingsPanelText();
+                loadCurrentLoginUser().finally(() => loadSettingsData().then(() => setSettingsTab(firstAllowedSettingsTab())));
             }
         }
 
         function setSettingsTab(tab) {
+            if (tab === "general" && !canViewGeneral()) {
+                tab = firstAllowedSettingsTab();
+            }
+            if (tab === "logs" && !canViewLogs()) {
+                tab = firstAllowedSettingsTab();
+            }
+            if (tab === "people" && !canViewPeople()) {
+                tab = firstAllowedSettingsTab();
+            }
+            if (tab === "units" && !canViewUnits()) {
+                tab = firstAllowedSettingsTab();
+            }
+            if (tab === "roles" && !canViewRoles()) {
+                tab = firstAllowedSettingsTab();
+            }
+            if (!tab) {
+                currentSettingsTab = "";
+                generalTabButton.classList.toggle("active", false);
+                unitsTabButton.classList.toggle("active", false);
+                peopleTabButton.classList.toggle("active", false);
+                if (rolesTabButton) {
+                    rolesTabButton.classList.toggle("active", false);
+                }
+                if (logsTabButton) {
+                    logsTabButton.classList.toggle("active", false);
+                }
+                generalPanel.hidden = true;
+                unitsPanel.hidden = true;
+                peoplePanel.hidden = true;
+                if (rolesPanel) {
+                    rolesPanel.hidden = true;
+                }
+                if (logsPanel) {
+                    logsPanel.hidden = true;
+                }
+                settingsPanelTitle.textContent = "设置";
+                applyPeoplePermissionState();
+                return;
+            }
             currentSettingsTab = tab;
             generalTabButton.classList.toggle("active", tab === "general");
             unitsTabButton.classList.toggle("active", tab === "units");
             peopleTabButton.classList.toggle("active", tab === "people");
+            if (rolesTabButton) {
+                rolesTabButton.classList.toggle("active", tab === "roles");
+            }
             if (logsTabButton) {
                 logsTabButton.classList.toggle("active", tab === "logs");
             }
-            generalPanel.hidden = tab !== "general";
-            unitsPanel.hidden = tab !== "units";
-            peoplePanel.hidden = tab !== "people";
+            generalPanel.hidden = tab !== "general" || !canViewGeneral();
+            unitsPanel.hidden = tab !== "units" || !canViewUnits();
+            peoplePanel.hidden = tab !== "people" || !canViewPeople();
+            if (rolesPanel) {
+                rolesPanel.hidden = tab !== "roles" || !canViewRoles();
+            }
             if (logsPanel) {
-                logsPanel.hidden = tab !== "logs";
+                logsPanel.hidden = tab !== "logs" || !canViewLogs();
             }
             settingsPanelTitle.textContent = panelTitleMap[tab] || "设置";
             showSettingsError("");
@@ -297,8 +552,137 @@
             if (settingsDrawerBody) {
                 settingsDrawerBody.scrollTop = 0;
             }
+            normalizeSettingsPanelText();
+            if (tab === "general") {
+                if (!canViewSystemLogin() && canViewLoginPage()) {
+                    activeSystemConfigTab = "login-page";
+                }
+                if (systemConfigSectionTitle) {
+                    systemConfigSectionTitle.textContent = "主系统配置";
+                }
+                renderSystemConfigForm(systemConfigFormData);
+                applyPeoplePermissionState();
+            }
             if (tab === "logs") {
-                loadLoginLogs().catch((error) => showSettingsError(error.message));
+                setLogTab(canViewLoginLog() ? "login" : "operation");
+            }
+            if (tab === "roles") {
+                loadRoleSettingsPanel().catch((error) => showSettingsError(error.message));
+            }
+            applyPeoplePermissionState();
+        }
+
+        function applyPeoplePermissionState() {
+            const visible = canViewPeople();
+            if (generalTabButton) {
+                generalTabButton.hidden = !canViewGeneral();
+            }
+            if (generalPanel) {
+                generalPanel.hidden = !canViewGeneral() || currentSettingsTab !== "general";
+            }
+            if (logsTabButton) {
+                logsTabButton.hidden = !canViewLogs();
+            }
+            if (logsPanel) {
+                logsPanel.hidden = !canViewLogs() || currentSettingsTab !== "logs";
+            }
+            if (refreshSystemConfigButton) {
+                refreshSystemConfigButton.hidden = !canViewGeneral();
+            }
+            const saveConfigButton = document.querySelector("[form='systemConfigForm']");
+            if (saveConfigButton) {
+                saveConfigButton.hidden = !canUpdateCurrentSystemConfig();
+            }
+            if (unitsTabButton) {
+                unitsTabButton.hidden = !canViewUnits();
+            }
+            if (unitsPanel) {
+                unitsPanel.hidden = !canViewUnits() || currentSettingsTab !== "units";
+            }
+            const unitFormEditable = canEditUnitForm();
+            setFormInputsDisabled(unitEditorForm, !unitFormEditable);
+            const saveUnitButton = unitEditorForm ? unitEditorForm.querySelector("button[type='submit']") : null;
+            if (saveUnitButton) {
+                saveUnitButton.hidden = !unitFormEditable;
+            }
+            if (resetUnitFormButton) {
+                resetUnitFormButton.hidden = !canCreateUnits();
+            }
+            if (unitTreeContextMenu) {
+                const createUnitButton = unitTreeContextMenu.querySelector("[data-action='create-unit']");
+                const deleteUnitButton = unitTreeContextMenu.querySelector("[data-action='delete-unit']");
+                if (createUnitButton) {
+                    createUnitButton.hidden = !canCreateUnits();
+                }
+                if (deleteUnitButton) {
+                    deleteUnitButton.hidden = !canDeleteUnits();
+                }
+            }
+            if (peopleTabButton) {
+                peopleTabButton.hidden = !visible;
+            }
+            if (rolesTabButton) {
+                rolesTabButton.hidden = !canViewRoles();
+            }
+            if (rolesPanel) {
+                rolesPanel.hidden = !canViewRoles() || currentSettingsTab !== "roles";
+            }
+            if (peoplePanel) {
+                peoplePanel.hidden = !visible || currentSettingsTab !== "people";
+            }
+            if (!visible && currentSettingsTab === "people") {
+                setSettingsTab(firstAllowedSettingsTab());
+                return;
+            }
+            if (showPersonCreateButton) {
+                showPersonCreateButton.hidden = !canCreatePeople();
+            }
+            const personFormEditable = canEditPersonForm();
+            setFormInputsDisabled(personEditorForm, !personFormEditable);
+            if (personAvatarButton) {
+                personAvatarButton.disabled = !personFormEditable;
+            }
+            const savePersonButton = personEditorForm ? personEditorForm.querySelector("button[type='submit']") : null;
+            if (savePersonButton) {
+                savePersonButton.hidden = !personFormEditable;
+            }
+            if (resetPersonFormButton) {
+                resetPersonFormButton.hidden = !canCreatePeople();
+            }
+            if (peopleCreateMenuButton) {
+                peopleCreateMenuButton.hidden = !canCreatePeople();
+            }
+            if (peopleDeleteMenuButton) {
+                peopleDeleteMenuButton.hidden = !canDeletePeople();
+            }
+            if (personRolePickerList) {
+                syncPersonRolePickerPermissionState();
+            }
+        }
+
+        async function loadRoleSettingsPanel() {
+            if (!roleSettingsMount || roleSettingsInitialized) {
+                return;
+            }
+            const response = await fetch("./org-role-settings.html?v=20260601-permission-layout1");
+            roleSettingsMount.innerHTML = await response.text();
+            if (window.initOrgRoleSettings) {
+                roleSettingsController = await window.initOrgRoleSettings({
+                    root: roleSettingsMount,
+                    apiBasePath: basePath,
+                    buildHeaders: buildSettingsHeaders,
+                    notify: showSettingsToast,
+                    showError: showSettingsError,
+                    permissions: Array.from(currentOrgPermissions.permissions),
+                    admin: currentOrgPermissions.admin
+                });
+            }
+            roleSettingsInitialized = true;
+        }
+
+        async function reloadRoleSettingsPanel() {
+            if (roleSettingsInitialized && roleSettingsController && typeof roleSettingsController.reload === "function") {
+                await roleSettingsController.reload();
             }
         }
 
@@ -348,6 +732,17 @@
                 return null;
             }
             return JSON.parse(text);
+        }
+
+        async function loadCurrentOrgPermissions() {
+            const payload = await requestJson("/api/org/permissions/current");
+            currentOrgPermissions = {
+                admin: Boolean(payload && payload.admin),
+                permissions: new Set((payload && payload.permissions) || [])
+            };
+            orgPermissionsLoaded = true;
+            applyPeoplePermissionState();
+            return currentOrgPermissions;
         }
 
         function formatLoginLogTime(value) {
@@ -708,8 +1103,8 @@
             const pages = getLoginLogPageNumbers(totalPages);
             const prevDisabled = loginLogState.page <= 1;
             const nextDisabled = loginLogState.page >= totalPages;
-            const prevButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="prev" ${prevDisabled ? "disabled" : ""}>‹</button>`;
-            const nextButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="next" ${nextDisabled ? "disabled" : ""}>›</button>`;
+            const prevButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="prev" ${prevDisabled ? "disabled" : ""}>上一页</button>`;
+            const nextButton = `<button class="settings-log-page-card settings-log-page-card--nav" type="button" data-page-action="next" ${nextDisabled ? "disabled" : ""}>下一页</button>`;
             const pageButtons = pages.map((item) => {
                 const active = item.page === loginLogState.page;
                 const directionClass = item.page < loginLogState.page ? " is-prev" : item.page > loginLogState.page ? " is-next" : "";
@@ -717,8 +1112,8 @@
                 const action = item.type === "page" ? "" : ` data-page-action="${item.type}"`;
                 return `<button class="settings-log-page-card${directionClass}${activeClass}" type="button" data-page="${item.page}"${action} ${active ? 'aria-current="page"' : ""}>${item.label || item.page}</button>`;
             }).join("");
-            const totalCard = `<span class="settings-log-page-card settings-log-page-card--total">共${loginLogState.total}条</span>`;
-            const pageSizeInput = `<label class="settings-log-page-size"><input id="loginLogPageSizeInput" type="number" min="1" max="100" step="1" value="${loginLogState.pageSize}" aria-label="每页行数"></label>`;
+            const totalCard = `<span class="settings-log-page-card settings-log-page-card--total">共 ${loginLogState.total} 条</span>`;
+            const pageSizeInput = `<label class="settings-log-page-size"><span>每页</span><input id="loginLogPageSizeInput" type="number" min="1" max="100" step="1" value="${loginLogState.pageSize}" aria-label="每页行数"></label>`;
             loginLogPageCards.innerHTML = `<div class="settings-log-page-stage">${prevButton}${pageButtons}${nextButton}${totalCard}${pageSizeInput}</div>`;
             bindLoginLogPageSizeInput();
         }
@@ -736,7 +1131,7 @@
         }
 
         function renderLoginLogs(pageData) {
-            if (!loginLogTable) {
+            if (!loginLogTable || !canViewLoginLog()) {
                 return;
             }
             const items = (pageData && pageData.items) || [];
@@ -802,6 +1197,18 @@
 
         function setLogTab(tab) {
             const activeTab = tab === "operation" ? "operation" : "login";
+            if (activeTab === "login" && !canViewLoginLog()) {
+                return setLogTab("operation");
+            }
+            if (activeTab === "operation" && !canViewOperationLog()) {
+                return setLogTab("login");
+            }
+            if (logsPanel) {
+                logsPanel.querySelectorAll("[data-log-tab]").forEach((button) => {
+                    button.hidden = button.dataset.logTab === "login" ? !canViewLoginLog() : !canViewOperationLog();
+                    button.classList.toggle("active", button.dataset.logTab === activeTab);
+                });
+            }
             if (loginLogPane) {
                 loginLogPane.hidden = activeTab !== "login";
             }
@@ -811,9 +1218,6 @@
             if (refreshLoginLogsButton) {
                 refreshLoginLogsButton.hidden = activeTab !== "login";
             }
-            document.querySelectorAll("[data-log-tab]").forEach((button) => {
-                button.classList.toggle("active", button.dataset.logTab === activeTab);
-            });
             if (activeTab === "login") {
                 loadLoginLogs().catch((error) => showSettingsError(error.message));
             }
@@ -836,8 +1240,12 @@
         }
 
         function renderSystemConfigTabButton(tab, fields) {
-            const activeClass = tab === activeSystemConfigTab ? " active" : "";
-            return `<button class="settings-config-tab${activeClass}" type="button" data-config-tab="${tab}">${getSystemConfigTabTitle(tab)}<span>${fields.length}</span></button>`;
+            const title = getSystemConfigTabTitle(tab);
+            const visible = tab === "login-page" ? canViewLoginPage() : canViewSystemLogin();
+            if (!visible || !fields.length) {
+                return "";
+            }
+            return `<button class="settings-config-tab${activeSystemConfigTab === tab ? " active" : ""}" type="button" data-config-tab="${tab}">${title}<span>${fields.length}</span></button>`;
         }
 
         function renderSystemConfigRows(fields) {
@@ -863,16 +1271,17 @@
                 result[tab].push(field);
                 return result;
             }, { "system-login": [], "login-page": [] });
-            if (!grouped[activeSystemConfigTab] || !grouped[activeSystemConfigTab].length) {
-                activeSystemConfigTab = grouped["system-login"].length ? "system-login" : "login-page";
+            const allowedTabs = {
+                "system-login": canViewSystemLogin(),
+                "login-page": canViewLoginPage()
+            };
+            if (!allowedTabs[activeSystemConfigTab] || !grouped[activeSystemConfigTab] || !grouped[activeSystemConfigTab].length) {
+                activeSystemConfigTab = allowedTabs["system-login"] && grouped["system-login"].length ? "system-login" : "login-page";
             }
-            const tabs = ["system-login", "login-page"]
-                .filter((tab) => grouped[tab].length)
-                .map((tab) => renderSystemConfigTabButton(tab, grouped[tab]))
-                .join("");
+            const tabs = ["system-login", "login-page"].map((tab) => renderSystemConfigTabButton(tab, grouped[tab])).join("");
             const fields = renderSystemConfigRows(grouped[activeSystemConfigTab] || []);
             systemConfigFields.innerHTML = `
-                <div class="settings-config-tabs" role="tablist">${tabs}</div>
+                <div class="settings-config-tabs">${tabs}</div>
                 <section class="settings-config-section">
                     <h3>${getSystemConfigTabTitle(activeSystemConfigTab)}</h3>
                     <div class="settings-config-grid">${fields}</div>
@@ -887,12 +1296,13 @@
             const label = escapeHtml(field.label || field.code || "");
             const help = field.helpText ? `<small>${escapeHtml(field.helpText)}</small>` : "";
             const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : "";
+            const disabled = canUpdateCurrentSystemConfig() ? "" : " disabled";
             let control = "";
             if (type === "textarea") {
-                control = `<textarea name="${code}" rows="4"${placeholder}>${escapeHtml(value)}</textarea>`;
+                control = `<textarea name="${code}" rows="4"${placeholder}${disabled}>${escapeHtml(value)}</textarea>`;
             } else if (type === "switch") {
                 const checked = value === "true" || value === "1" || value === "yes";
-                control = `<label class="settings-config-switch"><input name="${code}" type="checkbox" ${checked ? "checked" : ""}><span class="settings-config-switch__track"><span class="settings-config-switch__thumb"></span></span><span class="settings-config-switch__text">启用</span></label>`;
+                control = `<label class="settings-config-switch"><input name="${code}" type="checkbox" ${checked ? "checked" : ""}${disabled}><span class="settings-config-switch__track"><span class="settings-config-switch__thumb"></span></span><span class="settings-config-switch__text">启用</span></label>`;
                 return `
                     <label class="settings-field settings-config-field settings-config-field--switch">
                         <span>${label}</span>
@@ -906,12 +1316,12 @@
                     const selected = optionValue === value ? " selected" : "";
                     return `<option value="${escapeHtml(optionValue)}"${selected}>${escapeHtml(option.label || optionValue)}</option>`;
                 }).join("");
-                control = `<select name="${code}">${options}</select>`;
+                control = `<select name="${code}"${disabled}>${options}</select>`;
             } else if (type === "number") {
-                control = `<input name="${code}" type="number" value="${escapeHtml(value)}"${placeholder}>`;
+                control = `<input name="${code}" type="number" value="${escapeHtml(value)}"${placeholder}${disabled}>`;
             } else {
                 const inputType = field.sensitive ? "password" : "text";
-                control = `<input name="${code}" type="${inputType}" value="${escapeHtml(value)}"${placeholder}>`;
+                control = `<input name="${code}" type="${inputType}" value="${escapeHtml(value)}"${placeholder}${disabled}>`;
             }
             return `
                 <label class="settings-field settings-config-field">
@@ -936,6 +1346,9 @@
         }
 
         async function loadSystemConfigForm() {
+            if (!canViewGeneral()) {
+                return;
+            }
             const formData = await requestJson("/api/system-config/forms/main-system");
             renderSystemConfigForm(formData);
         }
@@ -967,6 +1380,7 @@
             unitSortOrderInput.value = "0";
             unitEnabledInput.checked = true;
             renderUnitsTree((settingsScope && settingsScope.units) || []);
+            applyPeoplePermissionState();
         }
 
         function fillUnitForm(unit) {
@@ -980,7 +1394,10 @@
             unitEnabledInput.checked = Boolean(unit.enabled);
             renderUnitsTree((settingsScope && settingsScope.units) || []);
             setSettingsTab("units");
-            unitCodeInput.focus();
+            applyPeoplePermissionState();
+            if (!unitCodeInput.disabled) {
+                unitCodeInput.focus();
+            }
         }
 
         function resetAvatarPreview() {
@@ -1022,7 +1439,10 @@
             personRemarkInput.value = "";
             personEnabledInput.checked = true;
             resetAvatarPreview();
+            renderPersonRolePicker([]);
+            syncPersonRolePickerPermissionState();
             renderPeopleList(settingsPeople);
+            applyPeoplePermissionState();
         }
 
         function fillPersonForm(person) {
@@ -1039,9 +1459,14 @@
             personEnabledInput.checked = Boolean(person.enabled);
             currentAvatarMediaId = person.avatarMediaId || null;
             renderAvatarPreview(person.avatarAccessUrl || "", person);
+            renderPersonRolePicker(person.roles || []);
+            syncPersonRolePickerPermissionState();
             renderPeopleList(settingsPeople);
             setSettingsTab("people");
-            personCodeInput.focus();
+            applyPeoplePermissionState();
+            if (!personCodeInput.disabled) {
+                personCodeInput.focus();
+            }
         }
 
         function renderUnitsTree(units) {
@@ -1166,6 +1591,46 @@
             peopleList.innerHTML = `<ul class="settings-person-tree">${treeHtml}</ul>`;
         }
 
+        function renderPersonRolePicker(selectedRoles) {
+            if (!personRolePickerList) {
+                return;
+            }
+            const selected = new Set((selectedRoles || []).map((role) => String(role.id)));
+            const roleInputDisabled = canAssignPersonRoles() ? "" : "disabled";
+            personRolePickerList.classList.toggle("is-readonly", !canAssignPersonRoles());
+            personRolePickerList.innerHTML = settingsRoles.length
+                ? settingsRoles.map((role) => `
+                    <label class="person-role-picker__item">
+                        <input type="checkbox" value="${role.id}" ${selected.has(String(role.id)) ? "checked" : ""} ${roleInputDisabled}>
+                        <span>${escapeHtml(role.roleName || "")} (${escapeHtml(role.unitName || "未分配部门")})</span>
+                    </label>
+                `).join("")
+                : '<div class="settings-empty">暂无岗位。</div>';
+        }
+        function syncPersonRolePickerPermissionState() {
+            if (!personRolePickerList) {
+                return;
+            }
+            personRolePickerList.classList.toggle("is-disabled", !canAssignPersonRoles());
+            personRolePickerList.querySelectorAll("input[type='checkbox']").forEach((input) => {
+                input.disabled = !canAssignPersonRoles();
+            });
+        }
+
+        function collectSelectedPersonRoleIds() {
+            if (!personRolePickerList) {
+                return [];
+            }
+            if (!canAssignPersonRoles()) {
+                const currentPerson = settingsPeople.find((person) => String(person.id) === String(selectedPersonId));
+                return (currentPerson && currentPerson.roles ? currentPerson.roles : [])
+                    .map((role) => Number(role.id))
+                    .filter((id) => !Number.isNaN(id));
+            }
+            return Array.from(personRolePickerList.querySelectorAll("input[type='checkbox']:checked"))
+                .map((item) => Number(item.value));
+        }
+
         function scrollPersonIntoView(personId) {
             if (!peopleList || !personId) {
                 return;
@@ -1177,6 +1642,9 @@
         }
 
         function beginCreatePerson(unitId) {
+            if (!canCreatePeople()) {
+                return;
+            }
             resetPersonForm();
             if (unitId && personUnitIdInput) {
                 personUnitIdInput.value = String(unitId);
@@ -1186,8 +1654,30 @@
         }
 
         async function loadPeople() {
-            settingsPeople = await requestJson("/api/org/persons");
+            if (!canViewPeople()) {
+                settingsPeople = [];
+                settingsRoles = [];
+                renderPeopleList([]);
+                renderPersonRolePicker([]);
+                return;
+            }
+            const [people, roles] = await Promise.all([
+                requestJson("/api/org/persons"),
+                canViewRoles() ? requestJson("/api/org/roles?enabled=true") : Promise.resolve([])
+            ]);
+            settingsPeople = people || [];
+            settingsRoles = roles || [];
+            settingsPeople.forEach((person) => {
+                if (person.unitId) {
+                    expandedPeopleGroupIds.add(String(person.unitId));
+                }
+            });
             renderPeopleList(settingsPeople);
+            const currentPerson = selectedPersonId
+                ? settingsPeople.find((person) => String(person.id) === String(selectedPersonId))
+                : null;
+            renderPersonRolePicker(currentPerson ? currentPerson.roles || [] : []);
+            syncPersonRolePickerPermissionState();
         }
 
         async function loadSettingsData() {
@@ -1197,13 +1687,26 @@
             isSettingsLoading = true;
             showSettingsError("");
             try {
-                settingsScope = await requestJson("/api/org/persons/current-scope");
-                initializeExpandedSets(settingsScope.units || []);
-                renderUnitsTree(settingsScope.units || []);
-                populateUnitSelect(personUnitIdInput, settingsScope.units || [], false);
-                populateUnitSelect(unitParentSelect, settingsScope.units || [], false);
-                await loadPeople();
-                const firstUnit = flattenUnitTree(settingsScope.units || [])[0];
+                await loadCurrentOrgPermissions();
+                if (canViewUnits() || canViewPeople()) {
+                    settingsScope = await requestJson("/api/org/persons/current-scope");
+                } else {
+                    settingsScope = { units: [] };
+                }
+                const units = settingsScope.units || [];
+                initializeExpandedSets(units);
+                renderUnitsTree(canViewUnits() ? units : []);
+                populateUnitSelect(personUnitIdInput, canViewPeople() ? units : [], false);
+                populateUnitSelect(unitParentSelect, canViewUnits() ? units : [], false);
+                if (canViewPeople()) {
+                    await loadPeople();
+                } else {
+                    settingsPeople = [];
+                    settingsRoles = [];
+                    renderPeopleList([]);
+                    renderPersonRolePicker([]);
+                }
+                const firstUnit = flattenUnitTree(units)[0];
                 if (firstUnit && !personUnitIdInput.value) {
                     personUnitIdInput.value = String(firstUnit.id);
                 }
@@ -1211,7 +1714,9 @@
                     unitParentSelect.value = String(firstUnit.id);
                     unitParentIdInput.value = String(firstUnit.id);
                 }
-                await loadSystemConfigForm();
+                if (canViewGeneral()) {
+                    await loadSystemConfigForm();
+                }
             } catch (error) {
                 showSettingsError(error && error.message ? error.message : "加载设置数据失败");
                 renderUnitsTree([]);
@@ -1233,6 +1738,9 @@
         }
 
         function beginCreateUnit(parentId) {
+            if (!canCreateUnits()) {
+                return;
+            }
             resetUnitForm(parentId || getDefaultCreateParentId());
             setSettingsTab("units");
             unitCodeInput.focus();
@@ -1249,6 +1757,7 @@
                 closeDeleteConfirmDialog();
                 resetUnitForm("");
                 await loadSettingsData();
+                await reloadRoleSettingsPanel();
                 showSettingsToast("删除成功");
             } catch (error) {
                 showSettingsError(error.message);
@@ -1280,7 +1789,7 @@
                 peopleCreateMenuButton.hidden = true;
             }
             if (peopleDeleteMenuButton) {
-                peopleDeleteMenuButton.hidden = false;
+                peopleDeleteMenuButton.hidden = !canDeletePeople();
             }
             peopleTreeContextMenu.hidden = false;
             const sectionRect = peopleSection.getBoundingClientRect();
@@ -1299,7 +1808,7 @@
             contextMenuPeopleUnitId = String(unitId);
             contextMenuPersonId = null;
             if (peopleCreateMenuButton) {
-                peopleCreateMenuButton.hidden = false;
+                peopleCreateMenuButton.hidden = !canCreatePeople();
             }
             if (peopleDeleteMenuButton) {
                 peopleDeleteMenuButton.hidden = true;
@@ -1317,9 +1826,13 @@
         settingsButton.addEventListener("click", () => setSettingsDrawerOpen(true));
         closeSettingsButton.addEventListener("click", () => setSettingsDrawerOpen(false));
         settingsBackdrop.addEventListener("click", () => setSettingsDrawerOpen(false));
+        normalizeSettingsPanelText();
         generalTabButton.addEventListener("click", () => setSettingsTab("general"));
         unitsTabButton.addEventListener("click", () => setSettingsTab("units"));
         peopleTabButton.addEventListener("click", () => setSettingsTab("people"));
+        if (rolesTabButton) {
+            rolesTabButton.addEventListener("click", () => setSettingsTab("roles"));
+        }
         if (logsTabButton) {
             logsTabButton.addEventListener("click", () => setSettingsTab("logs"));
         }
@@ -1469,20 +1982,13 @@
                 loadLoginLogs().catch((error) => showSettingsError(error.message));
             });
         }
-        if (systemConfigFields) {
-            systemConfigFields.addEventListener("click", (event) => {
-                const tabButton = event.target.closest("[data-config-tab]");
-                if (!tabButton) {
-                    return;
-                }
-                activeSystemConfigTab = tabButton.dataset.configTab || "system-login";
-                renderSystemConfigForm(systemConfigFormData);
-            });
-        }
-
         if (systemConfigForm) {
             systemConfigForm.addEventListener("submit", async (event) => {
                 event.preventDefault();
+                if (!canUpdateCurrentSystemConfig()) {
+                    showSettingsError("无权修改当前配置");
+                    return;
+                }
                 try {
                     const saved = await requestJson("/api/system-config/forms/main-system", {
                         method: "PUT",
@@ -1497,6 +2003,17 @@
                 } catch (error) {
                     showSettingsError(error.message);
                 }
+            });
+        }
+        if (systemConfigFields) {
+            systemConfigFields.addEventListener("click", (event) => {
+                const tabButton = event.target.closest("[data-config-tab]");
+                if (!tabButton) {
+                    return;
+                }
+                activeSystemConfigTab = tabButton.dataset.configTab || "system-login";
+                renderSystemConfigForm(systemConfigFormData);
+                applyPeoplePermissionState();
             });
         }
 
@@ -1521,6 +2038,9 @@
         resetUnitFormButton.addEventListener("click", () => resetUnitForm(""));
 
         showPersonCreateButton.addEventListener("click", () => {
+            if (!canCreatePeople()) {
+                return;
+            }
             resetPersonForm();
             setSettingsTab("people");
         });
@@ -1628,11 +2148,17 @@
                 if (!unit) {
                     return;
                 }
-                if (button.dataset.action === "create-unit") {
+            if (button.dataset.action === "create-unit") {
+                    if (!canCreateUnits()) {
+                        return;
+                    }
                     beginCreateUnit(unit.id);
                     return;
                 }
                 if (button.dataset.action === "delete-unit") {
+                    if (!canDeleteUnits()) {
+                        return;
+                    }
                     openDeleteConfirmDialog(unit);
                 }
             });
@@ -1671,6 +2197,10 @@
             peopleTreeContextMenu.addEventListener("click", async (event) => {
                 const createButton = event.target.closest("[data-action='create-person']");
                 if (createButton && contextMenuPeopleUnitId) {
+                    if (!canCreatePeople()) {
+                        hidePeopleTreeContextMenu();
+                        return;
+                    }
                     const unitId = contextMenuPeopleUnitId;
                     hidePeopleTreeContextMenu();
                     beginCreatePerson(unitId);
@@ -1679,6 +2209,10 @@
 
                 const deleteButton = event.target.closest("[data-action='delete-person']");
                 if (!deleteButton || !contextMenuPersonId) {
+                    return;
+                }
+                if (!canDeletePeople()) {
+                    hidePeopleTreeContextMenu();
                     return;
                 }
                 const person = settingsPeople.find((item) => String(item.id) === String(contextMenuPersonId));
@@ -1721,6 +2255,14 @@
 
         unitEditorForm.addEventListener("submit", async (event) => {
             event.preventDefault();
+            const editingUnit = Boolean(unitEditIdInput.value);
+            if ((editingUnit && !canUpdateUnits()) || (!editingUnit && !canCreateUnits())) {
+                showSettingsError("无权保存部门信息");
+                return;
+            }
+            if (!requireValue(unitCodeInput, "部门编码") || !requireValue(unitNameInput, "部门名称")) {
+                return;
+            }
             const payload = {
                 unitCode: unitCodeInput.value.trim(),
                 unitName: unitNameInput.value.trim(),
@@ -1750,6 +2292,7 @@
                 }
                 resetUnitForm("");
                 await loadSettingsData();
+                await reloadRoleSettingsPanel();
                 showSettingsToast("保存成功");
             } catch (error) {
                 showSettingsError(error.message);
@@ -1758,6 +2301,18 @@
 
         personEditorForm.addEventListener("submit", async (event) => {
             event.preventDefault();
+            const editingPerson = Boolean(personEditIdInput.value);
+            if ((editingPerson && !canUpdatePeople()) || (!editingPerson && !canCreatePeople())) {
+                showSettingsError("无权保存人员信息");
+                return;
+            }
+            if (!requireValue(personCodeInput, "人员编码")
+                || !requireValue(personUsernameInput, "用户名")
+                || !requireValue(personNameInput, "人员姓名")
+                || (!editingPerson && !requireValue(personPasswordInput, "密码"))
+                || !requireValue(personUnitIdInput, "部门")) {
+                return;
+            }
             const payload = {
                 personCode: personCodeInput.value.trim(),
                 personName: personNameInput.value.trim(),
@@ -1771,7 +2326,7 @@
             };
             try {
                 let savedPerson = null;
-                if (personEditIdInput.value) {
+                if (editingPerson) {
                     savedPerson = await requestJson(`/api/org/persons/${personEditIdInput.value}`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -1804,7 +2359,7 @@
             }
         });
 
-        setSettingsTab("general");
+        applyPeoplePermissionState();
     }
 
     window.initOrgSettings = initOrgSettings;

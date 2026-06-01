@@ -48,20 +48,36 @@ public class RsaPasswordCryptoService {
 
     public String decrypt(String encryptedPassword) {
         try {
-            String transformation = systemConfigService.getValue(LoginConfigConst.PASSWORD_ENCRYPT_CIPHER_TRANSFORMATION, "RSA/ECB/PKCS1Padding");
-            Cipher cipher = Cipher.getInstance(transformation);
-            if (transformation.toUpperCase().contains("OAEPWITHSHA-256")) {
+            String algorithm = resolveAlgorithm();
+            if ("RSA_PKCS1".equals(algorithm)) {
+                Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                cipher.init(Cipher.DECRYPT_MODE, resolvePrivateKey());
+                byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedPassword));
+                return new String(decrypted, StandardCharsets.UTF_8);
+            }
+            if ("RSA_OAEP_SHA256".equals(algorithm)) {
+                Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
                 cipher.init(Cipher.DECRYPT_MODE, resolvePrivateKey(),
                         new OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT));
-            } else {
-                cipher.init(Cipher.DECRYPT_MODE, resolvePrivateKey());
+                byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedPassword));
+                return new String(decrypted, StandardCharsets.UTF_8);
             }
-            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedPassword));
-            return new String(decrypted, StandardCharsets.UTF_8);
+            throw new LoginException("不支持的密码加密模式");
         } catch (Exception exception) {
             log.error("登录密码解密失败", exception);
             throw new LoginException("密码解密失败");
         }
+    }
+
+    private String resolveAlgorithm() {
+        String algorithm = systemConfigService.getValue(LoginConfigConst.PASSWORD_ENCRYPT_ALGORITHM, "RSA_OAEP_SHA256");
+        if ("RSA_PKCS1".equalsIgnoreCase(algorithm)) {
+            return "RSA_PKCS1";
+        }
+        if ("RSA_OAEP_SHA256".equalsIgnoreCase(algorithm) || "RSA-OAEP".equalsIgnoreCase(algorithm)) {
+            return "RSA_OAEP_SHA256";
+        }
+        throw new LoginException("不支持的密码加密模式");
     }
 
     public String publicKeyBase64() {

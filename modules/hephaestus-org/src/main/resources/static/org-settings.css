@@ -98,6 +98,10 @@
     font-weight: 400;
 }
 
+.settings-menu__item[hidden] {
+    display: none !important;
+}
+
 .settings-menu__item.active {
     background: #f1f2f4;
     color: #111827;
@@ -493,6 +497,11 @@
     grid-template-columns: 96px minmax(0, 240px);
     align-items: center;
     gap: 12px;
+}
+
+.settings-form__grid--detail .settings-field[hidden],
+.settings-form__grid--detail .settings-toggle--field[hidden] {
+    display: none !important;
 }
 
 .settings-form__grid--detail .settings-field > span,
@@ -1488,6 +1497,16 @@
     border: 1px solid #e5ebf3;
     border-radius: 8px;
     background: #fff;
+}
+
+.settings-field input:disabled,
+.settings-field select:disabled,
+.settings-field textarea:disabled,
+.settings-toggle input:disabled,
+.settings-avatar-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+    background: #f1f5f9;
 }
 
 .settings-person__head {

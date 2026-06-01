@@ -1,0 +1,72 @@
+<div class="role-settings">
+    <div class="role-settings__side">
+        <div class="settings-tree-search">
+            <input id="roleSearchInput" type="text" placeholder="搜索岗位">
+        </div>
+        <div class="settings-section__header">
+            <strong>岗位树</strong>
+        </div>
+        <div id="roleTree" class="settings-people role-settings__tree"></div>
+        <div id="roleTreeContextMenu" class="settings-context-menu role-context-menu" hidden>
+            <button class="settings-context-menu__item" type="button" data-action="create-role">新增岗位</button>
+            <button class="settings-context-menu__item settings-context-menu__item--danger" type="button" data-action="delete-role">删除岗位</button>
+        </div>
+    </div>
+    <div class="role-settings__main">
+        <div id="roleEmptyState" class="role-settings__empty">
+            <span>右键部门新增岗位，或选择左侧岗位进行编辑。</span>
+        </div>
+        <div class="role-settings__toolbar">
+            <button id="saveRoleButton" class="settings-action settings-action--primary" type="button">保存</button>
+            <button id="refreshRolePermissionsButton" class="settings-action settings-action--primary" type="button">刷新权限</button>
+        </div>
+        <div class="settings-form-tabs role-settings__tabs">
+            <button class="settings-form-tabs__item active" type="button" data-role-tab="basic">基本属性</button>
+            <button class="settings-form-tabs__item" type="button" data-role-tab="people">人员</button>
+            <button class="settings-form-tabs__item" type="button" data-role-tab="permissions">权限</button>
+        </div>
+        <form id="roleEditorForm" class="settings-form settings-form--detail role-settings__panel">
+            <section id="roleBasicPanel">
+                <h3>岗位编辑</h3>
+                <input id="roleEditIdInput" type="hidden">
+                <div class="settings-form__grid settings-form__grid--detail">
+                    <label class="settings-field" hidden><span>岗位标识</span><input id="roleIdDisplayInput" type="text" readonly></label>
+                    <label class="settings-field"><span>岗位编码</span><input id="roleCodeInput" type="text" placeholder="请输入岗位编码"></label>
+                    <label class="settings-field"><span>岗位简称</span><input id="roleShortNameInput" type="text" placeholder="请输入岗位简称"></label>
+                    <label class="settings-field"><span>岗位名称</span><input id="roleNameInput" type="text" placeholder="请输入岗位名称"></label>
+                    <label class="settings-field"><span>岗位描述</span><input id="roleDescInput" type="text" placeholder="请输入岗位描述"></label>
+                    <label class="settings-field"><span>所属部门</span><select id="roleUnitIdInput"></select></label>
+                    <label class="settings-field"><span>岗位分组</span><input id="roleGroupInput" type="text" placeholder="普通岗位"></label>
+                    <label class="settings-field"><span>岗位类型</span><select id="roleTypeInput">
+                        <option value="normal">普通岗位</option>
+                        <option value="admin">管理员</option>
+                        <option value="operator">业务岗</option>
+                        <option value="support">支撑岗</option>
+                    </select></label>
+                    <label class="settings-field" hidden><span>岗位属性</span><select id="rolePropertyInput">
+                        <option value="other">其他</option>
+                        <option value="agent">接线员</option>
+                        <option value="leader">值班长</option>
+                        <option value="dispatcher">派遣员</option>
+                        <option value="department">专业部门</option>
+                        <option value="inspector">检查员</option>
+                    </select></label>
+                    <label class="settings-field"><span>排序</span><input id="roleSortOrderInput" type="number" value="0"></label>
+                    <label class="settings-toggle settings-toggle--field"><span>启用</span><input id="roleEnabledInput" type="checkbox" checked></label>
+                </div>
+                <div class="role-settings__summary">
+                    <strong>岗位人员</strong>
+                    <div id="rolePeopleSummary" class="role-people-summary"></div>
+                </div>
+            </section>
+            <section id="rolePeoplePanel" hidden>
+                <div class="role-settings__section-title">岗位人员</div>
+                <div id="rolePeopleList" class="settings-people role-people-tree"></div>
+            </section>
+            <section id="rolePermissionsPanel" hidden>
+                <div class="role-settings__section-title">权限</div>
+                <div id="rolePermissionList" class="role-settings__check-list"></div>
+            </section>
+        </form>
+    </div>
+</div>

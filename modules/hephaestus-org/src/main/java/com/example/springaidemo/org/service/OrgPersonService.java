@@ -11,6 +11,10 @@ import com.example.springaidemo.org.entity.OrgUnitEntity;
 import com.example.springaidemo.org.exception.OrgValidationException;
 import com.example.springaidemo.org.repository.OrgPersonRepository;
 import com.example.springaidemo.org.repository.OrgUnitRepository;
+import com.example.springaidemo.org.role.constant.OrgPermissionCodes;
+import com.example.springaidemo.org.role.dto.OrgPersonRoleItem;
+import com.example.springaidemo.org.role.service.OrgPermissionGuard;
+import com.example.springaidemo.org.role.service.OrgPersonRoleService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,20 +34,27 @@ public class OrgPersonService {
     private final OrgScopeService orgScopeService;
     private final MediaFileService mediaFileService;
     private final OrgPersistenceGuard orgPersistenceGuard;
+    private final OrgPersonRoleService orgPersonRoleService;
+    private final OrgPermissionGuard permissionGuard;
 
     public OrgPersonService(OrgPersonRepository orgPersonRepository,
                             OrgUnitRepository orgUnitRepository,
                             OrgScopeService orgScopeService,
                             MediaFileService mediaFileService,
-                            OrgPersistenceGuard orgPersistenceGuard) {
+                            OrgPersistenceGuard orgPersistenceGuard,
+                            OrgPersonRoleService orgPersonRoleService,
+                            OrgPermissionGuard permissionGuard) {
         this.orgPersonRepository = orgPersonRepository;
         this.orgUnitRepository = orgUnitRepository;
         this.orgScopeService = orgScopeService;
         this.mediaFileService = mediaFileService;
         this.orgPersistenceGuard = orgPersistenceGuard;
+        this.orgPersonRoleService = orgPersonRoleService;
+        this.permissionGuard = permissionGuard;
     }
 
     public List<OrgPersonSummary> listPersons(Long currentPersonId, String personName, Long unitId, Boolean enabled) {
+        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_VIEW);
         OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
         if (unitId != null && !scope.manageableUnitIds().contains(unitId)) {
             throw new OrgValidationException("查询部门超出当前管理范围");
@@ -67,6 +78,10 @@ public class OrgPersonService {
 
     @Transactional(rollbackFor = Exception.class)
     public OrgPersonSummary createPerson(Long currentPersonId, CreateOrgPersonRequest request) {
+        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_CREATE);
+        if (request != null && request.roleIds() != null) {
+            permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_ROLE_ASSIGN);
+        }
         validateCreateRequest(request);
         orgScopeService.assertUnitInScope(currentPersonId, request.unitId());
         OrgPersonEntity duplicate = orgPersonRepository.getByPersonCode(request.personCode().trim());
@@ -92,11 +107,18 @@ public class OrgPersonService {
                     currentPersonId, request.unitId(), request.personCode(), request.username(), exception);
             orgPersistenceGuard.rethrowPersonCodeConflict(exception);
         }
+        if (request.roleIds() != null) {
+            orgPersonRoleService.replacePersonRolesForPersonSave(currentPersonId, entity.getId(), request.roleIds());
+        }
         return toSummary(orgPersonRepository.getById(entity.getId()), unit);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public OrgPersonSummary updatePerson(Long currentPersonId, Long personId, UpdateOrgPersonRequest request) {
+        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_UPDATE);
+        if (request != null && request.roleIds() != null) {
+            permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_ROLE_ASSIGN);
+        }
         validateUpdateRequest(request);
         OrgPersonEntity current = orgScopeService.requirePersonInScope(currentPersonId, personId);
         orgScopeService.assertUnitInScope(currentPersonId, request.unitId());
@@ -121,11 +143,15 @@ public class OrgPersonService {
                     currentPersonId, personId, request.unitId(), request.personCode(), request.username(), exception);
             orgPersistenceGuard.rethrowPersonCodeConflict(exception);
         }
+        if (request.roleIds() != null) {
+            orgPersonRoleService.replacePersonRolesForPersonSave(currentPersonId, personId, request.roleIds());
+        }
         return toSummary(orgPersonRepository.getById(personId), requireUnit(request.unitId()));
     }
 
     @Transactional(rollbackFor = Exception.class)
     public void deletePerson(Long currentPersonId, Long personId) {
+        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_DELETE);
         orgScopeService.requirePersonInScope(currentPersonId, personId);
         orgPersonRepository.removeById(personId);
     }
@@ -140,6 +166,7 @@ public class OrgPersonService {
 
     public OrgPersonSummary toSummary(OrgPersonEntity person, OrgUnitEntity unit) {
         String accessUrl = resolveAvatarAccessUrl(person.getAvatarMediaId());
+        List<OrgPersonRoleItem> roles = person.getId() == null ? List.of() : orgPersonRoleService.listPersonRolesForSummary(person.getId());
         return new OrgPersonSummary(
                 person.getId(),
                 person.getPersonCode(),
@@ -153,7 +180,8 @@ public class OrgPersonService {
                 person.getMobile(),
                 person.getEmail(),
                 person.getRemark(),
-                person.getEnabled()
+                person.getEnabled(),
+                roles
         );
     }
 

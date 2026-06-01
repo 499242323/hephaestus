@@ -23,8 +23,6 @@ public final class LoginConfigConst {
     public static final String PASSWORD_ENCRYPT_ALGORITHM = "login.password.encrypt.algorithm";
 
     /** 后端密码解密 Cipher transformation。 */
-    public static final String PASSWORD_ENCRYPT_CIPHER_TRANSFORMATION = "login.password.encrypt.cipher-transformation";
-
     /** 登录密码 RSA 公钥，公开下发给登录页。 */
     public static final String PASSWORD_ENCRYPT_PUBLIC_KEY = "login.password.encrypt.public-key";
 

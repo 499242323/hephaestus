@@ -17,6 +17,10 @@
                     <span class="settings-menu__icon">•</span>
                     <span>人员</span>
                 </button>
+                <button id="rolesTabButton" class="settings-menu__item" type="button">
+                    <span class="settings-menu__icon">•</span>
+                    <span>岗位</span>
+                </button>
                 <button id="logsTabButton" class="settings-menu__item" type="button">
                     <span class="settings-menu__icon">•</span>
                     <span>日志</span>
@@ -39,7 +43,7 @@
                 <section id="generalPanel" class="settings-panel">
                     <div class="settings-section settings-config">
                         <div class="settings-form-tabs">
-                            <span class="settings-form-tabs__item active">主系统配置</span>
+                            <span id="systemConfigSectionTitle" class="settings-form-tabs__item active">主系统配置</span>
                             <span class="settings-config-header-actions">
                                 <button id="refreshSystemConfigButton" class="settings-action settings-action--compact" type="button">刷新</button>
                                 <button class="settings-action settings-action--compact settings-action--primary" type="submit" form="systemConfigForm">保存配置</button>
@@ -143,6 +147,10 @@
                                         <label class="settings-toggle settings-toggle--field"><span>启用</span><input id="personEnabledInput" name="enabled" type="checkbox" checked></label>
                                     </div>
                                     <label class="settings-field"><span>备注</span><textarea id="personRemarkInput" name="remark" rows="3" placeholder="请输入备注"></textarea></label>
+                                    <div class="person-role-picker">
+                                        <strong>人员岗位</strong>
+                                        <div id="personRolePickerList" class="person-role-picker__list"></div>
+                                    </div>
                                     <div class="settings-form__actions">
                                         <button class="settings-action settings-action--primary" type="submit">保存人员</button>
                                         <button id="resetPersonFormButton" class="settings-action" type="button">重置</button>
@@ -155,11 +163,17 @@
                     </div>
                 </section>
 
+                <section id="rolesPanel" class="settings-panel" hidden>
+                    <div id="roleSettingsMount" class="settings-workspace"></div>
+                </section>
+
                 <section id="logsPanel" class="settings-panel" hidden>
                     <div class="settings-section settings-log-panel">
                         <div class="settings-form-tabs">
-                            <button class="settings-form-tabs__item active" type="button" data-log-tab="login">登录日志</button>
-                            <button class="settings-form-tabs__item" type="button" data-log-tab="operation">操作日志</button>
+                            <span id="logTabButtons" class="settings-config-tabs">
+                                <button class="settings-config-tab active" type="button" data-log-tab="login">登录日志</button>
+                                <button class="settings-config-tab" type="button" data-log-tab="operation">操作日志</button>
+                            </span>
                             <span class="settings-config-header-actions">
                                 <button id="refreshLoginLogsButton" class="settings-action settings-action--compact" type="button">刷新</button>
                             </span>

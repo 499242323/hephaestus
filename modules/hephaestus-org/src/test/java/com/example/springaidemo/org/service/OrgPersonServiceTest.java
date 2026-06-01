@@ -13,6 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 
@@ -36,7 +38,7 @@ class OrgPersonServiceTest {
 
     @Test
     void shouldRejectCreatingPersonOutsideManageableUnit() {
-        CreateOrgPersonRequest request = new CreateOrgPersonRequest("P-1", "Alice", 9L, null, null, null, true);
+        CreateOrgPersonRequest request = new CreateOrgPersonRequest("P-1", "Alice", "alice", "pass", 9L, null, null, null, true, List.of());
         doThrow(new OrgAccessDeniedException("目标单位超出当前管理范围"))
                 .when(orgScopeService).assertUnitInScope(100L, 9L);
 
@@ -47,7 +49,7 @@ class OrgPersonServiceTest {
 
     @Test
     void shouldRejectMissingUnitWhenCreatingPerson() {
-        CreateOrgPersonRequest request = new CreateOrgPersonRequest("P-2", "Bob", 1L, null, null, null, true);
+        CreateOrgPersonRequest request = new CreateOrgPersonRequest("P-2", "Bob", "bob", "pass", 1L, null, null, null, true, List.of());
         org.mockito.Mockito.when(orgUnitRepository.getById(1L)).thenReturn(null);
 
         assertThatThrownBy(() -> orgPersonService.createPerson(100L, request))

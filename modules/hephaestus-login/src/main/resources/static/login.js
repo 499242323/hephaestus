@@ -9,6 +9,7 @@
     const loginSubtitle = document.getElementById("loginSubtitle");
     const LOGIN_CONFIG_KEYS = {
         passwordEncryptEnabled: "login.password.encrypt.enabled",
+        passwordEncryptAlgorithm: "login.password.encrypt.algorithm",
         passwordEncryptPublicKey: "login.password.encrypt.public-key",
         pageTitle: "login.page.title",
         pageSubtitle: "login.page.subtitle",
@@ -467,20 +468,41 @@
     async function encryptPassword(password) {
         const enabled = String(publicConfig[LOGIN_CONFIG_KEYS.passwordEncryptEnabled] || "true") === "true";
         const publicKey = publicConfig[LOGIN_CONFIG_KEYS.passwordEncryptPublicKey] || "";
+        const algorithm = publicConfig[LOGIN_CONFIG_KEYS.passwordEncryptAlgorithm] || "RSA_OAEP_SHA256";
         if (!enabled) {
             return { password, encrypted: false };
         }
-        if (!window.crypto || !window.crypto.subtle || !publicKey) {
+        if (!publicKey) {
             throw new Error("当前浏览器无法完成密码加密");
         }
-        const key = await window.crypto.subtle.importKey(
+        const normalizedAlgorithm = algorithm.toUpperCase();
+        if (normalizedAlgorithm === "RSA_PKCS1") {
+            if (!window.JSEncrypt || !publicKey) {
+                throw new Error("当前浏览器无法完成密码加密");
+            }
+            const encryptor = new window.JSEncrypt();
+            encryptor.setPublicKey(`-----BEGIN PUBLIC KEY-----\n${publicKey}\n-----END PUBLIC KEY-----`);
+            const encryptedPassword = encryptor.encrypt(password);
+            if (!encryptedPassword) {
+                throw new Error("当前浏览器无法完成密码加密");
+            }
+            return { password: encryptedPassword, encrypted: true };
+        }
+        if (normalizedAlgorithm !== "RSA_OAEP_SHA256" && normalizedAlgorithm !== "RSA-OAEP") {
+            throw new Error("当前登录密码加密模式不受支持");
+        }
+        const subtleCrypto = window.crypto && window.crypto.subtle;
+        if (!subtleCrypto) {
+            throw new Error("当前浏览器无法完成密码加密，请使用 HTTPS 访问或将登录密码加密模式配置为 RSA_PKCS1");
+        }
+        const key = await subtleCrypto.importKey(
             "spki",
             base64ToArrayBuffer(publicKey),
             { name: "RSA-OAEP", hash: "SHA-256" },
             false,
             ["encrypt"]
         );
-        const encrypted = await window.crypto.subtle.encrypt(
+        const encrypted = await subtleCrypto.encrypt(
             { name: "RSA-OAEP" },
             key,
             new TextEncoder().encode(password)

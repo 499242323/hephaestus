@@ -613,4 +613,600 @@
             <column name="success_flag"/>
         </createIndex>
     </changeSet>
+
+    <changeSet id="heph-role-create-table-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_role"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_role">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_heph_role"/>
+            </column>
+            <column name="role_code" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_short_name" type="varchar(64)"/>
+            <column name="role_desc" type="varchar(512)"/>
+            <column name="unit_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_type" type="varchar(64)"/>
+            <column name="role_group" type="varchar(64)"/>
+            <column name="role_property" type="varchar(64)"/>
+            <column name="enabled" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="heph_role"
+                             columnNames="role_code"
+                             constraintName="uk_heph_role_code"/>
+        <createIndex tableName="heph_role" indexName="idx_heph_role_unit_id">
+            <column name="unit_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-permission-create-table-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_permission"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_permission">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_heph_permission"/>
+            </column>
+            <column name="permission_code" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_group" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_section" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="heph_permission"
+                             columnNames="permission_code"
+                             constraintName="uk_heph_permission_code"/>
+    </changeSet>
+
+    <changeSet id="heph-role-permission-create-table-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_role_permission"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_role_permission">
+            <column name="role_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_code" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="heph_role_permission"
+                       columnNames="role_id, permission_id"
+                       constraintName="pk_heph_role_permission"/>
+        <createIndex tableName="heph_role_permission" indexName="idx_heph_role_permission_code">
+            <column name="permission_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-person-role-create-table-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_person_role"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_person_role">
+            <column name="person_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="heph_person_role"
+                       columnNames="person_id, role_id"
+                       constraintName="pk_heph_person_role"/>
+        <createIndex tableName="heph_person_role" indexName="idx_heph_person_role_role_id">
+            <column name="role_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-person-permission-create-table-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_person_permission"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_person_permission">
+            <column name="person_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_id" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_code" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="heph_person_permission"
+                       columnNames="person_id, permission_id"
+                       constraintName="pk_heph_person_permission"/>
+        <createIndex tableName="heph_person_permission" indexName="idx_heph_person_permission_code">
+            <column name="permission_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="heph-permission-seed-general-person-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM heph_permission WHERE permission_group = 'general' AND permission_section = 'person'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="heph_permission">
+            <column name="permission_code" value="general.person.view"/>
+            <column name="permission_name" value="常规-人员-查看"/>
+            <column name="permission_group" value="general"/>
+            <column name="permission_section" value="person"/>
+            <column name="sort_order" valueNumeric="10"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_permission">
+            <column name="permission_code" value="general.person.create"/>
+            <column name="permission_name" value="常规-人员-新增"/>
+            <column name="permission_group" value="general"/>
+            <column name="permission_section" value="person"/>
+            <column name="sort_order" valueNumeric="20"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_permission">
+            <column name="permission_code" value="general.person.update"/>
+            <column name="permission_name" value="常规-人员-修改"/>
+            <column name="permission_group" value="general"/>
+            <column name="permission_section" value="person"/>
+            <column name="sort_order" valueNumeric="30"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_permission">
+            <column name="permission_code" value="general.person.delete"/>
+            <column name="permission_name" value="常规-人员-删除"/>
+            <column name="permission_group" value="general"/>
+            <column name="permission_section" value="person"/>
+            <column name="sort_order" valueNumeric="40"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+        <insert tableName="heph_permission">
+            <column name="permission_code" value="general.person.role.assign"/>
+            <column name="permission_name" value="常规-人员-分配岗位"/>
+            <column name="permission_group" value="general"/>
+            <column name="permission_section" value="person"/>
+            <column name="sort_order" valueNumeric="50"/>
+            <column name="enabled" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="sys-config-login-encrypt-mode-select-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <tableExists tableName="sys_config_value"/>
+        </preConditions>
+        <update tableName="sys_config_definition">
+            <column name="component_type" value="select"/>
+            <column name="default_value" value="RSA_OAEP_SHA256"/>
+            <column name="options_json" value="[{&quot;label&quot;:&quot;RSA-OAEP SHA-256（需 HTTPS）&quot;,&quot;value&quot;:&quot;RSA_OAEP_SHA256&quot;},{&quot;label&quot;:&quot;RSA PKCS#1（兼容 HTTP/FRP）&quot;,&quot;value&quot;:&quot;RSA_PKCS1&quot;}]"/>
+            <column name="help_text" value="前后端使用同一个加密模式配置；选择 RSA_PKCS1 时登录页使用兼容加密工具，选择 RSA_OAEP_SHA256 时浏览器需 HTTPS 安全上下文。"/>
+            <where>config_code = 'login.password.encrypt.algorithm'</where>
+        </update>
+        <update tableName="sys_config_definition">
+            <column name="public_flag" valueNumeric="0"/>
+            <column name="help_text" value="兼容历史配置，默认由加密模式自动映射，一般无需修改。"/>
+            <where>config_code = 'login.password.encrypt.cipher-transformation'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="sys-config-login-encrypt-mode-default-pkcs1-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+        </preConditions>
+        <update tableName="sys_config_definition">
+            <column name="default_value" value="RSA_PKCS1"/>
+            <where>config_code = 'login.password.encrypt.algorithm'</where>
+        </update>
+        <update tableName="sys_config_value">
+            <column name="config_value" value="RSA_PKCS1"/>
+            <where>config_code = 'login.password.encrypt.algorithm' AND config_value IN ('RSA-OAEP', 'RSA_OAEP_SHA256')</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="sys-config-remove-login-cipher-transformation-20260529" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <tableExists tableName="sys_config_value"/>
+        </preConditions>
+        <delete tableName="sys_config_value">
+            <where>config_code = 'login.password.encrypt.cipher-transformation'</where>
+        </delete>
+        <delete tableName="sys_config_definition">
+            <where>config_code = 'login.password.encrypt.cipher-transformation'</where>
+        </delete>
+    </changeSet>
+
+    <changeSet id="heph-role-seed-system-admin-role-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role"/>
+            <tableExists tableName="heph_unit"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(1) FROM heph_role WHERE role_code = 'system_admin'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="heph_role">
+            <column name="role_code" value="system_admin"/>
+            <column name="role_name" value="系统管理员"/>
+            <column name="role_short_name" value="管理员"/>
+            <column name="role_desc" value="系统默认管理员岗位"/>
+            <column name="unit_id" valueComputed="(SELECT id FROM heph_unit ORDER BY parent_id, sort_order, id LIMIT 1)"/>
+            <column name="role_type" value="admin"/>
+            <column name="role_group" value="general"/>
+            <column name="role_property" value="system"/>
+            <column name="enabled" valueNumeric="1"/>
+            <column name="sort_order" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="heph-role-type-create-table-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="heph_role_type"/>
+            </not>
+        </preConditions>
+        <createTable tableName="heph_role_type">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_heph_role_type"/>
+            </column>
+            <column name="type_code" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="admin_flag" type="tinyint" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="tinyint" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="heph_role_type"
+                             columnNames="type_code"
+                             constraintName="uk_heph_role_type_code"/>
+    </changeSet>
+
+    <changeSet id="heph-role-type-seed-default-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role_type"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_role_type (type_code, type_name, admin_flag, sort_order, enabled)
+            SELECT 'normal', '普通岗位', 0, 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_role_type WHERE type_code = 'normal')
+        </sql>
+        <sql>
+            INSERT INTO heph_role_type (type_code, type_name, admin_flag, sort_order, enabled)
+            SELECT 'admin', '管理员', 1, 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_role_type WHERE type_code = 'admin')
+        </sql>
+        <sql>
+            INSERT INTO heph_role_type (type_code, type_name, admin_flag, sort_order, enabled)
+            SELECT 'operator', '业务岗', 0, 30, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_role_type WHERE type_code = 'operator')
+        </sql>
+        <sql>
+            INSERT INTO heph_role_type (type_code, type_name, admin_flag, sort_order, enabled)
+            SELECT 'support', '支撑岗', 0, 40, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_role_type WHERE type_code = 'support')
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-seed-general-section-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.person', '常规-人员', 'general', 'person', 1, 1
+            WHERE NOT EXISTS (
+                SELECT 1 FROM heph_permission WHERE permission_code = 'general.person'
+            )
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.unit', '常规-部门', 'general', 'unit', 1, 1
+            WHERE NOT EXISTS (
+                SELECT 1 FROM heph_permission WHERE permission_code = 'general.unit'
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-seed-general-unit-role-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.unit.view', '常规-部门-查看', 'general', 'unit', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.unit.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.unit.create', '常规-部门-新增', 'general', 'unit', 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.unit.create')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.unit.update', '常规-部门-修改', 'general', 'unit', 30, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.unit.update')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.unit.delete', '常规-部门-删除', 'general', 'unit', 40, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.unit.delete')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role', '常规-岗位', 'general', 'role', 1, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.view', '常规-岗位-查看', 'general', 'role', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.create', '常规-岗位-新增', 'general', 'role', 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.create')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.update', '常规-岗位-修改', 'general', 'role', 30, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.update')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.delete', '常规-岗位-删除', 'general', 'role', 40, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.delete')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.person.assign', '常规-岗位-分配人员', 'general', 'role', 50, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.person.assign')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.role.permission.refresh', '常规-岗位-刷新权限', 'general', 'role', 60, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.role.permission.refresh')
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-seed-general-config-log-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config', '常规-配置', 'general', 'config', 1, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.view', '常规-配置-查看', 'general', 'config', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.update', '常规-配置-修改', 'general', 'config', 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.update')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log', '常规-日志', 'general', 'log', 1, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log.view', '常规-日志-查看', 'general', 'log', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log.view')
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-role-seed-system-admin-permissions-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role"/>
+            <tableExists tableName="heph_permission"/>
+            <tableExists tableName="heph_role_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_role_permission (role_id, permission_id, permission_code)
+            SELECT r.id, p.id, p.permission_code
+            FROM heph_role r
+            JOIN heph_permission p ON p.enabled = 1
+            WHERE r.role_code = 'system_admin'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM heph_role_permission rp
+                  WHERE rp.role_id = r.id
+                    AND rp.permission_id = p.id
+              )
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-role-seed-system-admin-person-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role"/>
+            <tableExists tableName="heph_person"/>
+            <tableExists tableName="heph_person_role"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_person_role (person_id, role_id)
+            SELECT p.id, r.id
+            FROM heph_person p
+            JOIN heph_role r ON r.role_code = 'system_admin'
+            WHERE p.id = 100
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM heph_person_role pr
+                  WHERE pr.person_id = p.id
+                    AND pr.role_id = r.id
+              )
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-seed-general-config-log-split-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login', '常规-系统登录', 'general', 'config-login', 1, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login.view', '常规-系统登录-查看', 'general', 'config-login', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login.update', '常规-系统登录-修改', 'general', 'config-login', 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login.update')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login-page', '常规-登录页面', 'general', 'config-login-page', 2, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login-page')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login-page.view', '常规-登录页面-查看', 'general', 'config-login-page', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login-page.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.config.login-page.update', '常规-登录页面-修改', 'general', 'config-login-page', 20, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.config.login-page.update')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log.login', '常规-登录日志', 'general', 'log-login', 1, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log.login')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log.login.view', '常规-登录日志-查看', 'general', 'log-login', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log.login.view')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log.operation', '常规-操作日志', 'general', 'log-operation', 2, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log.operation')
+        </sql>
+        <sql>
+            INSERT INTO heph_permission (permission_code, permission_name, permission_group, permission_section, sort_order, enabled)
+            SELECT 'general.log.operation.view', '常规-操作日志-查看', 'general', 'log-operation', 10, 1
+            WHERE NOT EXISTS (SELECT 1 FROM heph_permission WHERE permission_code = 'general.log.operation.view')
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-role-seed-system-admin-config-log-split-permissions-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role"/>
+            <tableExists tableName="heph_permission"/>
+            <tableExists tableName="heph_role_permission"/>
+        </preConditions>
+        <sql>
+            INSERT INTO heph_role_permission (role_id, permission_id, permission_code)
+            SELECT r.id, p.id, p.permission_code
+            FROM heph_role r
+            JOIN heph_permission p ON p.enabled = 1
+            WHERE r.role_code = 'system_admin'
+              AND p.permission_code IN (
+                  'general.config.login',
+                  'general.config.login.view',
+                  'general.config.login.update',
+                  'general.config.login-page',
+                  'general.config.login-page.view',
+                  'general.config.login-page.update',
+                  'general.log.login',
+                  'general.log.login.view',
+                  'general.log.operation',
+                  'general.log.operation.view'
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM heph_role_permission rp
+                  WHERE rp.role_id = r.id
+                    AND rp.permission_id = p.id
+              )
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-disable-general-config-log-coarse-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            UPDATE heph_permission
+            SET enabled = 0
+            WHERE permission_code IN (
+                'general.config',
+                'general.config.view',
+                'general.config.update',
+                'general.log',
+                'general.log.view'
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="heph-permission-enable-general-config-log-section-20260601" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_permission"/>
+        </preConditions>
+        <sql>
+            UPDATE heph_permission
+            SET enabled = 1
+            WHERE permission_code IN ('general.config', 'general.log')
+        </sql>
+    </changeSet>
 </databaseChangeLog>
