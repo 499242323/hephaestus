@@ -37,6 +37,9 @@ public class OrgPersonEntity {
     @TableField("email")
     private String email;
 
+    @TableField("source_type")
+    private String sourceType;
+
     @TableField("remark")
     private String remark;
 
@@ -119,6 +122,14 @@ public class OrgPersonEntity {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
     }
 
     public String getRemark() {

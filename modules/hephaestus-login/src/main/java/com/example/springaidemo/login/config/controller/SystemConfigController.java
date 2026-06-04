@@ -8,8 +8,8 @@ import com.example.springaidemo.login.config.dto.SystemConfigSectionResponse;
 import com.example.springaidemo.login.config.LoginConfigConst;
 import com.example.springaidemo.login.config.service.SystemConfigService;
 import com.example.springaidemo.login.auth.support.RsaPasswordCryptoService;
-import com.example.springaidemo.org.log.dto.OperationLogRecordRequest;
 import com.example.springaidemo.org.log.service.OperationLogRecorder;
+import com.example.springaidemo.org.log.support.OperationLogRecordFactory;
 import com.example.springaidemo.org.role.constant.OrgPermissionCodes;
 import com.example.springaidemo.org.role.service.OrgPermissionGuard;
 import jakarta.servlet.http.HttpSession;
@@ -35,17 +35,20 @@ public class SystemConfigController {
     private final RsaPasswordCryptoService rsaPasswordCryptoService;
     private final OrgPermissionGuard permissionGuard;
     private final OperationLogRecorder operationLogRecorder;
+    private final OperationLogRecordFactory operationLogRecordFactory;
     private final AuthService authService;
 
     public SystemConfigController(SystemConfigService systemConfigService,
                                   RsaPasswordCryptoService rsaPasswordCryptoService,
                                   OrgPermissionGuard permissionGuard,
                                   OperationLogRecorder operationLogRecorder,
+                                  OperationLogRecordFactory operationLogRecordFactory,
                                   AuthService authService) {
         this.systemConfigService = systemConfigService;
         this.rsaPasswordCryptoService = rsaPasswordCryptoService;
         this.permissionGuard = permissionGuard;
         this.operationLogRecorder = operationLogRecorder;
+        this.operationLogRecordFactory = operationLogRecordFactory;
         this.authService = authService;
     }
 
@@ -82,12 +85,8 @@ public class SystemConfigController {
             values = filterWritableConfigValues(values, canUpdateLogin, canUpdateLoginPage);
         }
         SystemConfigFormResponse response = systemConfigService.saveForm(groupCode, values, personId == null ? null : String.valueOf(personId));
-        operationLogRecorder.recordSuccess(new OperationLogRecordRequest(
+        operationLogRecorder.recordSuccess(operationLogRecordFactory.create(
                 personId,
-                null,
-                null,
-                null,
-                null,
                 "system-config",
                 "系统配置",
                 "save-config",

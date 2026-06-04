@@ -1437,4 +1437,133 @@
               )
         </sql>
     </changeSet>
+
+    <changeSet id="email-register-person-source-type-20260602" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <not>
+                <columnExists tableName="heph_person" columnName="source_type"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="heph_person">
+            <column name="source_type" type="varchar(32)" defaultValue="ADMIN">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="email-register-person-email-index-20260602" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <columnExists tableName="heph_person" columnName="email"/>
+            <not>
+                <indexExists tableName="heph_person" indexName="idx_heph_person_email"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_email">
+            <column name="email"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="email-register-person-source-type-index-20260602" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <columnExists tableName="heph_person" columnName="source_type"/>
+            <not>
+                <indexExists tableName="heph_person" indexName="idx_heph_person_source_type"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_source_type">
+            <column name="source_type"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="email-verification-code-create-table-20260602" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="sys_email_verification_code"/>
+            </not>
+        </preConditions>
+        <createTable tableName="sys_email_verification_code">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_sys_email_verification_code"/>
+            </column>
+            <column name="email" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scene" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code_hash" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expire_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_at" type="timestamp"/>
+            <column name="send_ip" type="varchar(64)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex tableName="sys_email_verification_code" indexName="idx_email_code_scene_email_time">
+            <column name="scene"/>
+            <column name="email"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="sys_email_verification_code" indexName="idx_email_code_expire_at">
+            <column name="expire_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="email-register-system-config-20260602" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="sys_config_definition"/>
+            <tableExists tableName="sys_config_value"/>
+        </preConditions>
+        <sql>
+            INSERT INTO sys_config_definition (
+                config_code, config_name, config_group, config_tab, section_code, section_name,
+                component_type, default_value, required_flag, public_flag, sensitive_flag,
+                enabled_flag, sort_order
+            )
+            SELECT 'login.register.unit-id', '注册人员默认部门ID', 'main-system', 'login', 'login', '系统登录',
+                   'number', '2', 1, 0, 0, 1, 70
+            WHERE NOT EXISTS (
+                SELECT 1 FROM sys_config_definition WHERE config_code = 'login.register.unit-id'
+            );
+
+            INSERT INTO sys_config_definition (
+                config_code, config_name, config_group, config_tab, section_code, section_name,
+                component_type, default_value, required_flag, public_flag, sensitive_flag,
+                enabled_flag, sort_order
+            )
+            SELECT 'login.email-code.expire-minutes', '邮箱验证码有效分钟数', 'main-system', 'login', 'login', '系统登录',
+                   'number', '10', 1, 0, 0, 1, 71
+            WHERE NOT EXISTS (
+                SELECT 1 FROM sys_config_definition WHERE config_code = 'login.email-code.expire-minutes'
+            );
+
+            INSERT INTO sys_config_definition (
+                config_code, config_name, config_group, config_tab, section_code, section_name,
+                component_type, default_value, required_flag, public_flag, sensitive_flag,
+                enabled_flag, sort_order
+            )
+            SELECT 'login.email-code.resend-seconds', '邮箱验证码重发间隔秒数', 'main-system', 'login', 'login', '系统登录',
+                   'number', '60', 1, 0, 0, 1, 72
+            WHERE NOT EXISTS (
+                SELECT 1 FROM sys_config_definition WHERE config_code = 'login.email-code.resend-seconds'
+            );
+
+            INSERT INTO sys_config_value (config_code, config_value)
+            SELECT d.config_code, d.default_value
+            FROM sys_config_definition d
+            WHERE d.config_code IN (
+                'login.register.unit-id',
+                'login.email-code.expire-minutes',
+                'login.email-code.resend-seconds'
+            )
+              AND NOT EXISTS (
+                  SELECT 1 FROM sys_config_value v WHERE v.config_code = d.config_code
+              );
+        </sql>
+    </changeSet>
 </databaseChangeLog>

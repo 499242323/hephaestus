@@ -46,6 +46,12 @@ public class OrgUnitService {
         return orgScopeService.buildTree(scope.manageableUnits());
     }
 
+    public OrgUnitEntity getUnit(Long currentPersonId, Long unitId) {
+        OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
+        orgScopeService.assertUnitInScope(scope, unitId);
+        return requireUnit(unitId);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public OrgUnitEntity createUnit(Long currentPersonId, CreateOrgUnitRequest request) {
         validateCreateRequest(request);

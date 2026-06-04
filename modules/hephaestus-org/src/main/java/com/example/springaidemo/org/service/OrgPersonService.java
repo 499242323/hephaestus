@@ -62,31 +62,6 @@ public class OrgPersonService {
         this.operationLogRecordFactory = operationLogRecordFactory;
     }
 
-    public List<OrgPersonSummary> listPersons(Long currentPersonId, String personName, Long unitId, Boolean enabled) {
-        permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_VIEW);
-        OrgScopeService.ScopeContext scope = orgScopeService.resolveScope(currentPersonId);
-        if (unitId != null && !scope.manageableUnitIds().contains(unitId)) {
-            throw new OrgValidationException("查询部门超出当前管理范围");
-        }
-        Map<Long, OrgUnitEntity> unitMap = scope.manageableUnits().stream()
-                .collect(Collectors.toMap(OrgUnitEntity::getId, Function.identity()));
-        List<OrgPersonEntity> persons = orgPersonRepository.findByScope(List.copyOf(scope.manageableUnitIds()), personName, unitId, enabled);
-        Map<Long, String> avatarUrlMap = mediaFileService.findByIds(persons.stream()
-                        .map(OrgPersonEntity::getAvatarMediaId)
-                        .filter(Objects::nonNull)
-                        .distinct()
-                        .toList()).stream()
-                .collect(Collectors.toMap(MediaFile::id, MediaFile::accessUrl));
-        Map<Long, List<OrgPersonRoleItem>> roleMap = orgPersonRoleService.listPersonRolesForSummary(persons.stream()
-                .map(OrgPersonEntity::getId)
-                .toList());
-        return persons.stream()
-                .map(person -> toSummary(person, unitMap.get(person.getUnitId()),
-                        avatarUrlMap.get(person.getAvatarMediaId()),
-                        roleMap.getOrDefault(person.getId(), List.of())))
-                .toList();
-    }
-
     public List<OrgPersonSummary> listPersonsFast(Long currentPersonId, String personName, Long unitId, Boolean enabled) {
         permissionGuard.requirePermission(currentPersonId, OrgPermissionCodes.GENERAL_PERSON_VIEW);
         List<OrgPersonListRow> persons = orgPersonRepository.findListRowsByCurrentScope(currentPersonId, personName, unitId, enabled);
@@ -130,6 +105,7 @@ public class OrgPersonService {
         entity.setUnitId(request.unitId());
         entity.setMobile(trimToNull(request.mobile()));
         entity.setEmail(trimToNull(request.email()));
+        entity.setSourceType("ADMIN");
         entity.setRemark(trimToNull(request.remark()));
         entity.setEnabled(request.enabled() == null || request.enabled());
         try {
@@ -165,7 +141,9 @@ public class OrgPersonService {
         current.setPersonCode(request.personCode().trim());
         current.setPersonName(request.personName().trim());
         current.setUsername(request.username().trim());
-        current.setPassword(request.password().trim());
+        if (!isBlank(request.password())) {
+            current.setPassword(request.password().trim());
+        }
         current.setUnitId(request.unitId());
         current.setMobile(trimToNull(request.mobile()));
         current.setEmail(trimToNull(request.email()));
@@ -246,6 +224,7 @@ public class OrgPersonService {
                 accessUrl,
                 person.getMobile(),
                 person.getEmail(),
+                person.getSourceType(),
                 person.getRemark(),
                 person.getEnabled(),
                 roles == null ? List.of() : roles
@@ -265,6 +244,7 @@ public class OrgPersonService {
                 person.avatarAccessUrl(),
                 person.mobile(),
                 person.email(),
+                person.sourceType(),
                 person.remark(),
                 person.enabled(),
                 roles == null ? List.of() : roles
@@ -280,8 +260,8 @@ public class OrgPersonService {
 
     private void validateUpdateRequest(UpdateOrgPersonRequest request) {
         if (request == null || isBlank(request.personCode()) || isBlank(request.personName())
-                || isBlank(request.username()) || isBlank(request.password()) || request.unitId() == null) {
-            throw new OrgValidationException("人员编码、姓名、用户名、密码和所属部门不能为空");
+                || isBlank(request.username()) || request.unitId() == null) {
+            throw new OrgValidationException("人员编码、姓名、用户名和所属部门不能为空");
         }
     }
 

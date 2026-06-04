@@ -1,12 +1,30 @@
 (function () {
     const basePath = window.location.pathname.replace(/\/[^/]*$/, "");
     const form = document.getElementById("loginForm");
+    const showLoginButton = document.getElementById("showLoginButton");
+    const showRegisterButton = document.getElementById("showRegisterButton");
     const usernameInput = document.getElementById("usernameInput");
+    const emailInput = document.getElementById("emailInput");
+    const emailLabel = document.getElementById("emailLabel");
+    const codeInput = document.getElementById("codeInput");
     const passwordInput = document.getElementById("passwordInput");
+    const confirmPasswordInput = document.getElementById("confirmPasswordInput");
+    const confirmPasswordLabel = document.getElementById("confirmPasswordLabel");
+    const sendCodeButton = document.getElementById("sendCodeButton");
     const loginButton = document.getElementById("loginButton");
     const loginError = document.getElementById("loginError");
     const loginTitle = document.getElementById("loginTitle");
     const loginSubtitle = document.getElementById("loginSubtitle");
+    const forgotPasswordButton = document.getElementById("forgotPasswordButton");
+    const backToLoginButton = document.getElementById("backToLoginButton");
+    const resetAccountList = document.getElementById("resetAccountList");
+    const authMessageDialog = document.getElementById("authMessageDialog");
+    const authMessageText = document.getElementById("authMessageText");
+    const authMessageCloseButton = document.getElementById("authMessageCloseButton");
+    const authConfirmDialog = document.getElementById("authConfirmDialog");
+    const authConfirmText = document.getElementById("authConfirmText");
+    const authConfirmCancelButton = document.getElementById("authConfirmCancelButton");
+    const authConfirmOkButton = document.getElementById("authConfirmOkButton");
     const LOGIN_CONFIG_KEYS = {
         passwordEncryptEnabled: "login.password.encrypt.enabled",
         passwordEncryptAlgorithm: "login.password.encrypt.algorithm",
@@ -17,8 +35,17 @@
         pageBackgroundMediaId: "login.page.background.media-id",
         mouseTrailEffect: "login.mouse.trail.effect"
     };
+    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     let publicConfig = {};
+    let authMode = "login";
+    let resetStep = "verify";
+    let resetAccounts = [];
+    let selectedResetAccount = null;
+    let confirmResolver = null;
+    let loginDraft = { username: "", password: "" };
+    let codeTimer = 0;
+    let codeCountdown = 0;
 
     function initMouseTrail(effectName) {
         if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -423,8 +450,118 @@
     }
 
     function showError(message) {
-        loginError.textContent = message || "";
-        loginError.hidden = !message;
+        loginError.textContent = "";
+        loginError.hidden = true;
+        if (message) {
+            showMessageDialog(message);
+        }
+    }
+
+    function showMessageDialog(message) {
+        if (!authMessageDialog || !authMessageText) {
+            window.alert(message);
+            return;
+        }
+        authMessageText.textContent = message;
+        authMessageDialog.hidden = false;
+        if (authMessageCloseButton) {
+            authMessageCloseButton.focus();
+        }
+    }
+
+    function closeMessageDialog() {
+        if (authMessageDialog) {
+            authMessageDialog.hidden = true;
+        }
+    }
+
+    function showConfirmDialog(message) {
+        if (!authConfirmDialog || !authConfirmText || !authConfirmOkButton) {
+            return Promise.resolve(window.confirm(message));
+        }
+        authConfirmText.textContent = message;
+        authConfirmDialog.hidden = false;
+        authConfirmOkButton.focus();
+        return new Promise((resolve) => {
+            confirmResolver = resolve;
+        });
+    }
+
+    function closeConfirmDialog(result) {
+        if (authConfirmDialog) {
+            authConfirmDialog.hidden = true;
+        }
+        if (confirmResolver) {
+            confirmResolver(result);
+            confirmResolver = null;
+        }
+    }
+
+    function getTrimmedValue(input) {
+        return input ? input.value.trim() : "";
+    }
+
+    function clearAuthInputs() {
+        usernameInput.value = "";
+        emailInput.value = "";
+        codeInput.value = "";
+        passwordInput.value = "";
+        confirmPasswordInput.value = "";
+    }
+
+    function rememberLoginDraft() {
+        if (authMode === "login") {
+            loginDraft = {
+                username: usernameInput.value,
+                password: passwordInput.value
+            };
+        }
+    }
+
+    function restoreLoginDraft() {
+        usernameInput.value = loginDraft.username || "";
+        passwordInput.value = loginDraft.password || "";
+        emailInput.value = "";
+        codeInput.value = "";
+        confirmPasswordInput.value = "";
+    }
+
+    function requireEmail() {
+        const email = getTrimmedValue(emailInput);
+        if (!email) {
+            throw new Error("请填写邮箱");
+        }
+        if (!EMAIL_PATTERN.test(email)) {
+            throw new Error("请填写正确的邮箱地址");
+        }
+        return email;
+    }
+
+    function requireAuthForm() {
+        const username = getTrimmedValue(usernameInput);
+        const password = passwordInput.value;
+        if (!username) {
+            throw new Error("请填写用户名");
+        }
+        if (!password) {
+            throw new Error(authMode === "reset" ? "请填写新密码" : "请填写密码");
+        }
+        if (authMode === "login") {
+            return { username, password };
+        }
+        const email = requireEmail();
+        const code = getTrimmedValue(codeInput);
+        const confirmPassword = confirmPasswordInput.value;
+        if (!code) {
+            throw new Error("请填写验证码");
+        }
+        if (!confirmPassword) {
+            throw new Error(authMode === "reset" ? "请确认新密码" : "请确认密码");
+        }
+        if (password !== confirmPassword) {
+            throw new Error("两次输入的密码不一致");
+        }
+        return { username, password, confirmPassword, email, code };
     }
 
     async function loadPublicConfig() {
@@ -515,41 +652,319 @@
         return { password: window.btoa(binary), encrypted: true };
     }
 
+    async function postJson(url, body) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            let message = "请求失败";
+            try {
+                const payload = await response.json();
+                message = payload.message || payload.detail || message;
+            } catch (error) {
+                message = response.statusText || message;
+            }
+            throw new Error(message);
+        }
+        return response.json().catch(() => ({}));
+    }
+
+    function updateCodeButton() {
+        if (codeCountdown <= 0) {
+            sendCodeButton.disabled = false;
+            sendCodeButton.textContent = "发送验证码";
+            window.clearInterval(codeTimer);
+            codeTimer = 0;
+            return;
+        }
+        sendCodeButton.disabled = true;
+        sendCodeButton.textContent = `${codeCountdown}s 后重发`;
+    }
+
+    function startCodeCountdown() {
+        codeCountdown = 60;
+        updateCodeButton();
+        codeTimer = window.setInterval(() => {
+            codeCountdown -= 1;
+            updateCodeButton();
+        }, 1000);
+    }
+
+    async function sendCode() {
+        showError("");
+        try {
+            const email = requireEmail();
+            sendCodeButton.disabled = true;
+            sendCodeButton.textContent = "发送中";
+            const endpoint = authMode === "reset" ? "reset-password" : "register";
+            await postJson(`${basePath}/auth/email-code/${endpoint}`, { email });
+            codeInput.value = "";
+            showError("验证码已发送，请查看邮箱");
+            startCodeCountdown();
+        } catch (error) {
+            showError(error && error.message ? error.message : "验证码发送失败");
+            if (!codeTimer) {
+                sendCodeButton.disabled = false;
+                sendCodeButton.textContent = "发送验证码";
+            }
+        }
+    }
+
     form.addEventListener("submit", async (event) => {
+        if (authMode === "reset") {
+            return;
+        }
         event.preventDefault();
         showError("");
         loginButton.disabled = true;
-        loginButton.textContent = "登录中";
+        loginButton.textContent = authMode === "login" ? "登录中" : (authMode === "reset" ? "重置中" : "注册中");
         try {
-            const encrypted = await encryptPassword(passwordInput.value);
-            const response = await fetch(`${basePath}/auth/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    username: usernameInput.value.trim(),
+            const formValue = requireAuthForm();
+            const encrypted = await encryptPassword(formValue.password);
+            if (authMode === "login") {
+                await postJson(`${basePath}/auth/login`, {
+                    username: formValue.username,
                     password: encrypted.password,
                     encrypted: encrypted.encrypted
-                })
-            });
-            if (!response.ok) {
-                let message = "登录失败";
-                try {
-                    const payload = await response.json();
-                    message = payload.message || message;
-                } catch (error) {
-                    message = response.statusText || message;
-                }
-                throw new Error(message);
+                });
+                window.location.href = `${basePath}/chat.html`;
+                return;
             }
-            window.location.href = `${basePath}/chat.html`;
+            const payload = {
+                email: formValue.email,
+                username: formValue.username,
+                password: encrypted.password,
+                confirmPassword: encrypted.password,
+                code: formValue.code,
+                encrypted: encrypted.encrypted
+            };
+            if (authMode === "register") {
+                payload.personName = formValue.username;
+                await postJson(`${basePath}/auth/register`, payload);
+                clearAuthInputs();
+                showError("注册成功，请切换登录");
+                setAuthMode("login");
+            } else {
+                await postJson(`${basePath}/auth/reset-password`, payload);
+                showError("密码已重置，请登录");
+                setAuthMode("login");
+            }
         } catch (error) {
-            showError(error && error.message ? error.message : "登录失败");
+            showError(error && error.message ? error.message : "提交失败");
         } finally {
             loginButton.disabled = false;
-            loginButton.textContent = "登录";
+            loginButton.textContent = authMode === "login" ? "登录" : (authMode === "reset" ? "确认重置" : "注册");
         }
     });
 
+    function renderResetAccounts() {
+        resetAccountList.innerHTML = "";
+        resetAccountList.hidden = authMode !== "reset" || resetStep !== "password" || resetAccounts.length === 0;
+        if (resetAccountList.hidden) {
+            return;
+        }
+        const select = document.createElement("select");
+        select.className = "reset-account-select";
+        select.setAttribute("aria-label", "选择账号");
+        resetAccounts.forEach((account) => {
+            const option = document.createElement("option");
+            option.value = account.username || "";
+            option.textContent = account.personName
+                ? `${account.personName}（${account.username || ""}）`
+                : (account.username || "");
+            option.selected = selectedResetAccount && selectedResetAccount.username === account.username;
+            select.appendChild(option);
+        });
+        function syncSelectedAccount() {
+            selectedResetAccount = resetAccounts.find((account) => account.username === select.value) || resetAccounts[0] || null;
+            usernameInput.value = selectedResetAccount ? (selectedResetAccount.username || "") : "";
+        }
+
+        select.addEventListener("change", syncSelectedAccount);
+        resetAccountList.appendChild(select);
+        syncSelectedAccount();
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function setResetPasswordStep(nextStep) {
+        resetStep = nextStep === "password" ? "password" : "verify";
+        document.body.dataset.resetStep = resetStep;
+        const passwordStep = resetStep === "password";
+        usernameInput.required = authMode !== "reset" || passwordStep;
+        passwordInput.required = authMode !== "reset" || passwordStep;
+        confirmPasswordInput.required = authMode !== "login" && (authMode !== "reset" || passwordStep);
+        loginButton.textContent = authMode === "reset" ? (passwordStep ? "确认重置" : "下一步") : (authMode === "login" ? "登录" : "注册");
+        renderResetAccounts();
+    }
+
+    function setAuthMode(nextMode) {
+        const previousMode = authMode;
+        rememberLoginDraft();
+        authMode = ["login", "register", "reset"].includes(nextMode) ? nextMode : "login";
+        if (previousMode !== authMode) {
+            clearAuthInputs();
+            if (authMode === "login") {
+                restoreLoginDraft();
+            }
+        }
+        resetAccounts = [];
+        selectedResetAccount = null;
+        document.body.dataset.authMode = authMode;
+        showLoginButton.classList.toggle("auth-switch__item--active", authMode === "login");
+        showRegisterButton.classList.toggle("auth-switch__item--active", authMode === "register");
+        emailInput.required = authMode !== "login";
+        codeInput.required = authMode !== "login";
+        passwordInput.autocomplete = authMode === "login" ? "current-password" : "new-password";
+        confirmPasswordLabel.textContent = authMode === "reset" ? "确认新密码" : "确认密码";
+        if (emailLabel) {
+            emailLabel.textContent = authMode === "reset" ? "注册时邮箱" : "邮箱";
+        }
+        usernameInput.placeholder = authMode === "register" ? "用户名" : "";
+        emailInput.placeholder = authMode === "register" || authMode === "reset" ? "邮箱" : "";
+        codeInput.placeholder = authMode === "register" || authMode === "reset" ? "验证码" : "";
+        passwordInput.placeholder = authMode === "register" ? "密码" : (authMode === "reset" ? "新密码" : "");
+        confirmPasswordInput.placeholder = authMode === "register" ? "确认密码" : (authMode === "reset" ? "确认新密码" : "");
+        forgotPasswordButton.hidden = authMode !== "login";
+        backToLoginButton.hidden = authMode === "login";
+        setResetPasswordStep("verify");
+        showError("");
+    }
+
+    async function verifyResetPasswordCode() {
+        const email = requireEmail();
+        const code = getTrimmedValue(codeInput);
+        if (!code) {
+            throw new Error("请填写验证码");
+        }
+        const payload = await postJson(`${basePath}/auth/reset-password/verify`, { email, code });
+        resetAccounts = payload.accounts || [];
+        if (resetAccounts.length === 0) {
+            throw new Error("该邮箱未绑定可重置的账号");
+        }
+        selectedResetAccount = resetAccounts[0];
+        usernameInput.value = selectedResetAccount.username || "";
+        passwordInput.value = "";
+        confirmPasswordInput.value = "";
+        setResetPasswordStep("password");
+    }
+
+    async function submitResetPassword() {
+        if (!selectedResetAccount) {
+            throw new Error("请选择需要重置密码的账号");
+        }
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        if (!password) {
+            throw new Error("请填写新密码");
+        }
+        if (!confirmPassword) {
+            throw new Error("请确认新密码");
+        }
+        if (password !== confirmPassword) {
+            throw new Error("两次输入的密码不一致");
+        }
+        const confirmed = await showConfirmDialog("确认要重置所选账号的密码吗？");
+        if (!confirmed) {
+            return;
+        }
+        const encrypted = await encryptPassword(password);
+        await postJson(`${basePath}/auth/reset-password`, {
+            email: requireEmail(),
+            username: selectedResetAccount.username,
+            password: encrypted.password,
+            confirmPassword: encrypted.password,
+            code: getTrimmedValue(codeInput),
+            encrypted: encrypted.encrypted
+        });
+        showError("密码已重置，请登录");
+        setAuthMode("login");
+    }
+
+    sendCodeButton.addEventListener("click", (event) => {
+        if (authMode !== "reset") {
+            return;
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        sendCode();
+    }, true);
+
+    form.addEventListener("submit", async (event) => {
+        if (authMode !== "reset") {
+            return;
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showError("");
+        if (resetStep === "verify") {
+            loginButton.disabled = true;
+            loginButton.textContent = "验证中";
+        }
+        try {
+            if (resetStep === "verify") {
+                await verifyResetPasswordCode();
+            } else {
+                await submitResetPassword();
+            }
+        } catch (error) {
+            showError(error && error.message ? error.message : "提交失败");
+        } finally {
+            loginButton.disabled = false;
+            if (authMode === "reset") {
+                loginButton.textContent = resetStep === "verify" ? "下一步" : "确认重置";
+            }
+        }
+    }, true);
+
+    showLoginButton.addEventListener("click", () => setAuthMode("login"));
+    showRegisterButton.addEventListener("click", () => setAuthMode("register"));
+    forgotPasswordButton.addEventListener("click", () => setAuthMode("reset"));
+    backToLoginButton.addEventListener("click", () => setAuthMode("login"));
+    sendCodeButton.addEventListener("click", sendCode);
+    if (authMessageCloseButton) {
+        authMessageCloseButton.addEventListener("click", closeMessageDialog);
+    }
+    if (authConfirmCancelButton) {
+        authConfirmCancelButton.addEventListener("click", () => closeConfirmDialog(false));
+    }
+    if (authConfirmOkButton) {
+        authConfirmOkButton.addEventListener("click", () => closeConfirmDialog(true));
+    }
+    if (authMessageDialog) {
+        authMessageDialog.addEventListener("click", (event) => {
+            if (event.target === authMessageDialog) {
+                closeMessageDialog();
+            }
+        });
+    }
+    if (authConfirmDialog) {
+        authConfirmDialog.addEventListener("click", (event) => {
+            if (event.target === authConfirmDialog) {
+                closeConfirmDialog(false);
+            }
+        });
+    }
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && authMessageDialog && !authMessageDialog.hidden) {
+            closeMessageDialog();
+        }
+        if (event.key === "Escape" && authConfirmDialog && !authConfirmDialog.hidden) {
+            closeConfirmDialog(false);
+        }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    setAuthMode(params.get("mode") === "reset" ? "reset" : "login");
     loadPublicConfig()
         .catch(() => applyLoginBackground("true", "1"))
         .finally(() => initMouseTrail(publicConfig[LOGIN_CONFIG_KEYS.mouseTrailEffect] || "music"));

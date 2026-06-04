@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hephaestus 登录</title>
-    <link rel="stylesheet" href="./login.css?v=20260527-login1">
+    <link rel="stylesheet" href="./login.css?v=20260604-login-draft1">
 </head>
 <body>
+<nav class="auth-switch" aria-label="账号入口">
+    <button id="showLoginButton" class="auth-switch__item auth-switch__item--active" type="button" data-mode="login">登录</button>
+    <button id="showRegisterButton" class="auth-switch__item" type="button" data-mode="register">注册</button>
+</nav>
 <main class="login-page">
     <section class="login-panel">
         <span class="login-panel__line login-panel__line--top" aria-hidden="true"></span>
@@ -17,25 +21,60 @@
             <span class="login-brand__mark">H</span>
             <div>
                 <h1 id="loginTitle">Hephaestus</h1>
-                <p id="loginSubtitle">登录后继续使用智能对话与组织配置能力</p>
+                <p id="loginSubtitle"></p>
             </div>
         </div>
 
         <form id="loginForm" class="login-form">
-            <label class="login-field">
+            <label class="login-field auth-field auth-field--username">
                 <span>用户名</span>
                 <input id="usernameInput" name="username" type="text" autocomplete="username" required>
             </label>
-            <label class="login-field">
+            <label class="login-field auth-field auth-field--email">
+                <span id="emailLabel">邮箱</span>
+                <input id="emailInput" name="email" type="email" autocomplete="email">
+            </label>
+            <label class="login-field auth-field auth-field--code">
+                <span>验证码</span>
+                <input id="codeInput" name="code" type="text" inputmode="numeric" autocomplete="one-time-code">
+            </label>
+            <button id="sendCodeButton" class="login-code-button" type="button">发送验证码</button>
+            <label class="login-field auth-field auth-field--password">
                 <span>密码</span>
                 <input id="passwordInput" name="password" type="password" autocomplete="current-password" required>
             </label>
+            <label class="login-field auth-field auth-field--confirm">
+                <span id="confirmPasswordLabel">确认密码</span>
+                <input id="confirmPasswordInput" name="confirmPassword" type="password" autocomplete="new-password">
+            </label>
+            <div id="resetAccountList" class="reset-account-list" hidden></div>
             <div id="loginError" class="login-error" hidden></div>
             <button id="loginButton" class="login-button" type="submit">登录</button>
+            <div class="login-links">
+                <button id="forgotPasswordButton" type="button">忘记密码？</button>
+                <button id="backToLoginButton" type="button" hidden>返回登录</button>
+            </div>
         </form>
     </section>
 </main>
+<div id="authMessageDialog" class="auth-message-dialog" role="dialog" aria-modal="true" aria-labelledby="authMessageTitle" hidden>
+    <div class="auth-message-dialog__panel">
+        <strong id="authMessageTitle">提示</strong>
+        <p id="authMessageText"></p>
+        <button id="authMessageCloseButton" type="button">确定</button>
+    </div>
+</div>
+<div id="authConfirmDialog" class="auth-message-dialog" role="dialog" aria-modal="true" aria-labelledby="authConfirmTitle" hidden>
+    <div class="auth-message-dialog__panel">
+        <strong id="authConfirmTitle">确认操作</strong>
+        <p id="authConfirmText"></p>
+        <div class="auth-message-dialog__actions">
+            <button id="authConfirmCancelButton" class="auth-message-dialog__button--ghost" type="button">取消</button>
+            <button id="authConfirmOkButton" type="button">确定</button>
+        </div>
+    </div>
+</div>
 <script src="./webjars/jsencrypt/3.3.2/bin/jsencrypt.min.js"></script>
-<script src="./login.js?v=20260529-login-rsa1"></script>
+<script src="./login.js?v=20260604-login-draft1"></script>
 </body>
 </html>

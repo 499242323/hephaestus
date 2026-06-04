@@ -19,6 +19,12 @@ public final class LoginConfigConst {
     /** 是否启用登录密码前端 RSA 加密传输。 */
     public static final String PASSWORD_ENCRYPT_ENABLED = "login.password.encrypt.enabled";
 
+    public static final String REGISTER_UNIT_ID = "login.register.unit-id";
+
+    public static final String EMAIL_CODE_EXPIRE_MINUTES = "login.email-code.expire-minutes";
+
+    public static final String EMAIL_CODE_RESEND_SECONDS = "login.email-code.resend-seconds";
+
     /** 前端密码加密算法名称。 */
     public static final String PASSWORD_ENCRYPT_ALGORITHM = "login.password.encrypt.algorithm";
 

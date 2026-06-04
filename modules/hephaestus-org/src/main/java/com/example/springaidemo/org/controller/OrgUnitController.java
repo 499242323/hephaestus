@@ -43,6 +43,14 @@ public class OrgUnitController {
         return orgUnitService.getUnitTree(personId);
     }
 
+    @GetMapping("/{id}")
+    public OrgUnitEntity get(HttpSession session,
+                             @PathVariable("id") Long id) {
+        Long personId = currentPersonResolver.currentPersonId(session);
+        permissionGuard.requirePermission(personId, OrgPermissionCodes.GENERAL_UNIT_VIEW);
+        return orgUnitService.getUnit(personId, id);
+    }
+
     @PostMapping
     public OrgUnitEntity create(HttpSession session,
                                 @RequestBody CreateOrgUnitRequest request) {

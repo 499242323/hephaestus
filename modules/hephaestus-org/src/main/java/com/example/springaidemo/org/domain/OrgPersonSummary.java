@@ -16,6 +16,7 @@ public record OrgPersonSummary(
         String avatarAccessUrl,
         String mobile,
         String email,
+        String sourceType,
         String remark,
         Boolean enabled,
         List<OrgPersonRoleItem> roles

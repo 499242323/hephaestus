@@ -54,9 +54,11 @@
     let chatTrailController = null;
     let sessionExpired = false;
     let sessionCheckInFlight = false;
+    let lastSessionCheckAt = 0;
 
     const sessions = [];
     const streamStates = new Map();
+    const SESSION_CHECK_MIN_INTERVAL_MS = 15000;
 
     async function loadChatVisualConfig() {
         try {
@@ -328,10 +330,15 @@
         attachmentInput.disabled = true;
     }
 
-    async function checkSessionStillActive() {
+    async function checkSessionStillActive(force) {
         if (sessionExpired || sessionCheckInFlight) {
             return;
         }
+        const now = Date.now();
+        if (!force && now - lastSessionCheckAt < SESSION_CHECK_MIN_INTERVAL_MS) {
+            return;
+        }
+        lastSessionCheckAt = now;
         sessionCheckInFlight = true;
         try {
             const response = await fetch(`${basePath}/auth/me`, {
@@ -2149,7 +2156,7 @@
             checkSessionStillActive();
         }
     });
-    window.setInterval(checkSessionStillActive, 30000);
+    window.setInterval(() => checkSessionStillActive(true), 30000);
 
     messages.addEventListener("scroll", () => {
         if (suppressScrollStateSync > 0) {

@@ -6,7 +6,7 @@
 
         const mount = document.getElementById("orgSettingsMount");
         if (mount && !mount.hasChildNodes()) {
-            const panelResponse = await fetch("./org-settings-panel.html?v=20260601-blue-form-actions1");
+            const panelResponse = await fetch("./org-settings-panel.html?v=20260604-person-source1");
             mount.innerHTML = await panelResponse.text();
         }
 
@@ -73,6 +73,7 @@
         const personUnitIdInput = document.getElementById("personUnitIdInput");
         const personMobileInput = document.getElementById("personMobileInput");
         const personEmailInput = document.getElementById("personEmailInput");
+        const personRegisteredInput = document.getElementById("personRegisteredInput");
         const personRemarkInput = document.getElementById("personRemarkInput");
         const personEnabledInput = document.getElementById("personEnabledInput");
         const personAvatarInput = document.getElementById("personAvatarInput");
@@ -102,6 +103,8 @@
         let settingsScope = null;
         let settingsPeople = [];
         let settingsRoles = [];
+        let suppressNextTabRefresh = false;
+        const refreshingSettingsTabs = new Set();
         let currentOrgPermissions = {
             admin: false,
             permissions: new Set()
@@ -484,6 +487,8 @@
             flattenUnitTree(units || []).forEach((unit) => {
                 if ((unit.children || []).length) {
                     expandedUnitIds.add(String(unit.id));
+                }
+                if ((unit.depth || 0) === 0) {
                     expandedPeopleGroupIds.add(String(unit.id));
                 }
             });
@@ -538,6 +543,7 @@
             if (open) {
                 normalizeSettingsPanelText();
                 loadCurrentLoginUser().finally(() => loadSettingsData().then(() => {
+                    suppressNextTabRefresh = true;
                     if (!currentSettingsTab || currentSettingsTab === openingTab) {
                         setSettingsTab(firstAllowedSettingsTab());
                     } else {
@@ -631,6 +637,67 @@
                 loadRoleSettingsPanel().catch((error) => showSettingsError(error.message));
             }
             applyPeoplePermissionState();
+            refreshSettingsTabData(tab);
+        }
+
+        function refreshSettingsTabData(tab) {
+            if (suppressNextTabRefresh) {
+                suppressNextTabRefresh = false;
+                return;
+            }
+            if (!settingsOpen || !tab || refreshingSettingsTabs.has(tab)) {
+                return;
+            }
+            refreshingSettingsTabs.add(tab);
+            Promise.resolve()
+                .then(async () => {
+                    if (tab === "general" && canViewGeneral()) {
+                        await loadSystemConfigForm();
+                        return;
+                    }
+                    if (tab === "units" && canViewUnits()) {
+                        await refreshUnitScope();
+                        return;
+                    }
+                    if (tab === "people" && canViewPeople()) {
+                        await loadPeopleWorkspace(false);
+                        return;
+                    }
+                    if (tab === "roles" && canViewRoles()) {
+                        const rolePanelWasInitialized = roleSettingsInitialized;
+                        await loadRoleSettingsPanel();
+                        if (rolePanelWasInitialized) {
+                            await reloadRoleSettingsPanel();
+                        }
+                    }
+                })
+                .catch((error) => showSettingsError(error.message))
+                .finally(() => refreshingSettingsTabs.delete(tab));
+        }
+
+        async function refreshUnitScope() {
+            const scope = (canViewUnits() || canViewPeople())
+                ? await requestJson("/api/org/persons/current-scope")
+                : { units: [] };
+            settingsScope = scope || { units: [] };
+            const units = settingsScope.units || [];
+            initializeExpandedSets(units);
+            renderUnitsTree(canViewUnits() ? units : []);
+            populateUnitSelect(personUnitIdInput, canViewPeople() ? units : [], false);
+            populateUnitSelect(unitParentSelect, canViewUnits() ? units : [], false);
+            const firstUnit = flattenUnitTree(units)[0];
+            if (firstUnit && !personUnitIdInput.value) {
+                personUnitIdInput.value = String(firstUnit.id);
+            }
+            if (firstUnit && !unitParentSelect.value) {
+                unitParentSelect.value = String(firstUnit.id);
+                unitParentIdInput.value = String(firstUnit.id);
+            }
+        }
+
+        async function fillLatestUnitForm(unitId) {
+            const unit = await requestJson(`/api/org/units/${unitId}`);
+            fillUnitForm(unit);
         }
 
         function applyPeoplePermissionState() {
@@ -1778,7 +1845,9 @@
             unitSortOrderInput.value = String(unit.sortOrder || 0);
             unitEnabledInput.checked = Boolean(unit.enabled);
             renderUnitsTree((settingsScope && settingsScope.units) || []);
-            setSettingsTab("units");
+            if (currentSettingsTab !== "units") {
+                setSettingsTab("units");
+            }
             applyPeoplePermissionState();
             if (!unitCodeInput.disabled) {
                 unitCodeInput.focus();
@@ -1807,6 +1876,14 @@
             personAvatarPreview.textContent = getPersonInitial(person);
         }
 
+        function isRegisteredPerson(person) {
+            return String((person && person.sourceType) || "").toUpperCase() === "REGISTER";
+        }
+
+        function getPersonSourceLabel(person) {
+            return isRegisteredPerson(person) ? "注册人员" : "管理员新增";
+        }
+
         function resetPersonForm() {
             selectedPersonId = null;
             personEditIdInput.value = "";
@@ -1817,10 +1894,11 @@
             if (personUnitIdInput.options.length) {
                 personUnitIdInput.value = personUnitIdInput.value || personUnitIdInput.options[0].value || "";
             } else {
-                personUnitIdInput.value = "";
+            personUnitIdInput.value = "";
             }
             personMobileInput.value = "";
             personEmailInput.value = "";
+            personRegisteredInput.value = "否";
             personRemarkInput.value = "";
             personEnabledInput.checked = true;
             resetAvatarPreview();
@@ -1835,11 +1913,12 @@
             personEditIdInput.value = String(person.id);
             personCodeInput.value = person.personCode || "";
             personUsernameInput.value = person.username || "";
-            personPasswordInput.value = person.password || "";
+            personPasswordInput.value = "";
             personNameInput.value = person.personName || "";
             personUnitIdInput.value = person.unitId ? String(person.unitId) : "";
             personMobileInput.value = person.mobile || "";
             personEmailInput.value = person.email || "";
+            personRegisteredInput.value = isRegisteredPerson(person) ? "是" : "否";
             personRemarkInput.value = person.remark || "";
             personEnabledInput.checked = Boolean(person.enabled);
             currentAvatarMediaId = person.avatarMediaId || null;
@@ -1907,14 +1986,22 @@
                             <span class="settings-avatar settings-avatar--list">${avatar}</span>
                             <span class="settings-person-tree__meta">
                                 <strong>${escapeHtml(person.personName || "")}</strong>
+                                <small>${escapeHtml(getPersonSourceLabel(person))}</small>
                             </span>
                         </button>
                     </li>
                 `;
             }
 
+            function countPeopleInUnitTree(unit) {
+                const directCount = items.filter((person) => String(person.unitId) === String(unit.id)).length;
+                const children = unit.children || [];
+                return directCount + children.reduce((sum, child) => sum + countPeopleInUnitTree(child), 0);
+            }
+
             function renderUnitNode(unit, depth) {
                 const children = unit.children || [];
+                const peopleCount = countPeopleInUnitTree(unit);
                 const persons = items.filter((person) => {
                     if (String(person.unitId) !== String(unit.id)) {
                         return false;
@@ -1958,6 +2045,7 @@
                                 <span class="settings-tree__meta">
                                     <strong>${escapeHtml(unit.unitName || "")}</strong>
                                 </span>
+                                <span class="settings-person-tree__count" title="部门人员总数">${peopleCount}</span>
                             </button>
                         </div>
                         ${expanded && nested.length ? `<ul class="settings-person-tree__list">${nested.join("")}</ul>` : ""}
@@ -2062,17 +2150,19 @@
             ]);
             settingsPeople = people || [];
             settingsRoles = (roles || []).filter((role) => role && role.id && role.roleName);
-            settingsPeople.forEach((person) => {
-                if (person.unitId) {
-                    expandedPeopleGroupIds.add(String(person.unitId));
-                }
-            });
             renderPeopleList(settingsPeople);
             const currentPerson = selectedPersonId
                 ? settingsPeople.find((person) => String(person.id) === String(selectedPersonId))
                 : null;
             renderPersonRolePicker(currentPerson ? currentPerson.roles || [] : []);
             syncPersonRolePickerPermissionState();
+        }
+
+        async function loadPeopleWorkspace(forceScope) {
+            if (forceScope || !settingsScope) {
+                await refreshUnitScope();
+            }
+            await loadPeople();
         }
 
         async function loadSettingsData() {
@@ -2083,42 +2173,17 @@
             showSettingsError("");
             try {
                 await loadCurrentOrgPermissions();
-                const scopePromise = (canViewUnits() || canViewPeople())
-                    ? requestJson("/api/org/persons/current-scope")
-                    : Promise.resolve({ units: [] });
-                const peoplePromise = canViewPeople() ? loadPeople() : Promise.resolve(null);
-                const configPromise = canViewGeneral() ? requestJson("/api/system-config/forms/main-system") : Promise.resolve(null);
-                const [scope, configForm] = await Promise.all([scopePromise, configPromise]);
-                settingsScope = scope || { units: [] };
-                const units = settingsScope.units || [];
-                initializeExpandedSets(units);
-                renderUnitsTree(canViewUnits() ? units : []);
-                populateUnitSelect(personUnitIdInput, canViewPeople() ? units : [], false);
-                populateUnitSelect(unitParentSelect, canViewUnits() ? units : [], false);
-                await peoplePromise;
-                if (canViewPeople()) {
-                    renderPeopleList(settingsPeople);
-                    const currentPerson = selectedPersonId
-                        ? settingsPeople.find((person) => String(person.id) === String(selectedPersonId))
-                        : null;
-                    renderPersonRolePicker(currentPerson ? currentPerson.roles || [] : []);
-                    syncPersonRolePickerPermissionState();
-                } else {
-                    settingsPeople = [];
-                    settingsRoles = [];
-                    renderPeopleList([]);
-                    renderPersonRolePicker([]);
-                }
-                const firstUnit = flattenUnitTree(units)[0];
-                if (firstUnit && !personUnitIdInput.value) {
-                    personUnitIdInput.value = String(firstUnit.id);
-                }
-                if (firstUnit && !unitParentSelect.value) {
-                    unitParentSelect.value = String(firstUnit.id);
-                    unitParentIdInput.value = String(firstUnit.id);
-                }
-                if (configForm) {
-                    renderSystemConfigForm(configForm);
+                const firstTab = firstAllowedSettingsTab();
+                if (firstTab === "general") {
+                    await loadSystemConfigForm();
+                } else if (firstTab === "units") {
+                    await refreshUnitScope();
+                } else if (firstTab === "people") {
+                    await loadPeopleWorkspace(true);
+                } else if (firstTab === "roles") {
+                    await loadRoleSettingsPanel();
+                } else if (firstTab === "logs") {
+                    setLogTab(firstAllowedLogTab());
                 }
             } catch (error) {
                 showSettingsError(error && error.message ? error.message : "加载设置数据失败");
@@ -2240,7 +2305,7 @@
             logsTabButton.addEventListener("click", () => setSettingsTab("logs"));
         }
         refreshSettingsButton.addEventListener("click", () => loadSettingsData());
-        refreshPeopleButton.addEventListener("click", () => loadPeople().catch((error) => showSettingsError(error.message)));
+        refreshPeopleButton.addEventListener("click", () => loadPeopleWorkspace(true).catch((error) => showSettingsError(error.message)));
 
         if (refreshSystemConfigButton) {
             refreshSystemConfigButton.addEventListener("click", () => loadSystemConfigForm().catch((error) => showSettingsError(error.message)));
@@ -2540,17 +2605,20 @@
             hideUnitTreeContextMenu();
             const action = button.dataset.action;
             const unitId = button.dataset.unitId;
-            const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
-            if (!unit) {
+            if (!unitId) {
                 return;
             }
             if (action === "toggle-unit") {
+                const unit = settingsScope ? findUnitById(settingsScope.units || [], unitId) : null;
+                if (!unit) {
+                    return;
+                }
                 toggleExpanded(expandedUnitIds, unit.id);
                 renderUnitsTree((settingsScope && settingsScope.units) || []);
                 return;
             }
             if (action === "edit-unit") {
-                fillUnitForm(unit);
+                fillLatestUnitForm(unitId).catch((error) => showSettingsError(error.message));
             }
         });
 

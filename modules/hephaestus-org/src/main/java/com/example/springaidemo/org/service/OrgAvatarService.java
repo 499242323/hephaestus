@@ -122,6 +122,7 @@ public class OrgAvatarService {
                 avatarAccessUrl,
                 person.getMobile(),
                 person.getEmail(),
+                person.getSourceType(),
                 person.getRemark(),
                 person.getEnabled(),
                 List.of()

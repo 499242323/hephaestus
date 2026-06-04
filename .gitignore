@@ -48,6 +48,8 @@ modules/hephaestus-org/target/
 modules/hephaestus-login/target/
 **/target/
 **/test/
+!**/src/test/
+!**/src/test/**
 .m2-local/
 .m2-temp/
 .tools/

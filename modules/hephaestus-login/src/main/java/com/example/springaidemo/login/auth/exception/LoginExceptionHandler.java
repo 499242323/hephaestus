@@ -1,6 +1,5 @@
 package com.example.springaidemo.login.auth.exception;
 
-import com.example.springaidemo.login.auth.controller.AuthController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -13,7 +12,7 @@ import java.util.Map;
 
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(basePackageClasses = AuthController.class)
+@RestControllerAdvice(basePackages = "com.example.springaidemo.login")
 public class LoginExceptionHandler {
 
     @ExceptionHandler(LoginException.class)

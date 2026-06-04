@@ -132,6 +132,11 @@ hephaestus:
         - /login.js
         - /webjars/**
         - /auth/login
+        - /auth/email-code/register
+        - /auth/email-code/reset-password
+        - /auth/register
+        - /auth/reset-password
+        - /auth/reset-password/verify
         - /api/system-config/public/**
         - /api/media/files/*
         - /favicon.ico
