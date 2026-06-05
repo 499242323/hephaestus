@@ -1,4 +1,4 @@
-# Hephaestus 登录鉴权与登录日志实施计划
+﻿# Hephaestus 登录鉴权与登录日志实施计划
 
 > 面向编码代理的要求：实现本计划时必须按任务逐项执行，并遵循 TDD 流程；任务项使用 `- [ ]` 记录进度。
 
@@ -10,35 +10,35 @@
 
 ## 文件结构
 
-- 新增 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginAuthProperties.java`：绑定 YML 白名单配置。
-- 修改 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginWebMvcConfiguration.java`：将认证拦截器注册到 `/**`，移除硬编码排除列表。
-- 修改 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginRequiredInterceptor.java`：匹配 YML 白名单，并保留 API 与页面未登录响应差异。
-- 新增 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/*`：登录日志实体、仓储、服务、DTO、控制器、客户端信息解析器、清理定时任务、清理配置和节点匹配器。
-- 修改 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthController.java`：传递请求上下文，并在销毁 Session 前记录登出日志。
-- 修改 `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthService.java`：记录登录成功和失败日志，不记录密码。
-- 修改 `modules/hephaestus-app/src/main/java/com/example/springaidemo/SpringAiDemoApplication.java`：启用配置属性和定时任务。
+- 新增 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginAuthProperties.java`：绑定 YML 白名单配置。
+- 修改 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginWebMvcConfiguration.java`：将认证拦截器注册到 `/**`，移除硬编码排除列表。
+- 修改 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginRequiredInterceptor.java`：匹配 YML 白名单，并保留 API 与页面未登录响应差异。
+- 新增 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/*`：登录日志实体、仓储、服务、DTO、控制器、客户端信息解析器、清理定时任务、清理配置和节点匹配器。
+- 修改 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthController.java`：传递请求上下文，并在销毁 Session 前记录登出日志。
+- 修改 `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthService.java`：记录登录成功和失败日志，不记录密码。
+- 修改 `modules/hephaestus-app/src/main/java/olympus/hephaestus/SpringAiDemoApplication.java`：启用配置属性和定时任务。
 - 修改 `modules/hephaestus-app/src/main/resources/application.yml`：增加白名单和清理任务默认配置。
 - 修改 `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`：增加 `sys_login_log` 表。
 - 修改 `modules/hephaestus-org/src/main/resources/static/org-settings-panel.html`：增加日志菜单和登录日志面板。
 - 修改 `modules/hephaestus-org/src/main/resources/static/org-settings.js`：拉取并渲染登录日志。
 - 修改 `modules/hephaestus-org/src/main/resources/static/org-settings.css`：补充日志筛选、表格和分页样式。
 - 修改 `modules/hephaestus-app/src/main/resources/static/chat.html`：更新 `org-settings` 静态资源版本号。
-- 在 `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/...` 下补充测试。
+- 在 `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/...` 下补充测试。
 
 ## 任务 1：鉴权白名单配置与匹配器
 
 **文件：**
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginAuthProperties.java`
-- 修改：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginRequiredInterceptor.java`
-- 测试：`modules/hephaestus-login/src/test/java/com/example/springaidemo/login/auth/LoginRequiredInterceptorTest.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginAuthProperties.java`
+- 修改：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginRequiredInterceptor.java`
+- 测试：`modules/hephaestus-login/src/test/java/olympus/hephaestus/login/auth/LoginRequiredInterceptorTest.java`
 
 - [ ] **步骤 1：编写白名单行为的失败测试**
 
 创建 `LoginRequiredInterceptorTest`，覆盖精确匹配、Ant 通配匹配、兜底白名单、非白名单 API 未登录拒绝。
 
 ```java
-package com.example.springaidemo.login.auth;
+package olympus.hephaestus.login.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -117,7 +117,7 @@ class LoginRequiredInterceptorTest {
 创建 `LoginAuthProperties`：
 
 ```java
-package com.example.springaidemo.login.auth;
+package olympus.hephaestus.login.auth;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -168,8 +168,8 @@ private static final List<String> FALLBACK_WHITELIST = List.of(
 
 **文件：**
 
-- 修改：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginWebMvcConfiguration.java`
-- 修改：`modules/hephaestus-app/src/main/java/com/example/springaidemo/SpringAiDemoApplication.java`
+- 修改：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginWebMvcConfiguration.java`
+- 修改：`modules/hephaestus-app/src/main/java/olympus/hephaestus/SpringAiDemoApplication.java`
 - 修改：`modules/hephaestus-app/src/main/resources/application.yml`
 
 - [ ] **步骤 1：更新 MVC 拦截注册**
@@ -230,8 +230,8 @@ hephaestus:
 **文件：**
 
 - 修改：`modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogEntity.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogRepository.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogEntity.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogRepository.java`
 
 - [ ] **步骤 1：增加 Liquibase changeSet**
 
@@ -306,11 +306,11 @@ int deleteBefore(@Param("cutoffTime") LocalDateTime cutoffTime);
 
 **文件：**
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogOperationType.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogClientInfo.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogClientInfoResolver.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogService.java`
-- 测试：`modules/hephaestus-login/src/test/java/com/example/springaidemo/login/log/LoginLogClientInfoResolverTest.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogOperationType.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogClientInfo.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogClientInfoResolver.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogService.java`
+- 测试：`modules/hephaestus-login/src/test/java/olympus/hephaestus/login/log/LoginLogClientInfoResolverTest.java`
 
 - [ ] **步骤 1：编写客户端信息的失败测试**
 
@@ -356,8 +356,8 @@ return request.getRemoteAddr();
 
 **文件：**
 
-- 修改：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthController.java`
-- 修改：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthService.java`
+- 修改：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthController.java`
+- 修改：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthService.java`
 
 - [ ] **步骤 1：控制器增加请求上下文**
 
@@ -381,10 +381,10 @@ return request.getRemoteAddr();
 
 **文件：**
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogQueryRequest.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogResponse.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogPageResponse.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogController.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogQueryRequest.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogResponse.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogPageResponse.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogController.java`
 
 - [ ] **步骤 1：实现 DTO**
 
@@ -415,10 +415,10 @@ public class LoginLogController {
 
 **文件：**
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogCleanupProperties.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogCleanupNodeMatcher.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/LoginLogCleanupScheduler.java`
-- 测试：`modules/hephaestus-login/src/test/java/com/example/springaidemo/login/log/LoginLogCleanupNodeMatcherTest.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogCleanupProperties.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogCleanupNodeMatcher.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/LoginLogCleanupScheduler.java`
+- 测试：`modules/hephaestus-login/src/test/java/olympus/hephaestus/login/log/LoginLogCleanupNodeMatcherTest.java`
 
 - [ ] **步骤 1：编写节点匹配器失败测试**
 
@@ -533,7 +533,7 @@ public void cleanup() {
 
 搜索：
 
-`rtk proxy rg -n "password|request.getParameter|request.getInputStream|request.getReader" modules/hephaestus-login/src/main/java/com/example/springaidemo/login -S`
+`rtk proxy rg -n "password|request.getParameter|request.getInputStream|request.getReader" modules/hephaestus-login/src/main/java/olympus/hephaestus/login -S`
 
 预期：没有密码值写入登录日志，也没有记录请求体。
 

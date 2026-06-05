@@ -1,4 +1,4 @@
-# Hephaestus MyBatis Module Implementation Plan
+﻿# Hephaestus MyBatis Module Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -153,7 +153,7 @@ The compile should still fail until the configuration class exists.
 
 Run: `rtk mvn -pl modules/hephaestus-app -am -DskipTests compile`
 
-Expected: FAIL on unresolved `com.example.springaidemo.mybatis...` classes once you reference them in later steps.
+Expected: FAIL on unresolved `olympus.hephaestus.mybatis...` classes once you reference them in later steps.
 
 - [ ] **Step 3: Create the auto-configuration and migrate the smallest viable Egova repository types**
 
@@ -161,20 +161,20 @@ Add the base configuration and migrate the smallest viable Egova repository cont
 
 ```java
 // E:\NEW_WORK\hephaestus\modules\mybatis\src\main\java\com\example\springaidemo\mybatis\config\HephaestusMybatisAutoConfiguration.java
-package com.example.springaidemo.mybatis.config;
+package olympus.hephaestus.mybatis.config;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 
 @AutoConfiguration
-@MapperScan("com.example.springaidemo")
+@MapperScan("olympus.hephaestus")
 public class HephaestusMybatisAutoConfiguration {
 }
 ```
 
 ```java
 // E:\NEW_WORK\hephaestus\modules\mybatis\src\main\java\com\example\springaidemo\mybatis\repository\BaseAbstractRepository.java
-package com.example.springaidemo.mybatis.repository;
+package olympus.hephaestus.mybatis.repository;
 
 public interface BaseAbstractRepository<T, ID> {
     int insert(T entity);
@@ -184,7 +184,7 @@ public interface BaseAbstractRepository<T, ID> {
 
 ```java
 // E:\NEW_WORK\hephaestus\modules\mybatis\src\main\java\com\example\springaidemo\mybatis\repository\BaseInsertTemplate.java
-package com.example.springaidemo.mybatis.repository;
+package olympus.hephaestus.mybatis.repository;
 
 public class BaseInsertTemplate {
     public String dynamicSQL() {
@@ -197,7 +197,7 @@ If the real migrated Egova code needs 1-3 direct support classes, add only those
 
 ```text
 // E:\NEW_WORK\hephaestus\modules\mybatis\src\main\resources\META-INF\spring\org.springframework.boot.autoconfigure.AutoConfiguration.imports
-com.example.springaidemo.mybatis.config.HephaestusMybatisAutoConfiguration
+olympus.hephaestus.mybatis.config.HephaestusMybatisAutoConfiguration
 ```
 
 - [ ] **Step 4: Run compile to verify the repository foundation is loadable**
@@ -218,9 +218,9 @@ Expected: PASS for the shared module and FAIL only if media-specific repository 
 Create the repository interface first so the migration target is explicit.
 
 ```java
-package com.example.springaidemo.media;
+package olympus.hephaestus.media;
 
-import com.example.springaidemo.mybatis.repository.BaseAbstractRepository;
+import olympus.hephaestus.mybatis.repository.BaseAbstractRepository;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.UpdateProvider;
@@ -258,7 +258,7 @@ Expected: FAIL with unresolved symbol errors for `MediaFileEntity`.
 - [ ] **Step 3: Add the persistence entity with conversion helpers and key metadata**
 
 ```java
-package com.example.springaidemo.media;
+package olympus.hephaestus.media;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -375,7 +375,7 @@ Expected: PASS for compile with imports now resolving from `modules/mybatis`.
 Create an integration test that verifies single insert, lookup, update, and `insertList(...)` key backfill semantics.
 
 ```java
-package com.example.springaidemo.media;
+package olympus.hephaestus.media;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -449,7 +449,7 @@ If the auto-configuration import alone is not enough, keep the fix minimal and i
 ```java
 // Keep the configuration class limited to scanning and boot integration.
 @AutoConfiguration
-@MapperScan("com.example.springaidemo")
+@MapperScan("olympus.hephaestus")
 public class HephaestusMybatisAutoConfiguration {
 }
 ```

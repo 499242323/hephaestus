@@ -1,4 +1,4 @@
-# Hephaestus Org Settings Implementation Plan
+﻿# Hephaestus Org Settings Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,25 +17,25 @@
 ### New module
 
 - Create: `modules/hephaestus-org/pom.xml`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller/OrgUnitController.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller/OrgPersonController.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgUnitService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgScopeService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgAvatarService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgUnitRepository.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgPersonRepository.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgUnitEntity.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgPersonEntity.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgUnitTreeNode.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgUnitRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgUnitRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgPersonRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgPersonRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/OrgScopeResponse.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgAccessDeniedException.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgValidationException.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller/OrgUnitController.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller/OrgPersonController.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgUnitService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgScopeService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgAvatarService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgUnitRepository.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgPersonRepository.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgUnitEntity.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgPersonEntity.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgUnitTreeNode.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgUnitRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgUnitRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgPersonRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgPersonRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/OrgScopeResponse.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgAccessDeniedException.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgValidationException.java`
 
 ### Boot app and shared schema
 
@@ -51,11 +51,11 @@
 
 ### Tests
 
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgScopeServiceTest.java`
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgUnitServiceTest.java`
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgPersonServiceTest.java`
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgUnitControllerTest.java`
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgPersonControllerTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgScopeServiceTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgUnitServiceTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgPersonServiceTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgUnitControllerTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgPersonControllerTest.java`
 
 ## Task 1: Wire The New Module
 
@@ -277,10 +277,10 @@ git commit -m "feat: add org unit and person schema"
 ## Task 3: Build Entities And Repositories
 
 **Files:**
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgUnitEntity.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgPersonEntity.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgUnitRepository.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgPersonRepository.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgUnitEntity.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgPersonEntity.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgUnitRepository.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgPersonRepository.java`
 
 - [ ] **Step 1: Write the failing repository signatures**
 
@@ -351,16 +351,16 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository
+git add modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository
 git commit -m "feat: add org entities and repositories"
 ```
 
 ## Task 4: Enforce Scope Permissions First
 
 **Files:**
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgScopeServiceTest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgScopeService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgAccessDeniedException.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgScopeServiceTest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgScopeService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgAccessDeniedException.java`
 
 - [ ] **Step 1: Write the first failing scope test**
 
@@ -415,19 +415,19 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgScopeServiceTest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgScopeService.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgAccessDeniedException.java
+git add modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgScopeServiceTest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgScopeService.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgAccessDeniedException.java
 git commit -m "feat: add org scope resolution"
 ```
 
 ## Task 5: Implement Unit Service With Tree Rules
 
 **Files:**
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgUnitServiceTest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgUnitService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgUnitTreeNode.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgUnitRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgUnitRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgValidationException.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgUnitServiceTest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgUnitService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgUnitTreeNode.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgUnitRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgUnitRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgValidationException.java`
 
 - [ ] **Step 1: Write the failing unit deletion rule test**
 
@@ -473,19 +473,19 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgUnitServiceTest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgUnitService.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgUnitTreeNode.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgUnitRequest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgUnitRequest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/exception/OrgValidationException.java
+git add modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgUnitServiceTest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgUnitService.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgUnitTreeNode.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgUnitRequest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgUnitRequest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/exception/OrgValidationException.java
 git commit -m "feat: add org unit service rules"
 ```
 
 ## Task 6: Implement Person Service And Avatar Binding
 
 **Files:**
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgPersonServiceTest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgAvatarService.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgPersonRequest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgPersonRequest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgPersonServiceTest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgAvatarService.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgPersonRequest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgPersonRequest.java`
 
 - [ ] **Step 1: Write the failing person scope test**
 
@@ -539,18 +539,18 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgPersonServiceTest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgAvatarService.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgPersonRequest.java modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgPersonRequest.java
+git add modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgPersonServiceTest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgAvatarService.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgPersonRequest.java modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgPersonRequest.java
 git commit -m "feat: add org person service and avatar binding"
 ```
 
 ## Task 7: Expose Unit And Person Controllers
 
 **Files:**
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgUnitControllerTest.java`
-- Create: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgPersonControllerTest.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller/OrgUnitController.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller/OrgPersonController.java`
-- Create: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/OrgScopeResponse.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgUnitControllerTest.java`
+- Create: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgPersonControllerTest.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller/OrgUnitController.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller/OrgPersonController.java`
+- Create: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/OrgScopeResponse.java`
 
 - [ ] **Step 1: Write the failing controller permission-header test**
 
@@ -605,7 +605,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/OrgScopeResponse.java
+git add modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/OrgScopeResponse.java
 git commit -m "feat: add org management controllers"
 ```
 
@@ -804,11 +804,11 @@ git commit -m "feat: add org settings crud interactions"
 ## Task 11: Full Verification Pass
 
 **Files:**
-- Test: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgScopeServiceTest.java`
-- Test: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgUnitServiceTest.java`
-- Test: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/service/OrgPersonServiceTest.java`
-- Test: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgUnitControllerTest.java`
-- Test: `modules/hephaestus-org/src/test/java/com/example/springaidemo/org/controller/OrgPersonControllerTest.java`
+- Test: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgScopeServiceTest.java`
+- Test: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgUnitServiceTest.java`
+- Test: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/service/OrgPersonServiceTest.java`
+- Test: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgUnitControllerTest.java`
+- Test: `modules/hephaestus-org/src/test/java/olympus/hephaestus/org/controller/OrgPersonControllerTest.java`
 - Test: `modules/hephaestus-app/src/main/resources/static/chat.html`
 - Test: `modules/hephaestus-app/src/main/resources/static/chat.js`
 - Test: `modules/hephaestus-app/src/main/resources/static/chat.css`

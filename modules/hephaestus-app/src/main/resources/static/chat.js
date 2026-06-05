@@ -288,16 +288,25 @@
         if (!userDisplayName || !userAvatar) {
             return;
         }
+        if (window.hephaestusCurrentLoginUserPromise) {
+            await window.hephaestusCurrentLoginUserPromise;
+            return;
+        }
         try {
-            const response = await fetch(`${basePath}/auth/me`);
-            if (response.status === 401) {
-                showSessionExpiredDialog();
+            window.hephaestusCurrentLoginUserPromise = fetch(`${basePath}/auth/me`).then(async (response) => {
+                if (response.status === 401) {
+                    showSessionExpiredDialog();
+                    return null;
+                }
+                if (!response.ok) {
+                    return null;
+                }
+                return response.json();
+            });
+            const user = await window.hephaestusCurrentLoginUserPromise;
+            if (!user) {
                 return;
             }
-            if (!response.ok) {
-                return;
-            }
-            const user = await response.json();
             window.hephaestusCurrentLoginUser = user;
             let profile = null;
             if (user.personId) {
@@ -307,6 +316,7 @@
             userDisplayName.textContent = displayName;
             renderUserAvatar(profile && profile.avatarAccessUrl ? profile.avatarAccessUrl : "", displayName);
         } catch (error) {
+            window.hephaestusCurrentLoginUserPromise = null;
             // Keep the default local fallback if the session user cannot be loaded.
         }
     }
@@ -370,115 +380,6 @@
 
     function initChatMouseTrail(effectName) {
         initChatMouseTrailRuntime(effectName);
-        return;
-        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            return;
-        }
-        const canvas = document.createElement("canvas");
-        canvas.className = "chat-trail-canvas";
-        canvas.setAttribute("aria-hidden", "true");
-        document.body.prepend(canvas);
-
-        const context = canvas.getContext("2d");
-        const particles = [];
-        const symbols = ["♪", "♫", "♬", "✦", "✧"];
-        const colors = ["#2c8fb4", "#37b899", "#22c55e", "#06b6d4", "#ec4899"];
-        const effect = String(effectName || "music").toLowerCase();
-        let width = 0;
-        let height = 0;
-        let pixelRatio = 1;
-        let lastSpawnAt = 0;
-
-        function resizeCanvas() {
-            pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = Math.floor(width * pixelRatio);
-            canvas.height = Math.floor(height * pixelRatio);
-            canvas.style.width = `${width}px`;
-            canvas.style.height = `${height}px`;
-            context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        }
-
-        function randomColor() {
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-
-        function spawnTrail(x, y, burst) {
-            const now = performance.now();
-            if (!burst && now - lastSpawnAt < 24) {
-                return;
-            }
-            lastSpawnAt = now;
-            const useDots = effect === "firefly" || effect === "firework";
-            const count = burst || effect === "firework" ? 10 : 2;
-            for (let index = 0; index < count; index += 1) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 0.5 + Math.random() * 1.8;
-                particles.push({
-                    type: useDots ? "dot" : "text",
-                    x: x + (Math.random() - 0.5) * 10,
-                    y: y + (Math.random() - 0.5) * 10,
-                    vx: effect === "firework" ? Math.cos(angle) * speed : (Math.random() - 0.5) * 1.1,
-                    vy: effect === "firework" ? Math.sin(angle) * speed : -0.3 - Math.random() * 1.1,
-                    life: 0.82,
-                    decay: effect === "firework" ? 0.022 : 0.016 + Math.random() * 0.008,
-                    size: 10 + Math.random() * 9,
-                    radius: 2.2 + Math.random() * 3.8,
-                    rotate: (Math.random() - 0.5) * 0.8,
-                    symbol: symbols[Math.floor(Math.random() * symbols.length)],
-                    color: randomColor()
-                });
-            }
-            if (particles.length > 110) {
-                particles.splice(0, particles.length - 110);
-            }
-        }
-
-        function drawParticle(particle) {
-            context.save();
-            context.globalAlpha = Math.max(0, particle.life) * 0.42;
-            context.shadowBlur = particle.type === "dot" ? 10 : 7;
-            context.shadowColor = particle.color;
-            context.fillStyle = particle.color;
-            if (particle.type === "dot") {
-                context.beginPath();
-                context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-                context.fill();
-            } else {
-                context.translate(particle.x, particle.y);
-                context.rotate(particle.rotate);
-                context.font = `${particle.size}px "Times New Roman", serif`;
-                context.textAlign = "center";
-                context.textBaseline = "middle";
-                context.fillText(particle.symbol, 0, 0);
-            }
-            context.restore();
-        }
-
-        function animate() {
-            context.clearRect(0, 0, width, height);
-            for (let index = particles.length - 1; index >= 0; index -= 1) {
-                const particle = particles[index];
-                particle.x += particle.vx;
-                particle.y += particle.vy;
-                particle.vy += 0.012;
-                particle.rotate += 0.01;
-                particle.life -= particle.decay;
-                if (particle.life <= 0) {
-                    particles.splice(index, 1);
-                    continue;
-                }
-                drawParticle(particle);
-            }
-            requestAnimationFrame(animate);
-        }
-
-        window.addEventListener("resize", resizeCanvas);
-        window.addEventListener("mousemove", (event) => spawnTrail(event.clientX, event.clientY), { passive: true });
-        window.addEventListener("click", (event) => spawnTrail(event.clientX, event.clientY, true), { passive: true });
-        resizeCanvas();
-        animate();
     }
 
     function initChatMouseTrailRuntime(effectName) {
@@ -1385,7 +1286,7 @@
         }
         const trimmed = (message || "").trim();
         const source = trimmed || (hasAttachment ? "附件对话" : DEFAULT_SESSION_TITLE);
-        session.title = source.length > 18 ? `${source.slice(0, 18)}…` : source;
+        session.title = source.length > 18 ? `${source.slice(0, 18)}...` : source;
         renderSessionList();
     }
 
@@ -1439,7 +1340,7 @@
 
                 const size = document.createElement("span");
                 size.className = "file-size";
-                size.textContent = `${formatFileSize(item.fileSize || 0)} · ${item.contentType || "文件"}`;
+                size.textContent = `${formatFileSize(item.fileSize || 0)} / ${item.contentType || "文件"}`;
 
                 const link = document.createElement("a");
                 link.href = item.downloadUrl || item.url || "#";
@@ -1725,7 +1626,7 @@
 
     function showAttachmentChip(file) {
         attachmentName.textContent = file.name;
-        attachmentSize.textContent = `${formatFileSize(file.size)} · ${file.type || "文件"}`;
+        attachmentSize.textContent = `${formatFileSize(file.size)} / ${file.type || "文件"}`;
         attachmentThumb.textContent = "+";
 
         if (previewUrl) {
@@ -1777,7 +1678,7 @@
         }
 
         if (fileForRequest && fileForRequest.size > 2 * 1024 * 1024) {
-            appendMessage("error", `附件“${fileForRequest.name}”大小 ${formatFileSize(fileForRequest.size)}，超过 2MB 限制，请压缩后重试。`);
+            appendMessage("error", `附件“${fileForRequest.name}”大小为 ${formatFileSize(fileForRequest.size)}，超过 2MB 限制，请压缩后重试。`);
             clearAttachment();
             input.focus();
             return;
@@ -1815,7 +1716,7 @@
             startedAt: Date.now()
         });
 
-        const initialStatus = fileForRequest ? "正在上传附件…" : "正在发送消息…";
+        const initialStatus = fileForRequest ? "正在上传附件..." : "正在发送消息...";
         await new Promise((resolve) => requestAnimationFrame(resolve));
 
         try {
@@ -1852,7 +1753,7 @@
             }
 
             if (state) {
-                state.status = "正在等待回复…";
+                state.status = "正在等待回复...";
             }
             if (requestSessionId === activeSessionId) {
                 syncComposerState();

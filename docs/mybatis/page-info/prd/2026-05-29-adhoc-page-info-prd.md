@@ -1,4 +1,4 @@
-# MyBatis PageInfo 查询逻辑迁移设计
+﻿# MyBatis PageInfo 查询逻辑迁移设计
 
 ## Goal
 
@@ -14,14 +14,14 @@
 
 当前仓库中已经有轻量 MyBatis 基座：
 
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseAbstractRepository.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseInsertTemplate.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseUpdateTemplate.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseTemplateSupport.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseAbstractRepository.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseInsertTemplate.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseUpdateTemplate.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseTemplateSupport.java`
 
 但还没有通用分页能力。现有分页主要表现为业务层手写：
 
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java`
   - 手动归一化 `page/pageSize`
   - 手动计算 `offset`
   - 先查列表，再查 `count`
@@ -29,7 +29,7 @@
 
 仓储层当前也是显式分页 SQL：
 
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/repository/LoginLogRepository.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/repository/LoginLogRepository.java`
   - `query(..., limit, offset)`
   - `count(...)`
 
@@ -176,9 +176,9 @@
 
 建议在 `modules/mybatis` 新增：
 
-- `com.example.springaidemo.mybatis.page.PageQuery`
-- `com.example.springaidemo.mybatis.page.PageInfo`
-- `com.example.springaidemo.mybatis.page.PageSupport`
+- `olympus.hephaestus.mybatis.page.PageQuery`
+- `olympus.hephaestus.mybatis.page.PageInfo`
+- `olympus.hephaestus.mybatis.page.PageSupport`
 
 职责如下：
 
@@ -262,11 +262,11 @@
 
 优先新增：
 
-- `modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java`
+- `modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java`
 
 如登录日志改造一起落地，再补：
 
-- `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/log/service/LoginLogServiceImplTest.java`
+- `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/log/service/LoginLogServiceImplTest.java`
 
 ### First Failing Test
 

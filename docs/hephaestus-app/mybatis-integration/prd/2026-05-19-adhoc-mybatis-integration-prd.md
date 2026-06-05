@@ -1,4 +1,4 @@
-# Hephaestus App MyBatis 接入设计
+﻿# Hephaestus App MyBatis 接入设计
 
 ## Goal
 
@@ -15,8 +15,8 @@
 - 根聚合 POM 为 [`pom.xml`](E:\NEW_WORK\hephaestus\pom.xml)。
 - 数据源、Liquibase、Redis 和 Spring AI 已配置在 [`modules/hephaestus-app/src/main/resources/application.yml`](E:\NEW_WORK\hephaestus\modules\hephaestus-app\src\main\resources\application.yml)。
 - 媒体文件元数据表 `spring_ai_media_file` 已由 Liquibase 管理，定义位于 [`modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`](E:\NEW_WORK\hephaestus\modules\liquibase\src\main\resources\db\changelog\db.changelog.xml)。
-- 当前仓储实现位于 [`modules/hephaestus-app/src/main/java/com/example/springaidemo/media/MediaFileRepository.java`](E:\NEW_WORK\hephaestus\modules\hephaestus-app\src\main\java\com\example\springaidemo\media\MediaFileRepository.java)，使用 `JdbcTemplate` 直接执行 SQL。
-- 当前媒体元数据模型为 [`modules/hephaestus-app/src/main/java/com/example/springaidemo/media/MediaFile.java`](E:\NEW_WORK\hephaestus\modules\hephaestus-app\src\main\java\com\example\springaidemo\media\MediaFile.java)。
+- 当前仓储实现位于 [`modules/hephaestus-app/src/main/java/olympus/hephaestus/media/MediaFileRepository.java`](E:\NEW_WORK\hephaestus\modules\hephaestus-app\src\main\java\com\example\springaidemo\media\MediaFileRepository.java)，使用 `JdbcTemplate` 直接执行 SQL。
+- 当前媒体元数据模型为 [`modules/hephaestus-app/src/main/java/olympus/hephaestus/media/MediaFile.java`](E:\NEW_WORK\hephaestus\modules\hephaestus-app\src\main\java\com\example\springaidemo\media\MediaFile.java)。
 
 参考仓库 `E:\NEW_WORK\egova-urbanpro` 已接入 MyBatis，其核心使用方式是“Repository 继承一层通用 CRUD 能力，再在同一个 Repository 中追加自定义查询”。当前决策不是完全排斥 Egova 类，而是优先采用“最小迁移集”策略：如果 `BaseAbstractRepository`、`BaseInsertTemplate` 及其少量直接支撑类可以独立迁移到当前仓库，就优先迁移这些类到 `modules\mybatis`；只有当依赖面扩大到明显的平台级封装时，才退回本地等价实现。
 
@@ -171,12 +171,12 @@
 建议结构：
 
 - `modules/mybatis/pom.xml`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/config/...`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseAbstractRepository.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/BaseInsertTemplate.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/repository/...`（最小直接依赖类）
-- `modules/mybatis/src/main/java/com/example/springaidemo/media/MediaFileEntity.java`
-- `modules/mybatis/src/main/java/com/example/springaidemo/media/MediaFileRepository.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/config/...`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseAbstractRepository.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/BaseInsertTemplate.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/repository/...`（最小直接依赖类）
+- `modules/mybatis/src/main/java/olympus/hephaestus/media/MediaFileEntity.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/media/MediaFileRepository.java`
 - `modules/mybatis/src/main/resources/mybatis/mapper/...`（如需要 XML）
 
 职责划分如下：
@@ -363,7 +363,7 @@
 
 ### 测试位置
 
-- 优先在 `modules/hephaestus-app/src/test/java/com/example/springaidemo/media/` 下补充仓储集成测试。
+- 优先在 `modules/hephaestus-app/src/test/java/olympus/hephaestus/media/` 下补充仓储集成测试。
 - 如 `modules/mybatis` 需要单独验证基接口或批量能力，可在 `modules/mybatis/src/test/java/...` 下补充模块级测试。
 - 保留现有 Controller / Service 测试不动，利用它们验证门面兼容性。
 

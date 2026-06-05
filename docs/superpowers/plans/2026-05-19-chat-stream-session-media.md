@@ -1,4 +1,4 @@
-# Chat Stream Session Media Implementation Plan
+﻿# Chat Stream Session Media Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,13 +13,13 @@
 ### Task 1: 扩展媒体元数据模型与存储路径
 
 **Files:**
-- Modify: `src/main/java/com/example/springaidemo/media/MediaFile.java`
-- Modify: `src/main/java/com/example/springaidemo/media/StoredMediaFile.java`
-- Modify: `src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java`
-- Modify: `src/main/java/com/example/springaidemo/media/MediaFileRepository.java`
-- Modify: `src/main/java/com/example/springaidemo/media/MediaStorageService.java`
-- Test: `src/test/java/com/example/springaidemo/media/MediaStorageServiceTest.java`
-- Test: `src/test/java/com/example/springaidemo/media/MediaFileSchemaInitializerTest.java`
+- Modify: `src/main/java/olympus/hephaestus/media/MediaFile.java`
+- Modify: `src/main/java/olympus/hephaestus/media/StoredMediaFile.java`
+- Modify: `src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java`
+- Modify: `src/main/java/olympus/hephaestus/media/MediaFileRepository.java`
+- Modify: `src/main/java/olympus/hephaestus/media/MediaStorageService.java`
+- Test: `src/test/java/olympus/hephaestus/media/MediaStorageServiceTest.java`
+- Test: `src/test/java/olympus/hephaestus/media/MediaFileSchemaInitializerTest.java`
 
 - [ ] 给媒体模型补 `storedFilename` 字段。
 - [ ] 调整建表 SQL，新增 `stored_filename` 列。
@@ -31,8 +31,8 @@
 ### Task 2: 把 JSON 约束迁移到系统提示词
 
 **Files:**
-- Modify: `src/main/java/com/example/springaidemo/service/MultimodalChatService.java`
-- Test: `src/test/java/com/example/springaidemo/service/MultimodalDecisionParserTest.java`
+- Modify: `src/main/java/olympus/hephaestus/service/MultimodalChatService.java`
+- Test: `src/test/java/olympus/hephaestus/service/MultimodalDecisionParserTest.java`
 
 - [ ] 拆分系统提示词与用户消息正文。
 - [ ] 普通决策调用和带附件决策调用都使用 system prompt 约束 JSON。
@@ -42,10 +42,10 @@
 ### Task 3: 新增流式多模态聊天服务与控制器
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/service/MultimodalStreamEvent.java`
-- Create: `src/main/java/com/example/springaidemo/service/MultimodalStreamingService.java`
-- Create: `src/main/java/com/example/springaidemo/controller/MultimodalChatStreamController.java`
-- Test: `src/test/java/com/example/springaidemo/controller/MultimodalChatStreamControllerTest.java`
+- Create: `src/main/java/olympus/hephaestus/service/MultimodalStreamEvent.java`
+- Create: `src/main/java/olympus/hephaestus/service/MultimodalStreamingService.java`
+- Create: `src/main/java/olympus/hephaestus/controller/MultimodalChatStreamController.java`
+- Test: `src/test/java/olympus/hephaestus/controller/MultimodalChatStreamControllerTest.java`
 
 - [ ] 设计固定事件类型：`status`、`attachments`、`delta`、`image`、`done`、`error`。
 - [ ] 流式接口先推送附件保存结果和“正在分析附件”状态。
@@ -57,8 +57,8 @@
 ### Task 4: 同步接口适配新媒体字段
 
 **Files:**
-- Modify: `src/main/java/com/example/springaidemo/service/MultimodalChatService.java`
-- Modify: `src/test/java/com/example/springaidemo/controller/MultimodalChatControllerTest.java`
+- Modify: `src/main/java/olympus/hephaestus/service/MultimodalChatService.java`
+- Modify: `src/test/java/olympus/hephaestus/controller/MultimodalChatControllerTest.java`
 
 - [ ] 同步接口的附件保存逻辑切换到新媒体字段和新路径规则。
 - [ ] 生成图片保存逻辑切换到新媒体字段和新路径规则。

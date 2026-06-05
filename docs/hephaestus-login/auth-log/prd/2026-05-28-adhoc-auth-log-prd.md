@@ -1,4 +1,4 @@
-# Hephaestus 登录鉴权与登录日志 PRD
+﻿# Hephaestus 登录鉴权与登录日志 PRD
 
 **日期**：2026-05-28
 **模块**：`modules/hephaestus-login`
@@ -40,10 +40,10 @@
 
 ## 代码库发现
 
-- [LoginWebMvcConfiguration.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginWebMvcConfiguration.java) 当前使用硬编码白名单，不能满足“白名单配置到 YML”。
-- [LoginRequiredInterceptor.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginRequiredInterceptor.java) 当前只判断是否登录，白名单和未登录响应逻辑需要调整。
-- [AuthService.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthService.java) 当前登录成功后写 Session，并支持同账号单处登录配置，但没有记录登录成功或失败日志。
-- [AuthController.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthController.java) 当前退出登录直接销毁 Session，登出日志需要在销毁前记录。
+- [LoginWebMvcConfiguration.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginWebMvcConfiguration.java) 当前使用硬编码白名单，不能满足“白名单配置到 YML”。
+- [LoginRequiredInterceptor.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginRequiredInterceptor.java) 当前只判断是否登录，白名单和未登录响应逻辑需要调整。
+- [AuthService.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthService.java) 当前登录成功后写 Session，并支持同账号单处登录配置，但没有记录登录成功或失败日志。
+- [AuthController.java](E:/NEW_WORK/hephaestus/modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthController.java) 当前退出登录直接销毁 Session，登出日志需要在销毁前记录。
 - [application.yml](E:/NEW_WORK/hephaestus/modules/hephaestus-app/src/main/resources/application.yml) 或当前启动模块配置文件适合承载鉴权白名单默认值。
 - [db.changelog.xml](E:/NEW_WORK/hephaestus/modules/liquibase/src/main/resources/db/changelog/db.changelog.xml) 已包含系统表和业务表 changeSet，本次应追加登录日志表 changeSet，不改旧 changeSet。
 - [org-settings-panel.html](E:/NEW_WORK/hephaestus/modules/hephaestus-org/src/main/resources/static/org-settings-panel.html) 后续可增加日志查询入口；第一版前端只查询后端已有登录日志，不主动上报错误日志。

@@ -1,4 +1,4 @@
-# Hephaestus Liquibase 接入设计
+﻿# Hephaestus Liquibase 接入设计
 
 ## Goal
 
@@ -16,9 +16,9 @@
 
 - [`pom.xml`](/E:/NEW_WORK/demo/pom.xml) 目前未引入 Liquibase 依赖。
 - [`src/main/resources/application.yml`](/E:/NEW_WORK/demo/src/main/resources/application.yml) 中 `spring.ai.chat.memory.repository.jdbc.initialize-schema` 当前配置为 `always`。
-- [`src/main/java/com/example/springaidemo/config/ChatMemorySchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/com/example/springaidemo/config/ChatMemorySchemaInitializer.java) 在应用启动时对 `SPRING_AI_CHAT_MEMORY` 做增量 DDL。
-- [`src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java) 在应用启动时创建 `spring_ai_media_file` 并兼容补列。
-- 当前对应测试集中在 [`src/test/java/com/example/springaidemo/config/ChatMemorySchemaInitializerTest.java`](/E:/NEW_WORK/demo/src/test/java/com/example/springaidemo/config/ChatMemorySchemaInitializerTest.java) 和 [`src/test/java/com/example/springaidemo/media/MediaFileSchemaInitializerTest.java`](/E:/NEW_WORK/demo/src/test/java/com/example/springaidemo/media/MediaFileSchemaInitializerTest.java)。
+- [`src/main/java/olympus/hephaestus/config/ChatMemorySchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/olympus/hephaestus/config/ChatMemorySchemaInitializer.java) 在应用启动时对 `SPRING_AI_CHAT_MEMORY` 做增量 DDL。
+- [`src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java) 在应用启动时创建 `spring_ai_media_file` 并兼容补列。
+- 当前对应测试集中在 [`src/test/java/olympus/hephaestus/config/ChatMemorySchemaInitializerTest.java`](/E:/NEW_WORK/demo/src/test/java/olympus/hephaestus/config/ChatMemorySchemaInitializerTest.java) 和 [`src/test/java/olympus/hephaestus/media/MediaFileSchemaInitializerTest.java`](/E:/NEW_WORK/demo/src/test/java/olympus/hephaestus/media/MediaFileSchemaInitializerTest.java)。
 
 参考项目 `E:\NEW_WORK\wizdom-urban-v14-framework` 已经接入 Liquibase，并通过 changelog 文件管理数据库变更；但当前项目体量明显更小，本次不采用其超大 changelog 组织方式，而是保留“独立 Liquibase 子模块 + 单 changelog 文件”的最小可维护方案。
 
@@ -188,7 +188,7 @@ spring:
   - 插入消息 SQL 使用 `spring_ai_chat_memory`
   - 删除消息 SQL 使用 `spring_ai_chat_memory`
   - 查询会话 ID SQL 使用 `spring_ai_chat_memory`
-- 在应用模块的 [`PersistentChatMemoryConfig.java`](/E:/NEW_WORK/demo/src/main/java/com/example/springaidemo/config/PersistentChatMemoryConfig.java) 中手动装配 `JdbcChatMemoryRepository.builder().jdbcTemplate(...).dialect(...)`，替代依赖默认表名行为。
+- 在应用模块的 [`PersistentChatMemoryConfig.java`](/E:/NEW_WORK/demo/src/main/java/olympus/hephaestus/config/PersistentChatMemoryConfig.java) 中手动装配 `JdbcChatMemoryRepository.builder().jdbcTemplate(...).dialect(...)`，替代依赖默认表名行为。
 - 如后续希望进一步插件化，可由 `modules/liquibase` 提供自动配置，应用模块只保留最小装配。
 
 ### 6. chat memory 表接管策略
@@ -239,8 +239,8 @@ changelog 对该表采用“基线建表 + 兼容补丁”组合：
 
 以下两个类会从应用模块中删除或停用：
 
-- [`ChatMemorySchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/com/example/springaidemo/config/ChatMemorySchemaInitializer.java)
-- [`MediaFileSchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java)
+- [`ChatMemorySchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/olympus/hephaestus/config/ChatMemorySchemaInitializer.java)
+- [`MediaFileSchemaInitializer.java`](/E:/NEW_WORK/demo/src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java)
 
 迁移后的唯一 DDL 入口为 `modules/liquibase` 模块中的 Liquibase changelog。
 

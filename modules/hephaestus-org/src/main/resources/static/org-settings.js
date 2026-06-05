@@ -19,6 +19,7 @@
 
         window.hephaestusOrgSettingsInitialized = true;
 
+        const PERSON_PASSWORD_MASK = "*******";
         const closeSettingsButton = document.getElementById("closeSettingsButton");
         const refreshSettingsButton = document.getElementById("refreshSettingsButton");
         const refreshPeopleButton = document.getElementById("refreshPeopleButton");
@@ -1890,6 +1891,7 @@
             personCodeInput.value = "";
             personUsernameInput.value = "";
             personPasswordInput.value = "";
+            personPasswordInput.dataset.hasPassword = "false";
             personNameInput.value = "";
             if (personUnitIdInput.options.length) {
                 personUnitIdInput.value = personUnitIdInput.value || personUnitIdInput.options[0].value || "";
@@ -1913,7 +1915,9 @@
             personEditIdInput.value = String(person.id);
             personCodeInput.value = person.personCode || "";
             personUsernameInput.value = person.username || "";
-            personPasswordInput.value = "";
+            const hasPassword = Boolean(person.password);
+            personPasswordInput.value = hasPassword ? PERSON_PASSWORD_MASK : "";
+            personPasswordInput.dataset.hasPassword = hasPassword ? "true" : "false";
             personNameInput.value = person.personName || "";
             personUnitIdInput.value = person.unitId ? String(person.unitId) : "";
             personMobileInput.value = person.mobile || "";
@@ -2798,11 +2802,17 @@
                 || !requireValue(personUnitIdInput, "部门")) {
                 return;
             }
+            const passwordValue = personPasswordInput.value.trim();
+            const hasExistingPassword = personPasswordInput.dataset.hasPassword === "true";
+            const unchangedPassword = editingPerson && hasExistingPassword && passwordValue === PERSON_PASSWORD_MASK;
+            if (editingPerson && !hasExistingPassword && !requireValue(personPasswordInput, "密码")) {
+                return;
+            }
             const payload = {
                 personCode: personCodeInput.value.trim(),
                 personName: personNameInput.value.trim(),
                 username: personUsernameInput.value.trim(),
-                password: personPasswordInput.value.trim(),
+                password: unchangedPassword ? "" : passwordValue,
                 unitId: Number(personUnitIdInput.value),
                 mobile: personMobileInput.value.trim(),
                 email: personEmailInput.value.trim(),

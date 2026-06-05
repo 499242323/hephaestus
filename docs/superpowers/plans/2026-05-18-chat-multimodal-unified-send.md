@@ -1,4 +1,4 @@
-# 聊天页统一多模态发送实现计划
+﻿# 聊天页统一多模态发送实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,8 +13,8 @@
 ### 任务 1：后端多模态决策服务
 
 **文件:**
-- 新建: `src/main/java/com/example/springaidemo/service/MultimodalChatService.java`
-- 新建: `src/test/java/com/example/springaidemo/service/MultimodalDecisionParserTest.java`
+- 新建: `src/main/java/olympus/hephaestus/service/MultimodalChatService.java`
+- 新建: `src/test/java/olympus/hephaestus/service/MultimodalDecisionParserTest.java`
 
 - [ ] **Step 1: 写 JSON 决策解析测试**
 
@@ -49,9 +49,9 @@ rtk proxy cmd /c "set JAVA_HOME=D:\Program Files\JetBrains\IntelliJ IDEA 2025.2.
 ### 任务 2：统一多模态接口
 
 **文件:**
-- 修改: `src/main/java/com/example/springaidemo/service/MultimodalChatService.java`
-- 新建: `src/main/java/com/example/springaidemo/controller/MultimodalChatController.java`
-- 新建: `src/test/java/com/example/springaidemo/controller/MultimodalChatControllerTest.java`
+- 修改: `src/main/java/olympus/hephaestus/service/MultimodalChatService.java`
+- 新建: `src/main/java/olympus/hephaestus/controller/MultimodalChatController.java`
+- 新建: `src/test/java/olympus/hephaestus/controller/MultimodalChatControllerTest.java`
 
 - [ ] **Step 1: 写控制器测试**
 

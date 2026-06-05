@@ -1,4 +1,4 @@
-# SpringAIDemo Implementation Plan
+﻿# SpringAIDemo Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -27,9 +27,9 @@
 ### Task 2: Rename application package and entry point
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/SpringAiDemoApplication.java`
+- Create: `src/main/java/olympus/hephaestus/SpringAiDemoApplication.java`
 - Delete: `src/main/java/com/example/demo/DemoApplication.java`
-- Create: `src/test/java/com/example/springaidemo/SpringAiDemoApplicationTests.java`
+- Create: `src/test/java/olympus/hephaestus/SpringAiDemoApplicationTests.java`
 - Delete: `src/test/java/com/example/demo/DemoApplicationTests.java`
 
 - [ ] **Step 1: Move the main application class into the new package and rename the class**

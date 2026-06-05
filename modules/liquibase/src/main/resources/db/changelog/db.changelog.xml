@@ -1566,4 +1566,58 @@
               );
         </sql>
     </changeSet>
+    <changeSet id="management-query-index-role-permission-relations-20260604" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_role_permission"/>
+            <not>
+                <indexExists tableName="heph_role_permission" indexName="idx_heph_role_permission_role_code"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_role_permission" indexName="idx_heph_role_permission_role_code">
+            <column name="role_id"/>
+            <column name="permission_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-person-permission-cache-20260604" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person_permission"/>
+            <not>
+                <indexExists tableName="heph_person_permission" indexName="idx_heph_person_permission_person_code"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person_permission" indexName="idx_heph_person_permission_person_code">
+            <column name="person_id"/>
+            <column name="permission_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-person-role-role-person-20260604" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person_role"/>
+            <not>
+                <indexExists tableName="heph_person_role" indexName="idx_heph_person_role_role_person"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person_role" indexName="idx_heph_person_role_role_person">
+            <column name="role_id"/>
+            <column name="person_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="management-query-index-person-email-enabled-20260604" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="heph_person"/>
+            <columnExists tableName="heph_person" columnName="email"/>
+            <not>
+                <indexExists tableName="heph_person" indexName="idx_heph_person_email_enabled_id"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="heph_person" indexName="idx_heph_person_email_enabled_id">
+            <column name="email"/>
+            <column name="enabled"/>
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

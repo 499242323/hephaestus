@@ -1,4 +1,4 @@
-# MyBatis PageInfo 查询逻辑迁移 Implementation Plan
+﻿# MyBatis PageInfo 查询逻辑迁移 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -14,37 +14,37 @@
 
 ### Create
 
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageQuery.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageQuery.java`
   - 统一承载分页参数、默认值、页大小上限和 `offset` 计算。
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageInfo.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageInfo.java`
   - 统一承载分页结果 `items/page/pageSize/total`。
-- `modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageSupport.java`
+- `modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageSupport.java`
   - 提供分页参数归一化与 `PageInfo` 组装静态方法。
-- `modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java`
+- `modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java`
   - 覆盖公共分页逻辑的最小单元测试。
 
 ### Modify
 
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java`
   - 去掉手写分页算法，改为调用 `PageSupport`。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/dto/LoginLogPageResponse.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/dto/LoginLogPageResponse.java`
   - 增加从公共 `PageInfo<LoginLogResponse>` 转换的入口，保持业务 DTO 稳定。
 
 ### Optional Test
 
-- `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/log/service/LoginLogServiceImplTest.java`
+- `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/log/service/LoginLogServiceImplTest.java`
   - 如果模块已有可复用测试基础，则补一条服务层兼容测试；若当前测试基建不足，可延后。
 
 ## Task 1: 公共分页对象测试先行
 
 **Files:**
 
-- Create: `modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java`
+- Create: `modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java`
 
 - [ ] **Step 1: 写第一条 failing test，验证默认分页归一化**
 
 ```java
-package com.example.springaidemo.mybatis.page;
+package olympus.hephaestus.mybatis.page;
 
 import org.junit.jupiter.api.Test;
 
@@ -79,10 +79,10 @@ Expected:
 
 - [ ] **Step 3: 实现最小分页对象让测试转绿**
 
-`modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageQuery.java`
+`modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageQuery.java`
 
 ```java
-package com.example.springaidemo.mybatis.page;
+package olympus.hephaestus.mybatis.page;
 
 public record PageQuery(int page, int pageSize) {
 
@@ -96,10 +96,10 @@ public record PageQuery(int page, int pageSize) {
 }
 ```
 
-`modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageInfo.java`
+`modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageInfo.java`
 
 ```java
-package com.example.springaidemo.mybatis.page;
+package olympus.hephaestus.mybatis.page;
 
 import java.util.List;
 
@@ -112,10 +112,10 @@ public record PageInfo<T>(
 }
 ```
 
-`modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageSupport.java`
+`modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageSupport.java`
 
 ```java
-package com.example.springaidemo.mybatis.page;
+package olympus.hephaestus.mybatis.page;
 
 import java.util.List;
 
@@ -157,7 +157,7 @@ Expected:
 - [ ] **Step 5: 提交这一小步**
 
 ```bash
-git add modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageQuery.java modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageInfo.java modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageSupport.java modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java
+git add modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageQuery.java modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageInfo.java modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageSupport.java modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java
 git commit -m "feat: add mybatis page support"
 ```
 
@@ -165,7 +165,7 @@ git commit -m "feat: add mybatis page support"
 
 **Files:**
 
-- Modify: `modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java`
+- Modify: `modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java`
 
 - [ ] **Step 1: 新增 failing tests，覆盖页码、页大小和结果封装**
 
@@ -223,10 +223,10 @@ Expected:
 
 - [ ] **Step 3: 用最小实现修正公共分页支持**
 
-`modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageSupport.java`
+`modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageSupport.java`
 
 ```java
-package com.example.springaidemo.mybatis.page;
+package olympus.hephaestus.mybatis.page;
 
 import java.util.List;
 
@@ -269,7 +269,7 @@ Expected:
 - [ ] **Step 5: 提交这一小步**
 
 ```bash
-git add modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page/PageSupport.java modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page/PageSupportTest.java
+git add modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page/PageSupport.java modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page/PageSupportTest.java
 git commit -m "test: cover mybatis page support boundaries"
 ```
 
@@ -277,8 +277,8 @@ git commit -m "test: cover mybatis page support boundaries"
 
 **Files:**
 
-- Modify: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java`
-- Modify: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/dto/LoginLogPageResponse.java`
+- Modify: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java`
+- Modify: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/dto/LoginLogPageResponse.java`
 
 - [ ] **Step 1: 先写 failing test 或最小兼容断言**
 
@@ -315,12 +315,12 @@ Expected:
 
 - [ ] **Step 3: 修改 DTO，增加公共分页转换入口**
 
-`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/dto/LoginLogPageResponse.java`
+`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/dto/LoginLogPageResponse.java`
 
 ```java
-package com.example.springaidemo.login.log.dto;
+package olympus.hephaestus.login.log.dto;
 
-import com.example.springaidemo.mybatis.page.PageInfo;
+import olympus.hephaestus.mybatis.page.PageInfo;
 
 import java.util.List;
 
@@ -344,12 +344,12 @@ public record LoginLogPageResponse(
 
 - [ ] **Step 4: 修改登录日志服务，替换手写分页算法**
 
-`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java`
+`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java`
 
 ```java
-import com.example.springaidemo.mybatis.page.PageInfo;
-import com.example.springaidemo.mybatis.page.PageQuery;
-import com.example.springaidemo.mybatis.page.PageSupport;
+import olympus.hephaestus.mybatis.page.PageInfo;
+import olympus.hephaestus.mybatis.page.PageQuery;
+import olympus.hephaestus.mybatis.page.PageSupport;
 ```
 
 把 `query(...)` 方法中的分页部分改成：
@@ -389,7 +389,7 @@ Expected:
 - [ ] **Step 6: 提交这一小步**
 
 ```bash
-git add modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/dto/LoginLogPageResponse.java
+git add modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/dto/LoginLogPageResponse.java
 git commit -m "refactor: reuse mybatis page support in login logs"
 ```
 
@@ -446,7 +446,7 @@ Expected:
 - [ ] **Step 5: 最终提交**
 
 ```bash
-git add modules/mybatis/src/main/java/com/example/springaidemo/mybatis/page modules/mybatis/src/test/java/com/example/springaidemo/mybatis/page modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/service/impl/LoginLogServiceImpl.java modules/hephaestus-login/src/main/java/com/example/springaidemo/login/log/dto/LoginLogPageResponse.java docs/mybatis/page-info/prd/2026-05-29-adhoc-page-info-prd.md docs/mybatis/page-info/plan/2026-05-29-adhoc-page-info-plan.md
+git add modules/mybatis/src/main/java/olympus/hephaestus/mybatis/page modules/mybatis/src/test/java/olympus/hephaestus/mybatis/page modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/service/impl/LoginLogServiceImpl.java modules/hephaestus-login/src/main/java/olympus/hephaestus/login/log/dto/LoginLogPageResponse.java docs/mybatis/page-info/prd/2026-05-29-adhoc-page-info-prd.md docs/mybatis/page-info/plan/2026-05-29-adhoc-page-info-plan.md
 git commit -m "feat: migrate minimal page info support"
 ```
 

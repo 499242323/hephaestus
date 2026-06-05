@@ -14,33 +14,33 @@
 
 ### 新增文件
 
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/controller/EmailRegisterController.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/controller/EmailRegisterController.java`
   - 提供发送验证码、注册、重置密码接口。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/service/EmailRegisterService.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/service/EmailRegisterService.java`
   - 定义邮箱注册和重置密码服务接口。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/service/impl/EmailRegisterServiceImpl.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/service/impl/EmailRegisterServiceImpl.java`
   - 实现注册、验证码发送、验证码校验和重置密码流程。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/domain/EmailVerificationCodeEntity.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/domain/EmailVerificationCodeEntity.java`
   - 映射 `sys_email_verification_code` 表。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/domain/EmailVerificationScene.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/domain/EmailVerificationScene.java`
   - 定义 `REGISTER`、`RESET_PASSWORD` 场景。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/SendEmailCodeRequest.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/SendEmailCodeRequest.java`
   - 发送验证码请求。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/RegisterRequest.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/RegisterRequest.java`
   - 注册请求。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/ResetPasswordRequest.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/ResetPasswordRequest.java`
   - 重置密码请求。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/EmailRegisterResponse.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/EmailRegisterResponse.java`
   - 通用响应。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/repository/EmailVerificationCodeRepository.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/repository/EmailVerificationCodeRepository.java`
   - 验证码表 MyBatis 仓储。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/EmailCodeGenerator.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/EmailCodeGenerator.java`
   - 生成 6 位数字验证码。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/EmailCodeHasher.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/EmailCodeHasher.java`
   - 使用 SHA-256 哈希验证码。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/RegisterMailSender.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/RegisterMailSender.java`
   - 包装 `JavaMailSender`，发送中文验证码邮件。
-- `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/register/service/EmailRegisterServiceTest.java`
+- `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/register/service/EmailRegisterServiceTest.java`
   - 服务层 TDD 测试。
 - `modules/hephaestus-login/src/main/resources/static/login.html`
   - 登录页内注册入口面。
@@ -53,19 +53,19 @@
 
 - `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`
   - 追加 `source_type` 字段、验证码表、配置项和索引 changeset。
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgPersonEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgPersonEntity.java`
   - 增加 `sourceType` 属性。
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java`
   - 增加人员来源字段。
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonListRow.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonListRow.java`
   - 增加人员来源字段。
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgPersonRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgPersonRepository.java`
   - 查询补充 `source_type`，新增按邮箱统计、按邮箱用户名查询、更新密码方法。
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java`
   - 管理员新增人员默认 `ADMIN`，摘要返回来源字段。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/LoginConfigConst.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/LoginConfigConst.java`
   - 增加注册部门和验证码配置 key。
-- `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/support/LoginRequiredInterceptor.java`
+- `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/support/LoginRequiredInterceptor.java`
   - fallback 白名单补充注册页与注册接口。
 - `modules/hephaestus-app/src/main/resources/application.yml`
   - 配置白名单补充注册页与注册接口。
@@ -170,11 +170,11 @@ Expected: 三类新增内容均能查到，且文件只有一个 `</databaseChan
 ## Task 2: 人员来源字段接入组织模型
 
 **Files:**
-- Modify: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/entity/OrgPersonEntity.java`
-- Modify: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java`
-- Modify: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonListRow.java`
-- Modify: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/repository/OrgPersonRepository.java`
-- Modify: `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java`
+- Modify: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/entity/OrgPersonEntity.java`
+- Modify: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java`
+- Modify: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonListRow.java`
+- Modify: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/repository/OrgPersonRepository.java`
+- Modify: `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java`
 
 - [ ] **Step 1: 增加实体字段**
 
@@ -275,16 +275,16 @@ Expected: `BUILD SUCCESS`。
 ## Task 3: 邮箱验证码领域和工具
 
 **Files:**
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/domain/EmailVerificationScene.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/domain/EmailVerificationCodeEntity.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/EmailCodeGenerator.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/EmailCodeHasher.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/support/RegisterMailSender.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/domain/EmailVerificationScene.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/domain/EmailVerificationCodeEntity.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/EmailCodeGenerator.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/EmailCodeHasher.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/support/RegisterMailSender.java`
 
 - [ ] **Step 1: 创建验证码场景枚举**
 
 ```java
-package com.example.springaidemo.login.register.domain;
+package olympus.hephaestus.login.register.domain;
 
 public enum EmailVerificationScene {
     REGISTER,
@@ -295,7 +295,7 @@ public enum EmailVerificationScene {
 - [ ] **Step 2: 创建验证码实体**
 
 ```java
-package com.example.springaidemo.login.register.domain;
+package olympus.hephaestus.login.register.domain;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -338,7 +338,7 @@ public class EmailVerificationCodeEntity {
 - [ ] **Step 3: 创建 6 位验证码生成器**
 
 ```java
-package com.example.springaidemo.login.register.support;
+package olympus.hephaestus.login.register.support;
 
 import org.springframework.stereotype.Component;
 
@@ -358,7 +358,7 @@ public class EmailCodeGenerator {
 - [ ] **Step 4: 创建 SHA-256 哈希工具**
 
 ```java
-package com.example.springaidemo.login.register.support;
+package olympus.hephaestus.login.register.support;
 
 import org.springframework.stereotype.Component;
 
@@ -389,9 +389,9 @@ public class EmailCodeHasher {
 - [ ] **Step 5: 创建邮件发送组件**
 
 ```java
-package com.example.springaidemo.login.register.support;
+package olympus.hephaestus.login.register.support;
 
-import com.example.springaidemo.weather.tools.EmailProperties;
+import olympus.hephaestus.weather.tools.EmailProperties;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -441,16 +441,16 @@ Expected: `BUILD SUCCESS`。
 ## Task 4: 验证码仓储和服务 TDD
 
 **Files:**
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/repository/EmailVerificationCodeRepository.java`
-- Create: `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/register/service/EmailRegisterServiceTest.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/repository/EmailVerificationCodeRepository.java`
+- Create: `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/register/service/EmailRegisterServiceTest.java`
 
 - [ ] **Step 1: 创建验证码仓储**
 
 ```java
-package com.example.springaidemo.login.register.repository;
+package olympus.hephaestus.login.register.repository;
 
-import com.example.springaidemo.login.register.domain.EmailVerificationCodeEntity;
-import com.example.springaidemo.mybatis.repository.BaseAbstractRepository;
+import olympus.hephaestus.login.register.domain.EmailVerificationCodeEntity;
+import olympus.hephaestus.mybatis.repository.BaseAbstractRepository;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -509,13 +509,13 @@ Expected: FAIL，原因是 `EmailRegisterServiceImpl` 尚不存在。
 ## Task 5: 注册服务最小实现
 
 **Files:**
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/SendEmailCodeRequest.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/RegisterRequest.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/ResetPasswordRequest.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/dto/EmailRegisterResponse.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/service/EmailRegisterService.java`
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/service/impl/EmailRegisterServiceImpl.java`
-- Modify: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/LoginConfigConst.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/SendEmailCodeRequest.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/RegisterRequest.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/ResetPasswordRequest.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/dto/EmailRegisterResponse.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/service/EmailRegisterService.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/service/impl/EmailRegisterServiceImpl.java`
+- Modify: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/LoginConfigConst.java`
 
 - [ ] **Step 1: 增加配置常量**
 
@@ -575,8 +575,8 @@ Expected: `BUILD SUCCESS`。
 ## Task 6: 补齐验证码发送和重置密码测试
 
 **Files:**
-- Modify: `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/register/service/EmailRegisterServiceTest.java`
-- Modify: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/service/impl/EmailRegisterServiceImpl.java`
+- Modify: `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/register/service/EmailRegisterServiceTest.java`
+- Modify: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/service/impl/EmailRegisterServiceImpl.java`
 
 - [ ] **Step 1: 增加发送频率测试**
 
@@ -616,8 +616,8 @@ Expected: `BUILD SUCCESS`。
 ## Task 7: Controller 和白名单
 
 **Files:**
-- Create: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/register/controller/EmailRegisterController.java`
-- Modify: `modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/support/LoginRequiredInterceptor.java`
+- Create: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/register/controller/EmailRegisterController.java`
+- Modify: `modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/support/LoginRequiredInterceptor.java`
 - Modify: `modules/hephaestus-app/src/main/resources/application.yml`
 
 - [ ] **Step 1: 创建 Controller**

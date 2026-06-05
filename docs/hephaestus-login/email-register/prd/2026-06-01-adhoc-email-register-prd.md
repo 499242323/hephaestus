@@ -57,13 +57,13 @@
 
 在 `modules/hephaestus-login` 新增邮箱注册领域，推荐包结构：
 
-- `com.example.springaidemo.login.register.controller`
-- `com.example.springaidemo.login.register.service`
-- `com.example.springaidemo.login.register.service.impl`
-- `com.example.springaidemo.login.register.dto`
-- `com.example.springaidemo.login.register.domain`
-- `com.example.springaidemo.login.register.repository`
-- `com.example.springaidemo.login.register.support`
+- `olympus.hephaestus.login.register.controller`
+- `olympus.hephaestus.login.register.service`
+- `olympus.hephaestus.login.register.service.impl`
+- `olympus.hephaestus.login.register.dto`
+- `olympus.hephaestus.login.register.domain`
+- `olympus.hephaestus.login.register.repository`
+- `olympus.hephaestus.login.register.support`
 
 接口建议：
 
@@ -190,8 +190,8 @@
 
 后端测试建议新增：
 
-- `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/register/service/EmailRegisterServiceTest.java`
-- `modules/hephaestus-login/src/test/java/com/example/springaidemo/login/register/controller/EmailRegisterControllerTest.java`
+- `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/register/service/EmailRegisterServiceTest.java`
+- `modules/hephaestus-login/src/test/java/olympus/hephaestus/login/register/controller/EmailRegisterControllerTest.java`
 
 如当前测试环境缺少数据库依赖，优先使用 Mockito 单元测试覆盖服务规则；仓储 SQL 通过编译和必要集成验证收口。
 

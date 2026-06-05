@@ -1,4 +1,4 @@
-# Hephaestus 登录模块实施计划
+﻿# Hephaestus 登录模块实施计划
 
 > **给 agentic worker 的要求：** 按任务逐项实施和复核；如果继续执行未完成项，使用 `superpowers:executing-plans`。步骤使用 checkbox (`- [ ]`) 跟踪。
 
@@ -46,29 +46,29 @@
 
 ### 2.2 登录认证
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthController.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/AuthService.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginRequest.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginResponse.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginSessionUser.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginRequiredInterceptor.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginWebMvcConfiguration.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginException.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginExceptionHandler.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/RsaPasswordCryptoService.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/auth/LoginPasswordCryptoProperties.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthController.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/AuthService.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginRequest.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginResponse.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginSessionUser.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginRequiredInterceptor.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginWebMvcConfiguration.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginException.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginExceptionHandler.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/RsaPasswordCryptoService.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/auth/LoginPasswordCryptoProperties.java`
 
 ### 2.3 系统配置
 
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/LoginConfigConst.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/controller/SystemConfigController.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/service/SystemConfigService.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/service/SystemConfigCacheService.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/repository/SystemConfigDefinitionRepository.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/repository/SystemConfigValueRepository.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/domain/SystemConfigDefinitionEntity.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/domain/SystemConfigValueEntity.java`
-- 新增：`modules/hephaestus-login/src/main/java/com/example/springaidemo/login/config/dto/*`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/LoginConfigConst.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/controller/SystemConfigController.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/service/SystemConfigService.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/service/SystemConfigCacheService.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/repository/SystemConfigDefinitionRepository.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/repository/SystemConfigValueRepository.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/domain/SystemConfigDefinitionEntity.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/domain/SystemConfigValueEntity.java`
+- 新增：`modules/hephaestus-login/src/main/java/olympus/hephaestus/login/config/dto/*`
 
 ### 2.4 数据库变更
 

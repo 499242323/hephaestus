@@ -1,4 +1,4 @@
-# 聊天页图片工具实现计划
+﻿# 聊天页图片工具实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,8 +13,8 @@
 ### 任务 1：后端图片接口
 
 **文件:**
-- 新建: `src/main/java/com/example/springaidemo/controller/ImageController.java`
-- 新建: `src/test/java/com/example/springaidemo/controller/ImageControllerTest.java`
+- 新建: `src/main/java/olympus/hephaestus/controller/ImageController.java`
+- 新建: `src/test/java/olympus/hephaestus/controller/ImageControllerTest.java`
 
 - [ ] **Step 1: 编写失败测试**
 

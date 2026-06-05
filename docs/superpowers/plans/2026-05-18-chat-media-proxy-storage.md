@@ -1,4 +1,4 @@
-# Chat Media Proxy Storage Implementation Plan
+﻿# Chat Media Proxy Storage Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -13,9 +13,9 @@
 ### Task 1: 多媒体配置与元数据模型
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/media/MediaStorageProperties.java`
-- Create: `src/main/java/com/example/springaidemo/media/MediaFile.java`
-- Modify: `src/main/java/com/example/springaidemo/SpringAiDemoApplication.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaStorageProperties.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaFile.java`
+- Modify: `src/main/java/olympus/hephaestus/SpringAiDemoApplication.java`
 - Modify: `src/main/resources/application.yml`
 
 - [ ] 创建 `MediaStorageProperties`，绑定 `app.media.base-url`、`username`、`password`、`storage-prefix`。
@@ -27,9 +27,9 @@
 ### Task 2: 媒体元数据表与仓库
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java`
-- Create: `src/main/java/com/example/springaidemo/media/MediaFileRepository.java`
-- Test: `src/test/java/com/example/springaidemo/media/MediaFileRepositoryTest.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaFileRepository.java`
+- Test: `src/test/java/olympus/hephaestus/media/MediaFileRepositoryTest.java`
 
 - [ ] 写 repository 测试，覆盖保存和按 id 查询。
 - [ ] 实现 `MediaFileSchemaInitializer`，启动时创建 `spring_ai_media_file` 表。
@@ -39,10 +39,10 @@
 ### Task 3: 多媒体服务客户端
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/media/MediaStorageException.java`
-- Create: `src/main/java/com/example/springaidemo/media/StoredMediaFile.java`
-- Create: `src/main/java/com/example/springaidemo/media/MediaStorageService.java`
-- Test: `src/test/java/com/example/springaidemo/media/MediaStorageServiceTest.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaStorageException.java`
+- Create: `src/main/java/olympus/hephaestus/media/StoredMediaFile.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaStorageService.java`
+- Test: `src/test/java/olympus/hephaestus/media/MediaStorageServiceTest.java`
 
 - [ ] 写 `MediaStorageService` 测试，覆盖 path 生成、Basic Auth、上传返回 `"0"` 成功、非 `"0"` 失败。
 - [ ] 实现上传到 `/home/httpfile/writefile.htm?path=...`。
@@ -53,8 +53,8 @@
 ### Task 4: 代理展示和下载接口
 
 **Files:**
-- Create: `src/main/java/com/example/springaidemo/media/MediaFileController.java`
-- Test: `src/test/java/com/example/springaidemo/media/MediaFileControllerTest.java`
+- Create: `src/main/java/olympus/hephaestus/media/MediaFileController.java`
+- Test: `src/test/java/olympus/hephaestus/media/MediaFileControllerTest.java`
 
 - [ ] 写 controller 测试，覆盖预览、下载、id 不存在。
 - [ ] 实现 `GET /api/media/files/{id}`，inline 返回文件内容。
@@ -65,9 +65,9 @@
 ### Task 5: 多模态聊天接入媒体存储
 
 **Files:**
-- Modify: `src/main/java/com/example/springaidemo/service/MultimodalChatService.java`
-- Modify: `src/test/java/com/example/springaidemo/controller/MultimodalChatControllerTest.java`
-- Create: `src/test/java/com/example/springaidemo/service/MultimodalChatServiceMediaTest.java`
+- Modify: `src/main/java/olympus/hephaestus/service/MultimodalChatService.java`
+- Modify: `src/test/java/olympus/hephaestus/controller/MultimodalChatControllerTest.java`
+- Create: `src/test/java/olympus/hephaestus/service/MultimodalChatServiceMediaTest.java`
 
 - [ ] 扩展响应结构，增加 `attachments` 和 `generatedImage`。
 - [ ] 上传附件时先保存多媒体服务和元数据，再继续 `.media(...)` 调 LLM。

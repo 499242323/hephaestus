@@ -1,4 +1,4 @@
-# Hephaestus Liquibase Module Implementation Plan
+﻿# Hephaestus Liquibase Module Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -24,12 +24,12 @@
 - `modules/hephaestus-app/pom.xml`
   - Spring Boot application module.
   - Depends on `modules/liquibase`.
-- `modules/hephaestus-app/src/main/java/com/example/springaidemo/**`
+- `modules/hephaestus-app/src/main/java/olympus/hephaestus/**`
   - Existing app code moved under the app module.
 - `modules/hephaestus-app/src/main/resources/application.yml`
   - Disables Spring AI JDBC schema auto-init.
   - Enables Liquibase via classpath changelog.
-- `modules/hephaestus-app/src/test/java/com/example/springaidemo/**`
+- `modules/hephaestus-app/src/test/java/olympus/hephaestus/**`
   - Existing tests moved under the app module.
 
 ### Liquibase Module
@@ -38,9 +38,9 @@
   - Reusable `jar` module for Liquibase and Spring AI JDBC dialect support.
 - `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`
   - Single changelog file with baseline and compatibility patches.
-- `modules/liquibase/src/main/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`
+- `modules/liquibase/src/main/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`
   - Forces Spring AI JDBC SQL to use `spring_ai_chat_memory`.
-- `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/**`
+- `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/**`
   - Liquibase-focused tests for changelog and dialect wiring.
 
 ## Task 1: Convert the repository root into a Maven aggregator
@@ -249,24 +249,24 @@ git commit -m "build: convert project to Maven multi-module structure"
 ## Task 2: Move the current application into `modules/hephaestus-app`
 
 **Files:**
-- Create: `modules/hephaestus-app/src/main/java/com/example/springaidemo/**`
+- Create: `modules/hephaestus-app/src/main/java/olympus/hephaestus/**`
 - Create: `modules/hephaestus-app/src/main/resources/application.yml`
 - Create: `modules/hephaestus-app/src/main/resources/static/chat.html`
-- Create: `modules/hephaestus-app/src/test/java/com/example/springaidemo/**`
-- Delete: `src/main/java/com/example/springaidemo/**`
+- Create: `modules/hephaestus-app/src/test/java/olympus/hephaestus/**`
+- Delete: `src/main/java/olympus/hephaestus/**`
 - Delete: `src/main/resources/application.yml`
 - Delete: `src/main/resources/static/chat.html`
-- Delete: `src/test/java/com/example/springaidemo/**`
+- Delete: `src/test/java/olympus/hephaestus/**`
 
 - [ ] **Step 1: Move the existing application source tree into the app module**
 
 Target layout after the move:
 
 ```text
-modules/hephaestus-app/src/main/java/com/example/springaidemo/...
+modules/hephaestus-app/src/main/java/olympus/hephaestus/...
 modules/hephaestus-app/src/main/resources/application.yml
 modules/hephaestus-app/src/main/resources/static/chat.html
-modules/hephaestus-app/src/test/java/com/example/springaidemo/...
+modules/hephaestus-app/src/test/java/olympus/hephaestus/...
 ```
 
 Move these trees as-is before making functional edits:
@@ -279,12 +279,12 @@ src/test/java -> modules/hephaestus-app/src/test/java
 
 - [ ] **Step 2: Keep the Spring Boot entry point unchanged inside the new module**
 
-Confirm `modules/hephaestus-app/src/main/java/com/example/springaidemo/SpringAiDemoApplication.java` still contains:
+Confirm `modules/hephaestus-app/src/main/java/olympus/hephaestus/SpringAiDemoApplication.java` still contains:
 
 ```java
-package com.example.springaidemo;
+package olympus.hephaestus;
 
-import com.example.springaidemo.media.MediaStorageProperties;
+import olympus.hephaestus.media.MediaStorageProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -326,15 +326,15 @@ git commit -m "refactor: move Spring Boot app into hephaestus-app module"
 
 **Files:**
 - Create: `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`
-- Create: `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/ChangelogStructureTest.java`
-- Create: `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/LowercaseSchemaContractTest.java`
+- Create: `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/ChangelogStructureTest.java`
+- Create: `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/LowercaseSchemaContractTest.java`
 
 - [ ] **Step 1: Write the first failing test for the single changelog location**
 
-Create `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/ChangelogStructureTest.java`:
+Create `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/ChangelogStructureTest.java`:
 
 ```java
-package com.example.springaidemo.liquibase;
+package olympus.hephaestus.liquibase;
 
 import org.junit.jupiter.api.Test;
 
@@ -532,10 +532,10 @@ Create `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml` with
 
 - [ ] **Step 4: Add a second test that locks in lowercase table names**
 
-Create `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/LowercaseSchemaContractTest.java`:
+Create `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/LowercaseSchemaContractTest.java`:
 
 ```java
-package com.example.springaidemo.liquibase;
+package olympus.hephaestus.liquibase;
 
 import org.junit.jupiter.api.Test;
 
@@ -577,23 +577,23 @@ BUILD SUCCESS
 - [ ] **Step 6: Commit the Liquibase skeleton**
 
 ```bash
-git add modules/liquibase/src/main/resources/db/changelog/db.changelog.xml modules/liquibase/src/test/java/com/example/springaidemo/liquibase
+git add modules/liquibase/src/main/resources/db/changelog/db.changelog.xml modules/liquibase/src/test/java/olympus/hephaestus/liquibase
 git commit -m "feat: add liquibase module changelog skeleton"
 ```
 
 ## Task 4: Add the lowercase Spring AI JDBC dialect and wire it into chat memory
 
 **Files:**
-- Create: `modules/liquibase/src/main/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`
-- Modify: `modules/hephaestus-app/src/main/java/com/example/springaidemo/config/PersistentChatMemoryConfig.java`
-- Create: `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java`
+- Create: `modules/liquibase/src/main/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`
+- Modify: `modules/hephaestus-app/src/main/java/olympus/hephaestus/config/PersistentChatMemoryConfig.java`
+- Create: `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java`
 
 - [ ] **Step 1: Write the failing test for lowercase table-name SQL generation**
 
-Create `modules/liquibase/src/test/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java`:
+Create `modules/liquibase/src/test/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java`:
 
 ```java
-package com.example.springaidemo.liquibase;
+package olympus.hephaestus.liquibase;
 
 import org.junit.jupiter.api.Test;
 
@@ -635,10 +635,10 @@ cannot find symbol: class LowercaseMysqlChatMemoryRepositoryDialect
 
 - [ ] **Step 3: Implement the lowercase dialect in the Liquibase module**
 
-Create `modules/liquibase/src/main/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`:
+Create `modules/liquibase/src/main/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java`:
 
 ```java
-package com.example.springaidemo.liquibase;
+package olympus.hephaestus.liquibase;
 
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepositoryDialect;
 
@@ -672,12 +672,12 @@ public class LowercaseMysqlChatMemoryRepositoryDialect implements JdbcChatMemory
 
 - [ ] **Step 4: Wire the dialect into the application chat memory configuration**
 
-Update `modules/hephaestus-app/src/main/java/com/example/springaidemo/config/PersistentChatMemoryConfig.java` to this shape:
+Update `modules/hephaestus-app/src/main/java/olympus/hephaestus/config/PersistentChatMemoryConfig.java` to this shape:
 
 ```java
-package com.example.springaidemo.config;
+package olympus.hephaestus.config;
 
-import com.example.springaidemo.liquibase.LowercaseMysqlChatMemoryRepositoryDialect;
+import olympus.hephaestus.liquibase.LowercaseMysqlChatMemoryRepositoryDialect;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -731,7 +731,7 @@ BUILD SUCCESS
 - [ ] **Step 6: Commit the lowercase dialect support**
 
 ```bash
-git add modules/liquibase/src/main/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java modules/liquibase/src/test/java/com/example/springaidemo/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java modules/hephaestus-app/src/main/java/com/example/springaidemo/config/PersistentChatMemoryConfig.java
+git add modules/liquibase/src/main/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialect.java modules/liquibase/src/test/java/olympus/hephaestus/liquibase/LowercaseMysqlChatMemoryRepositoryDialectTest.java modules/hephaestus-app/src/main/java/olympus/hephaestus/config/PersistentChatMemoryConfig.java
 git commit -m "feat: use lowercase chat memory table through custom dialect"
 ```
 
@@ -739,15 +739,15 @@ git commit -m "feat: use lowercase chat memory table through custom dialect"
 
 **Files:**
 - Modify: `modules/hephaestus-app/src/main/resources/application.yml`
-- Delete: `modules/hephaestus-app/src/main/java/com/example/springaidemo/config/ChatMemorySchemaInitializer.java`
-- Delete: `modules/hephaestus-app/src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java`
-- Delete: `modules/hephaestus-app/src/test/java/com/example/springaidemo/config/ChatMemorySchemaInitializerTest.java`
-- Delete: `modules/hephaestus-app/src/test/java/com/example/springaidemo/media/MediaFileSchemaInitializerTest.java`
-- Modify: `modules/hephaestus-app/src/test/java/com/example/springaidemo/ChatMemoryTest.java`
+- Delete: `modules/hephaestus-app/src/main/java/olympus/hephaestus/config/ChatMemorySchemaInitializer.java`
+- Delete: `modules/hephaestus-app/src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java`
+- Delete: `modules/hephaestus-app/src/test/java/olympus/hephaestus/config/ChatMemorySchemaInitializerTest.java`
+- Delete: `modules/hephaestus-app/src/test/java/olympus/hephaestus/media/MediaFileSchemaInitializerTest.java`
+- Modify: `modules/hephaestus-app/src/test/java/olympus/hephaestus/ChatMemoryTest.java`
 
 - [ ] **Step 1: Write the failing integration assertion that Liquibase tables exist**
 
-Update `modules/hephaestus-app/src/test/java/com/example/springaidemo/ChatMemoryTest.java` to add this test before making config changes:
+Update `modules/hephaestus-app/src/test/java/olympus/hephaestus/ChatMemoryTest.java` to add this test before making config changes:
 
 ```java
 @Test
@@ -802,10 +802,10 @@ Keep the existing datasource and Redis sections intact.
 Remove:
 
 ```text
-modules/hephaestus-app/src/main/java/com/example/springaidemo/config/ChatMemorySchemaInitializer.java
-modules/hephaestus-app/src/main/java/com/example/springaidemo/media/MediaFileSchemaInitializer.java
-modules/hephaestus-app/src/test/java/com/example/springaidemo/config/ChatMemorySchemaInitializerTest.java
-modules/hephaestus-app/src/test/java/com/example/springaidemo/media/MediaFileSchemaInitializerTest.java
+modules/hephaestus-app/src/main/java/olympus/hephaestus/config/ChatMemorySchemaInitializer.java
+modules/hephaestus-app/src/main/java/olympus/hephaestus/media/MediaFileSchemaInitializer.java
+modules/hephaestus-app/src/test/java/olympus/hephaestus/config/ChatMemorySchemaInitializerTest.java
+modules/hephaestus-app/src/test/java/olympus/hephaestus/media/MediaFileSchemaInitializerTest.java
 ```
 
 - [ ] **Step 5: Run the app module tests and confirm Liquibase now provides the schema**
@@ -825,7 +825,7 @@ BUILD SUCCESS
 - [ ] **Step 6: Commit the Liquibase cutover**
 
 ```bash
-git add modules/hephaestus-app/src/main/resources/application.yml modules/hephaestus-app/src/test/java/com/example/springaidemo/ChatMemoryTest.java modules/hephaestus-app/src/main/java/com/example/springaidemo/config modules/hephaestus-app/src/main/java/com/example/springaidemo/media modules/hephaestus-app/src/test/java/com/example/springaidemo/config modules/hephaestus-app/src/test/java/com/example/springaidemo/media
+git add modules/hephaestus-app/src/main/resources/application.yml modules/hephaestus-app/src/test/java/olympus/hephaestus/ChatMemoryTest.java modules/hephaestus-app/src/main/java/olympus/hephaestus/config modules/hephaestus-app/src/main/java/olympus/hephaestus/media modules/hephaestus-app/src/test/java/olympus/hephaestus/config modules/hephaestus-app/src/test/java/olympus/hephaestus/media
 git commit -m "refactor: replace startup schema DDL with liquibase"
 ```
 

@@ -1,10 +1,10 @@
-# 岗位与组织权限功能实施计划
+﻿# 岗位与组织权限功能实施计划
 
 > **给编码代理：** 执行本计划时需要使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，并按任务逐项推进。步骤使用复选框（`- [ ]`）跟踪。
 
 **目标：** 在 `hephaestus` 组织设置中实现岗位、岗位类型、人员岗位、岗位权限、人员权限快照和前后端权限控制。
 
-**架构：** 后端在 `com.example.springaidemo.org.role` 下按 controller、service、service.impl、dto、domain、repository 分层；人员主部门继续由 `heph_person.unit_id` 表达，多岗位通过关系表表达。前端新增 `org-role-settings.*` 作为岗位页面，`org-settings.*` 只负责设置抽屉接线、栏目权限控制和人员页岗位选择。
+**架构：** 后端在 `olympus.hephaestus.org.role` 下按 controller、service、service.impl、dto、domain、repository 分层；人员主部门继续由 `heph_person.unit_id` 表达，多岗位通过关系表表达。前端新增 `org-role-settings.*` 作为岗位页面，`org-settings.*` 只负责设置抽屉接线、栏目权限控制和人员页岗位选择。
 
 **技术栈：** Java 17、Spring Boot 3、MyBatis 注解 SQL、Liquibase、Redis Session、原生 HTML/CSS/JS。
 
@@ -14,48 +14,48 @@
 
 ### 1.1 后端新增文件
 
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/constant/OrgPermissionCodes.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/controller/OrgPermissionController.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/controller/OrgRoleController.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgPermissionEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgPersonPermissionEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgPersonRoleEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgRoleEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgRolePermissionEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/domain/OrgRoleTypeEntity.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgCurrentPermissionResponse.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgPermissionItem.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgPersonRoleItem.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgRolePersonItem.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgRoleRequest.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgRoleResponse.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgRoleTreeNode.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/OrgRoleTypeItem.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/UpdatePersonRolesRequest.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/dto/UpdateRolePeopleRequest.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgPermissionRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgPersonPermissionRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgPersonRoleRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgRolePermissionRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgRoleRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/repository/OrgRoleTypeRepository.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/OrgPermissionGuard.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/OrgPersonPermissionRefreshService.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/OrgPersonRoleService.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/OrgRoleService.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/impl/OrgPermissionGuardImpl.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/impl/OrgPersonPermissionRefreshServiceImpl.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/impl/OrgPersonRoleServiceImpl.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/impl/OrgRoleServiceImpl.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/constant/OrgPermissionCodes.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/controller/OrgPermissionController.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/controller/OrgRoleController.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgPermissionEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgPersonPermissionEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgPersonRoleEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgRoleEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgRolePermissionEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/domain/OrgRoleTypeEntity.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgCurrentPermissionResponse.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgPermissionItem.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgPersonRoleItem.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgRolePersonItem.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgRoleRequest.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgRoleResponse.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgRoleTreeNode.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/OrgRoleTypeItem.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/UpdatePersonRolesRequest.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/dto/UpdateRolePeopleRequest.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgPermissionRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgPersonPermissionRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgPersonRoleRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgRolePermissionRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgRoleRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/repository/OrgRoleTypeRepository.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/OrgPermissionGuard.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/OrgPersonPermissionRefreshService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/OrgPersonRoleService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/OrgRoleService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/impl/OrgPermissionGuardImpl.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/impl/OrgPersonPermissionRefreshServiceImpl.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/impl/OrgPersonRoleServiceImpl.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/impl/OrgRoleServiceImpl.java`
 
 ### 1.2 后端修改文件
 
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/controller/OrgUnitController.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/domain/OrgPersonSummary.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/CreateOrgPersonRequest.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/dto/UpdateOrgPersonRequest.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgPersonService.java`
-- `modules/hephaestus-org/src/main/java/com/example/springaidemo/org/service/OrgScopeService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/controller/OrgUnitController.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/domain/OrgPersonSummary.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/CreateOrgPersonRequest.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/dto/UpdateOrgPersonRequest.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgPersonService.java`
+- `modules/hephaestus-org/src/main/java/olympus/hephaestus/org/service/OrgScopeService.java`
 - `modules/liquibase/src/main/resources/db/changelog/db.changelog.xml`
 
 ### 1.3 前端新增和修改文件
@@ -197,9 +197,9 @@
 
 **文件：**
 
-- 按需修改：`modules/hephaestus-org/src/main/java/com/example/springaidemo/org/role/service/impl/OrgPersonRoleServiceImpl.java`
+- 按需修改：`modules/hephaestus-org/src/main/java/olympus/hephaestus/org/role/service/impl/OrgPersonRoleServiceImpl.java`
 - 按需修改：`modules/hephaestus-org/src/main/resources/static/org-settings.js`
-- 测试：`modules/hephaestus-org/src/test/java/com/example/springaidemo/org/role/service/OrgPersonRoleServiceImplTest.java`
+- 测试：`modules/hephaestus-org/src/test/java/olympus/hephaestus/org/role/service/OrgPersonRoleServiceImplTest.java`
 
 - [ ] **Step 1: 确认“人员页分配岗位”使用的权限编码**
 
@@ -245,9 +245,9 @@ OrgPermissionCodes.GENERAL_PERSON_ROLE_ASSIGN
 
 **文件：**
 
-- 测试：`modules/hephaestus-org/src/test/java/com/example/springaidemo/org/role/service/OrgPersonPermissionRefreshServiceImplTest.java`
-- 测试：`modules/hephaestus-org/src/test/java/com/example/springaidemo/org/role/service/OrgRoleServiceImplTest.java`
-- 测试：`modules/hephaestus-org/src/test/java/com/example/springaidemo/org/role/service/OrgPersonRoleServiceImplTest.java`
+- 测试：`modules/hephaestus-org/src/test/java/olympus/hephaestus/org/role/service/OrgPersonPermissionRefreshServiceImplTest.java`
+- 测试：`modules/hephaestus-org/src/test/java/olympus/hephaestus/org/role/service/OrgRoleServiceImplTest.java`
+- 测试：`modules/hephaestus-org/src/test/java/olympus/hephaestus/org/role/service/OrgPersonRoleServiceImplTest.java`
 
 - [ ] **Step 1: 验证权限刷新去重**
 
